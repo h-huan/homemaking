@@ -1,0 +1,57 @@
+.tab-scroll {
+  white-space: nowrap;
+  margin-bottom: 20rpx;
+}
+
+.tab-list {
+  display: inline-flex;
+  gap: 16rpx;
+}
+
+.tab-item {
+  padding: 16rpx 28rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.9);
+  color: #7b6b61;
+}
+
+.tab-item.active {
+  background: #fff1e3;
+  color: #d36c27;
+  font-weight: 700;
+}
+
+.order-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 28rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.order-head,
+.order-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.order-no,
+.order-service {
+  font-weight: 700;
+}
+
+.order-service {
+  font-size: 32rpx;
+  margin: 14rpx 0;
+}
+
+.order-meta {
+  color: #8f7f74;
+  line-height: 1.8;
+}
+
+.order-actions {
+  display: flex;
+  gap: 22rpx;
+}

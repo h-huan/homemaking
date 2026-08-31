@@ -1,0 +1,62 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/category/index",
+    "pages/schedule/index",
+    "pages/mine/index",
+    "pages/login/index",
+    "pages/content/detail/index",
+    "pages/service/list/index",
+    "pages/service/detail/index",
+    "pages/address/list/index",
+    "pages/address/edit/index",
+    "pages/order/booking/index",
+    "pages/order/confirm/index",
+    "pages/order/result/index",
+    "pages/order/list/index",
+    "pages/order/detail/index",
+    "pages/state/empty-orders/index",
+    "pages/state/no-slots/index",
+    "pages/state/load-failed/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "家政服务",
+    "navigationBarBackgroundColor": "#fffaf5",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fff8f1"
+  },
+  "tabBar": {
+    "color": "#7a6f66",
+    "selectedColor": "#e67a2e",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页",
+        "iconPath": "assets/tabbar/home.png",
+        "selectedIconPath": "assets/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/category/index",
+        "text": "分类",
+        "iconPath": "assets/tabbar/category.png",
+        "selectedIconPath": "assets/tabbar/category-active.png"
+      },
+      {
+        "pagePath": "pages/schedule/index",
+        "text": "服务日程",
+        "iconPath": "assets/tabbar/schedule.png",
+        "selectedIconPath": "assets/tabbar/schedule-active.png"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的",
+        "iconPath": "assets/tabbar/mine.png",
+        "selectedIconPath": "assets/tabbar/mine-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

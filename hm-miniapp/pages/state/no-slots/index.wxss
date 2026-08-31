@@ -1,0 +1,9 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.result-btn {
+  margin-top: 18rpx;
+}

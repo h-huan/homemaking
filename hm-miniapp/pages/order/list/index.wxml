@@ -1,0 +1,30 @@
+<view class="page compact">
+  <scroll-view class="tab-scroll" scroll-x>
+    <view class="tab-list">
+      <view class="tab-item {{activeStatus === item.value ? 'active' : ''}}" wx:for="{{tabs}}" wx:key="value" data-value="{{item.value}}" bindtap="switchTab">{{item.label}}</view>
+    </view>
+  </scroll-view>
+
+  <view class="order-card" wx:for="{{rows}}" wx:key="orderId" data-id="{{item.orderId}}" bindtap="goDetail">
+    <view class="order-head">
+      <view class="order-no">{{item.orderNo}}</view>
+      <view class="status-tag {{item.statusMeta.className}}">{{item.statusMeta.label}}</view>
+    </view>
+    <view class="order-service">{{item.serviceName}}</view>
+    <view class="order-meta">预约时间：{{item.appointmentDate}} {{item.appointmentTimeSlot}}</view>
+    <view class="order-meta">服务地址：{{item.serviceAddress}}</view>
+    <view class="order-foot">
+      <view class="price-text">￥{{item.payAmount}}</view>
+      <view class="order-actions">
+        <view class="action-link warm">查看详情</view>
+        <view class="action-link danger" wx:if="{{item.orderStatus === '20' || item.orderStatus === '30'}}" data-id="{{item.orderId}}" catchtap="handleCancel">取消预约</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-wrap" wx:if="{{!rows.length}}">
+    <view class="empty-illus"></view>
+    <view class="section-title">暂无相关订单</view>
+    <view class="muted">去首页挑选一个合适的服务吧</view>
+  </view>
+</view>

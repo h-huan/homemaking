@@ -1,0 +1,130 @@
+﻿<view class="page safe-bottom home-page">
+  <view class="home-hero">
+    <view class="home-search-row" bindtap="openSearch">
+      <view class="home-city">{{searchConfig.cityName}}</view>
+      <view class="home-search-box">
+        <view class="search-icon">
+          <view class="search-icon-circle"></view>
+          <view class="search-icon-handle"></view>
+        </view>
+        <text class="home-search-placeholder">{{searchConfig.placeholder}}</text>
+      </view>
+      <view class="home-search-action"><view class="search-icon search-icon--light"><view class="search-icon-circle"></view><view class="search-icon-handle"></view></view></view>
+    </view>
+
+    <view class="price-tabs" wx:if="{{priceTabList.length}}">
+      <view class="price-tab" wx:for="{{priceTabList}}" wx:key="serviceItemId" data-id="{{item.serviceItemId}}" bindtap="goDetail">
+        <view class="price-tab-title">{{item.title}}</view>
+        <view class="price-tab-price">¥{{item.price}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section section-soft">
+    <view class="service-nav-grid">
+      <view class="service-nav-item" wx:for="{{serviceNavList}}" wx:key="index" data-id="{{item.id}}" data-path="{{item.path}}" bindtap="goServiceList">
+        <view class="service-nav-icon-wrap">
+          <image wx:if="{{item.iconUrl}}" class="service-nav-icon" src="{{item.iconUrl}}" mode="aspectFill" />
+          <view wx:else class="service-nav-icon service-nav-icon--empty"></view>
+        </view>
+        <view class="service-nav-name">{{item.title}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="promo-grid">
+      <view class="promo-main" wx:if="{{promoCardList[0]}}" data-id="{{promoCardList[0].serviceItemId}}" bindtap="goDetail">
+        <view class="promo-copy">
+          <view class="promo-main-title">{{promoCardList[0].title}}</view>
+          <view class="promo-main-desc">{{promoCardList[0].subTitle}}</view>
+        </view>
+        <image wx:if="{{promoCardList[0].imageUrl}}" class="promo-main-image" src="{{promoCardList[0].imageUrl}}" mode="aspectFill" />
+      </view>
+      <view class="promo-side">
+        <view class="promo-small" wx:for="{{promoCardList}}" wx:key="serviceItemId" wx:if="{{index > 0 && index < 3}}" data-id="{{item.serviceItemId}}" bindtap="goDetail">
+          <view>
+            <view class="promo-small-title">{{item.title}}</view>
+            <view class="promo-small-desc">{{item.subTitle}}</view>
+          </view>
+          <image wx:if="{{item.imageUrl}}" class="promo-small-image" src="{{item.imageUrl}}" mode="aspectFill" />
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view class="section-title">{{sectionConfig.familyTitle}}</view>
+      <view class="section-desc" bindtap="goCategoryTab">{{sectionConfig.familyMoreText}}</view>
+    </view>
+    <scroll-view class="service-horizontal" scroll-x>
+      <view class="service-horizontal-list">
+        <view class="service-mini-card" wx:for="{{home.hotServiceList}}" wx:key="serviceItemId" data-id="{{item.serviceItemId}}" bindtap="goDetail">
+          <image wx:if="{{item.serviceCover}}" class="service-mini-cover" src="{{item.serviceCover}}" mode="aspectFill" />
+          <view wx:else class="service-mini-cover service-mini-cover--empty"></view>
+          <view class="service-mini-title">{{item.serviceName}}</view>
+          <view class="service-mini-sub">{{item.serviceSubTitle || '优选服务，更快预约'}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view class="section-title">{{sectionConfig.recommendTitle}}</view>
+      <view class="section-desc" bindtap="goCategoryTab">{{sectionConfig.recommendMoreText}}</view>
+    </view>
+    <view class="service-list-grid">
+      <view class="service-grid-card" wx:for="{{home.hotServiceList}}" wx:key="serviceItemId" data-id="{{item.serviceItemId}}" bindtap="goDetail">
+        <image wx:if="{{item.serviceCover}}" class="service-grid-cover" src="{{item.serviceCover}}" mode="aspectFill" />
+        <view wx:else class="service-grid-cover service-grid-cover--empty"></view>
+        <view class="service-grid-title">{{item.serviceName}}</view>
+        <view class="service-grid-price">¥{{item.basePrice}}起</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section" wx:if="{{home.advantageList.length}}">
+    <view class="section-head">
+      <view class="section-title">{{sectionConfig.advantageTitle}}</view>
+    </view>
+    <view class="advantage-wrap">
+      <view class="advantage-item" wx:for="{{home.advantageList}}" wx:key="index">
+        <image wx:if="{{item.iconUrl}}" class="advantage-icon" src="{{item.iconUrl}}" mode="aspectFit" />
+        <view wx:else class="advantage-icon advantage-icon--empty"></view>
+        <text>{{item.text}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section" wx:if="{{home.recommendWorkerList.length}}">
+    <view class="section-head">
+      <view class="section-title">{{sectionConfig.quickTitle}}</view>
+    </view>
+    <view class="quick-entry-row">
+      <view class="quick-action" bindtap="openOrderTab">
+        <view class="quick-action-title">我的订单</view>
+        <view class="quick-action-desc">查看预约进度</view>
+      </view>
+      <view class="quick-action" bindtap="openAddressTab">
+        <view class="quick-action-title">地址管理</view>
+        <view class="quick-action-desc">维护服务地址</view>
+      </view>
+      <view class="quick-action" bindtap="openMineTab">
+        <view class="quick-action-title">我的</view>
+        <view class="quick-action-desc">查看账户信息</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="bind-mask" wx:if="{{profile.nickname && bindPopupVisible}}">
+    <view class="bind-popup">
+      <view class="section-title">补充联系手机号</view>
+      <view class="muted bind-desc">绑定后预约确认和上门联系会更方便。</view>
+      <button class="primary-btn" open-type="getPhoneNumber" bindgetphonenumber="handleBindPhone">一键绑定微信手机号</button>
+      <button class="ghost-btn bind-close" bindtap="closeBindPopup">暂时关闭</button>
+    </view>
+  </view>
+</view>
+

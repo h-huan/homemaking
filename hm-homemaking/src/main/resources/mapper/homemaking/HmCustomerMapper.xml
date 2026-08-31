@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hm.homemaking.mapper.HmCustomerMapper">
+
+    <resultMap id="HmUserAuthResult" type="HmUserAuth">
+        <id property="authId" column="auth_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="customerId" column="customer_id"/>
+        <result property="authType" column="auth_type"/>
+        <result property="authKey" column="auth_key"/>
+        <result property="authSecret" column="auth_secret"/>
+        <result property="unionid" column="unionid"/>
+        <result property="mobile" column="mobile"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="HmCustomerUserResult" type="HmCustomerUser">
+        <id property="customerId" column="customer_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="mobile" column="mobile"/>
+        <result property="nickname" column="nickname"/>
+        <result property="avatar" column="avatar"/>
+        <result property="gender" column="gender"/>
+        <result property="realName" column="real_name"/>
+        <result property="status" column="status"/>
+        <result property="sourceChannel" column="source_channel"/>
+        <result property="orgId" column="org_id"/>
+        <result property="lastLoginIp" column="last_login_ip"/>
+        <result property="lastLoginTime" column="last_login_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <resultMap id="HmCustomerAddressResult" type="HmCustomerAddress">
+        <id property="addressId" column="address_id"/>
+        <result property="customerId" column="customer_id"/>
+        <result property="contactName" column="contact_name"/>
+        <result property="contactMobile" column="contact_mobile"/>
+        <result property="provinceCode" column="province_code"/>
+        <result property="provinceName" column="province_name"/>
+        <result property="cityCode" column="city_code"/>
+        <result property="cityName" column="city_name"/>
+        <result property="districtCode" column="district_code"/>
+        <result property="districtName" column="district_name"/>
+        <result property="detailAddress" column="detail_address"/>
+        <result property="longitude" column="longitude"/>
+        <result property="latitude" column="latitude"/>
+        <result property="isDefault" column="is_default"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectAuthByTypeAndKey" resultMap="HmUserAuthResult">
+        select auth_id, user_id, customer_id, auth_type, auth_key, auth_secret, unionid, mobile, status
+        from hm_user_auth
+        where auth_type = #{param1} and auth_key = #{param2} and status = '0'
+        limit 1
+    </select>
+
+    <insert id="insertAuth" parameterType="HmUserAuth" useGeneratedKeys="true" keyProperty="authId">
+        insert into hm_user_auth(customer_id, user_id, auth_type, auth_key, auth_secret, unionid, mobile, status, create_time)
+        values(#{customerId}, #{userId}, #{authType}, #{authKey}, #{authSecret}, #{unionid}, #{mobile}, #{status}, CURRENT_TIMESTAMP)
+    </insert>
+
+    <update id="updateAuth" parameterType="HmUserAuth">
+        update hm_user_auth
+        set customer_id = #{customerId},
+            user_id = #{userId},
+            auth_secret = #{authSecret},
+            unionid = #{unionid},
+            mobile = #{mobile},
+            status = #{status},
+            update_time = CURRENT_TIMESTAMP
+        where auth_id = #{authId}
+    </update>
+
+    <select id="selectCustomerById" parameterType="Long" resultMap="HmCustomerUserResult">
+        select customer_id, user_id, mobile, nickname, avatar, gender, real_name, status, source_channel, org_id,
+               last_login_ip, last_login_time, create_by, create_time, update_by, update_time, remark
+        from hm_customer_user
+        where customer_id = #{customerId}
+    </select>
+
+    <insert id="insertCustomer" parameterType="HmCustomerUser" useGeneratedKeys="true" keyProperty="customerId">
+        insert into hm_customer_user(
+            user_id, mobile, nickname, avatar, gender, real_name, status, source_channel, org_id, last_login_ip,
+            last_login_time, create_by, create_time, remark
+        ) values (
+            #{userId}, #{mobile}, #{nickname}, #{avatar}, #{gender}, #{realName}, #{status}, #{sourceChannel},
+            #{orgId}, #{lastLoginIp}, #{lastLoginTime}, #{createBy}, CURRENT_TIMESTAMP, #{remark}
+        )
+    </insert>
+
+    <update id="updateCustomer" parameterType="HmCustomerUser">
+        update hm_customer_user
+        <set>
+            user_id = #{userId},
+            mobile = #{mobile},
+            nickname = #{nickname},
+            avatar = #{avatar},
+            gender = #{gender},
+            real_name = #{realName},
+            status = #{status},
+            source_channel = #{sourceChannel},
+            org_id = #{orgId},
+            last_login_ip = #{lastLoginIp},
+            last_login_time = #{lastLoginTime},
+            update_by = #{updateBy},
+            update_time = CURRENT_TIMESTAMP,
+            remark = #{remark}
+        </set>
+        where customer_id = #{customerId}
+    </update>
+
+    <select id="selectAddressList" parameterType="Long" resultMap="HmCustomerAddressResult">
+        select address_id, customer_id, contact_name, contact_mobile, province_code, province_name, city_code,
+               city_name, district_code, district_name, detail_address, longitude, latitude, is_default,
+               create_time, update_time
+        from hm_customer_address
+        where customer_id = #{customerId}
+        order by is_default desc, address_id desc
+    </select>
+
+    <select id="selectAddressById" parameterType="Long" resultMap="HmCustomerAddressResult">
+        select address_id, customer_id, contact_name, contact_mobile, province_code, province_name, city_code,
+               city_name, district_code, district_name, detail_address, longitude, latitude, is_default,
+               create_time, update_time
+        from hm_customer_address
+        where address_id = #{addressId}
+    </select>
+
+    <insert id="insertAddress" parameterType="HmCustomerAddress" useGeneratedKeys="true" keyProperty="addressId">
+        insert into hm_customer_address(
+            customer_id, contact_name, contact_mobile, province_code, province_name, city_code, city_name,
+            district_code, district_name, detail_address, longitude, latitude, is_default, create_time
+        ) values (
+            #{customerId}, #{contactName}, #{contactMobile}, #{provinceCode}, #{provinceName}, #{cityCode}, #{cityName},
+            #{districtCode}, #{districtName}, #{detailAddress}, #{longitude}, #{latitude}, #{isDefault}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="updateAddress" parameterType="HmCustomerAddress">
+        update hm_customer_address
+        set contact_name = #{contactName},
+            contact_mobile = #{contactMobile},
+            province_code = #{provinceCode},
+            province_name = #{provinceName},
+            city_code = #{cityCode},
+            city_name = #{cityName},
+            district_code = #{districtCode},
+            district_name = #{districtName},
+            detail_address = #{detailAddress},
+            longitude = #{longitude},
+            latitude = #{latitude},
+            is_default = #{isDefault},
+            update_time = CURRENT_TIMESTAMP
+        where address_id = #{addressId}
+    </update>
+
+    <delete id="deleteAddress" parameterType="Long">
+        delete from hm_customer_address where address_id = #{addressId}
+    </delete>
+
+    <update id="clearDefaultAddress" parameterType="Long">
+        update hm_customer_address set is_default = '0', update_time = CURRENT_TIMESTAMP where customer_id = #{customerId}
+    </update>
+
+</mapper>

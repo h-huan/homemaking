@@ -1,0 +1,53 @@
+﻿<view class="page mine-page">
+  <view class="mine-header">
+    <view class="mine-user-row">
+      <view class="mine-avatar">{{profile.avatarText || '家'}}</view>
+      <view class="mine-user-info" wx:if="{{loggedIn}}">
+        <view class="mine-user-name">{{profile.nickname}}</view>
+        <view class="mine-user-sub">{{profile.mobile || '未绑定手机号'}}</view>
+      </view>
+      <view class="mine-user-info" wx:else>
+        <view class="mine-user-name">登录 / 注册</view>
+        <view class="mine-user-sub">登录后查看订单、地址和服务日程</view>
+      </view>
+      <button class="mine-login-btn" wx:if="{{!loggedIn}}" bindtap="goLogin">去登录</button>
+    </view>
+  </view>
+
+  <view class="card mine-stat-card">
+    <view class="mine-stat-item" wx:for="{{orderStats}}" wx:key="key" data-status="{{item.statusList[0] || ''}}" bindtap="openStat">
+      <view class="mine-stat-count">{{item.count}}</view>
+      <view class="mine-stat-label">{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="card mine-menu-card">
+    <view class="mine-card-title">服务入口</view>
+    <view class="mine-menu-item" wx:for="{{serviceMenuList}}" wx:key="key" data-key="{{item.key}}" bindtap="handleMenuTap">
+      <view class="mine-menu-left">
+        <image wx:if="{{item.iconUrl}}" class="mine-menu-icon" src="{{item.iconUrl}}" mode="aspectFit" />
+        <view wx:else class="mine-menu-icon mine-menu-icon--empty"></view>
+        <view class="mine-menu-main">
+          <view class="mine-menu-title">{{item.title}}</view>
+          <view class="mine-menu-desc" wx:if="{{item.desc}}">{{item.desc}}</view>
+        </view>
+      </view>
+      <view class="mine-menu-arrow">></view>
+    </view>
+  </view>
+
+  <view class="card mine-menu-card" wx:if="{{contentMenuList.length}}">
+    <view class="mine-card-title">内容服务</view>
+    <view class="mine-menu-item" wx:for="{{contentMenuList}}" wx:key="key" data-key="{{item.key}}" bindtap="handleMenuTap">
+      <view class="mine-menu-left">
+        <image wx:if="{{item.iconUrl}}" class="mine-menu-icon" src="{{item.iconUrl}}" mode="aspectFit" />
+        <view wx:else class="mine-menu-icon mine-menu-icon--empty"></view>
+        <view class="mine-menu-main">
+          <view class="mine-menu-title">{{item.title}}</view>
+          <view class="mine-menu-desc" wx:if="{{item.desc}}">{{item.desc}}</view>
+        </view>
+      </view>
+      <view class="mine-menu-arrow">></view>
+    </view>
+  </view>
+</view>

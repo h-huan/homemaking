@@ -1,0 +1,48 @@
+<view class="page safe-bottom" wx:if="{{booking}}">
+  <view class="card">
+    <view class="section-title">预约确认</view>
+    <view class="muted">请再次确认服务信息、地址与上门时间，提交后可在订单中查看处理进度。</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">{{booking.detail.serviceInfo.serviceName}}</view>
+    <view class="muted">{{booking.detail.serviceInfo.serviceSubTitle || booking.detail.serviceInfo.serviceDesc}}</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">服务地址</view>
+    <view class="confirm-name">{{booking.selectedAddress.contactName}} {{booking.selectedAddress.contactMobile}}</view>
+    <view class="muted">{{booking.selectedAddress.provinceName}}{{booking.selectedAddress.cityName}}{{booking.selectedAddress.districtName}}{{booking.selectedAddress.detailAddress}}</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">预约时间</view>
+    <view class="confirm-line">{{booking.form.appointmentDate}} {{booking.form.appointmentTimeSlot}}</view>
+  </view>
+
+  <view class="card" wx:if="{{booking.detail.skuList.length}}">
+    <view class="section-title">所选规格</view>
+    <view class="confirm-line" wx:for="{{booking.detail.skuList}}" wx:key="skuId" wx:if="{{item.skuId == booking.selectedSkuId}}">{{item.skuName}} ￥{{item.price}}</view>
+  </view>
+
+  <view class="card" wx:if="{{booking.selectedExtraIds.length}}">
+    <view class="section-title">附加项</view>
+    <view class="confirm-line" wx:for="{{booking.detail.extraItemList}}" wx:key="extraItemId" wx:if="{{booking.selectedExtraIds.indexOf(item.extraItemId) >= 0}}">{{item.extraName}} +￥{{item.extraPrice}}</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">费用明细</view>
+    <view class="fee-line"><text>基础金额</text><text>￥{{booking.calc.baseAmount}}</text></view>
+    <view class="fee-line"><text>附加金额</text><text>￥{{booking.calc.extraAmount}}</text></view>
+    <view class="fee-line total"><text>合计金额</text><text>￥{{booking.calc.payAmount}}</text></view>
+  </view>
+
+  <view class="card" wx:if="{{booking.form.customerRemark}}">
+    <view class="section-title">备注</view>
+    <view class="muted">{{booking.form.customerRemark}}</view>
+  </view>
+
+  <view class="bottom-bar">
+    <button class="primary-btn" loading="{{submitting}}" bindtap="submitOrder">确认提交预约</button>
+  </view>
+</view>

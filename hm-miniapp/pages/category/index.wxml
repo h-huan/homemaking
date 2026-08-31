@@ -1,0 +1,46 @@
+<view class="page category-page">
+  <view class="category-layout">
+    <scroll-view class="category-side" scroll-y>
+      <view class="category-side-item {{activeCategoryId == item.categoryId ? 'active' : ''}}" wx:for="{{categoryList}}" wx:key="categoryId" data-id="{{item.categoryId}}" bindtap="switchCategory">
+        <view class="side-marker"></view>
+        <text>{{item.categoryName}}</text>
+      </view>
+    </scroll-view>
+
+    <scroll-view class="category-main" scroll-y>
+      <view class="category-banner" wx:if="{{promoCardList.length}}">
+        <view>
+          <view class="category-banner-title">{{promoCardList[0].title}}</view>
+          <view class="category-banner-desc">{{promoCardList[0].subTitle || '优选服务，更快预约'}}</view>
+        </view>
+        <image wx:if="{{promoCardList[0].imageUrl}}" class="category-banner-image" src="{{promoCardList[0].imageUrl}}" mode="aspectFill" />
+      </view>
+
+      <view class="category-section" wx:if="{{navList.length}}">
+        <view class="section-title center-title">热门服务</view>
+        <view class="mini-nav-grid">
+          <view class="mini-nav-item" wx:for="{{navList}}" wx:key="index" data-id="{{item.id}}" data-path="{{item.path}}" bindtap="openNav">
+            <image wx:if="{{item.iconUrl}}" class="mini-nav-icon" src="{{item.iconUrl}}" mode="aspectFit" />
+            <view wx:else class="mini-nav-icon mini-nav-icon--empty"></view>
+            <view class="mini-nav-name">{{item.title}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="category-section" wx:for="{{sectionList}}" wx:key="title">
+        <view class="section-head">
+          <view class="section-title">{{item.title}}</view>
+          <view class="section-desc" bindtap="goList">查看更多</view>
+        </view>
+        <view class="category-service-grid">
+          <view class="category-service-item" wx:for="{{item.list}}" wx:for-item="service" wx:key="serviceItemId" data-id="{{service.serviceItemId}}" bindtap="goDetail">
+            <image wx:if="{{service.serviceCover}}" class="category-service-cover" src="{{service.serviceCover}}" mode="aspectFill" />
+            <view wx:else class="category-service-cover category-service-cover--empty"></view>
+            <view class="category-service-name">{{service.serviceName}}</view>
+            <view class="category-service-price">¥{{service.basePrice}}起</view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</view>

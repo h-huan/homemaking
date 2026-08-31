@@ -1,0 +1,42 @@
+<view class="page safe-bottom">
+  <view class="hero-card">
+    <view class="order-head">
+      <view class="section-title">{{detail.statusMeta.label}}</view>
+      <view class="status-tag {{detail.statusMeta.className}}">{{detail.statusMeta.label}}</view>
+    </view>
+    <view class="muted">{{detail.statusMeta.desc}}</view>
+    <view class="detail-amount">￥{{detail.payAmount}}</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">订单信息</view>
+    <view class="fee-line"><text>订单编号</text><text>{{detail.orderNo}}</text></view>
+    <view class="fee-line"><text>服务名称</text><text>{{detail.serviceName}}</text></view>
+    <view class="fee-line"><text>预约时间</text><text>{{detail.appointmentDate}} {{detail.appointmentTimeSlot}}</text></view>
+    <view class="fee-line"><text>联系人</text><text>{{detail.contactName}} {{detail.contactMobile}}</text></view>
+    <view class="fee-line"><text>服务地址</text><text class="detail-address">{{detail.serviceAddress}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">服务项</view>
+    <view class="fee-line" wx:for="{{detail.itemList}}" wx:key="orderItemId">
+      <text>{{item.itemName}} x {{item.quantity}}</text>
+      <text>￥{{item.itemAmount}}</text>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{detail.operateLogs.length}}">
+    <view class="section-title">处理进度</view>
+    <view class="log-item" wx:for="{{detail.operateLogs}}" wx:key="logId">
+      <view class="log-dot"></view>
+      <view class="log-content">
+        <view class="log-title">{{item.actionDesc}}</view>
+        <view class="muted">{{item.createTime}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-bar" wx:if="{{detail.orderStatus === '20' || detail.orderStatus === '30'}}">
+    <button class="ghost-btn" bindtap="handleCancel">取消预约</button>
+  </view>
+</view>

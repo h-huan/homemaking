@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hm.homemaking.mapper.HmConfigMapper">
+
+    <resultMap id="HmMiniHomeConfigResult" type="HmMiniHomeConfig">
+        <id property="configId" column="config_id"/>
+        <result property="orgId" column="org_id"/>
+        <result property="configKey" column="config_key"/>
+        <result property="configValue" column="config_value"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="HmMiniNavConfigResult" type="HmMiniNavConfig">
+        <id property="navId" column="nav_id"/>
+        <result property="orgId" column="org_id"/>
+        <result property="navName" column="nav_name"/>
+        <result property="navIcon" column="nav_icon"/>
+        <result property="navPath" column="nav_path"/>
+        <result property="sortNo" column="sort_no"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="HmPortalContentResult" type="HmPortalContent">
+        <id property="contentId" column="content_id"/>
+        <result property="contentType" column="content_type"/>
+        <result property="title" column="title"/>
+        <result property="subTitle" column="sub_title"/>
+        <result property="coverImage" column="cover_image"/>
+        <result property="coverImageStorage" column="cover_image_storage"/>
+        <result property="coverImageObjectKey" column="cover_image_object_key"/>
+        <result property="summary" column="summary"/>
+        <result property="contentHtml" column="content_html"/>
+        <result property="sortNo" column="sort_no"/>
+        <result property="publishStatus" column="publish_status"/>
+        <result property="publishTime" column="publish_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectHomeConfigList" resultMap="HmMiniHomeConfigResult">
+        select config_id, org_id, config_key, config_value, status
+        from hm_mini_home_config
+        where status = '0'
+        order by config_id asc
+    </select>
+
+    <insert id="upsertHomeConfig" parameterType="HmMiniHomeConfig">
+        insert into hm_mini_home_config(org_id, config_key, config_value, status)
+        values(#{orgId}, #{configKey}, #{configValue}, #{status})
+        on duplicate key update config_value = values(config_value), status = values(status)
+    </insert>
+
+    <select id="selectNavConfigList" resultMap="HmMiniNavConfigResult">
+        select nav_id, org_id, nav_name, nav_icon, nav_path, sort_no, status
+        from hm_mini_nav_config
+        where status = '0'
+        order by sort_no asc, nav_id asc
+    </select>
+
+    <delete id="deleteAllNavConfig">
+        delete from hm_mini_nav_config
+    </delete>
+
+    <insert id="insertNavConfig" parameterType="HmMiniNavConfig" useGeneratedKeys="true" keyProperty="navId">
+        insert into hm_mini_nav_config(org_id, nav_name, nav_icon, nav_path, sort_no, status)
+        values(#{orgId}, #{navName}, #{navIcon}, #{navPath}, #{sortNo}, #{status})
+    </insert>
+
+    <select id="selectPortalContentList" parameterType="HmPortalContent" resultMap="HmPortalContentResult">
+        select content_id, content_type, title, sub_title, cover_image, cover_image_storage, cover_image_object_key, summary, content_html, sort_no, publish_status, publish_time, update_time
+        from hm_portal_content
+        <where>
+            <if test="contentType != null and contentType != ''">
+                and content_type like concat('%', #{contentType}, '%')
+            </if>
+            <if test="title != null and title != ''">
+                and title like concat('%', #{title}, '%')
+            </if>
+            <if test="publishStatus != null and publishStatus != ''">
+                and publish_status = #{publishStatus}
+            </if>
+        </where>
+        order by sort_no asc, update_time desc, content_id desc
+    </select>
+
+    <select id="selectPortalContentById" resultMap="HmPortalContentResult">
+        select content_id, content_type, title, sub_title, cover_image, cover_image_storage, cover_image_object_key, summary, content_html, sort_no, publish_status, publish_time, update_time
+        from hm_portal_content
+        where content_id = #{contentId}
+    </select>
+
+    <insert id="insertPortalContent" parameterType="HmPortalContent" useGeneratedKeys="true" keyProperty="contentId">
+        insert into hm_portal_content(
+            content_type, title, sub_title, cover_image, cover_image_storage, cover_image_object_key, summary, content_html, sort_no, publish_status, publish_time, update_time
+        ) values (
+            #{contentType}, #{title}, #{subTitle}, #{coverImage}, #{coverImageStorage}, #{coverImageObjectKey}, #{summary}, #{contentHtml}, #{sortNo}, #{publishStatus}, #{publishTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="updatePortalContent" parameterType="HmPortalContent">
+        update hm_portal_content
+        <set>
+            <if test="contentType != null">content_type = #{contentType},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="subTitle != null">sub_title = #{subTitle},</if>
+            <if test="coverImage != null">cover_image = #{coverImage},</if>
+            <if test="coverImageStorage != null">cover_image_storage = #{coverImageStorage},</if>
+            <if test="coverImageObjectKey != null">cover_image_object_key = #{coverImageObjectKey},</if>
+            <if test="summary != null">summary = #{summary},</if>
+            <if test="contentHtml != null">content_html = #{contentHtml},</if>
+            <if test="sortNo != null">sort_no = #{sortNo},</if>
+            <if test="publishStatus != null">publish_status = #{publishStatus},</if>
+            publish_time = #{publishTime},
+            update_time = #{updateTime}
+        </set>
+        where content_id = #{contentId}
+    </update>
+
+    <delete id="deletePortalContentById">
+        delete from hm_portal_content where content_id = #{contentId}
+    </delete>
+
+    <select id="selectMiniContentByType" resultMap="HmPortalContentResult">
+        select content_id, content_type, title, sub_title, cover_image, cover_image_storage, cover_image_object_key, summary, content_html, sort_no, publish_status, publish_time, update_time
+        from hm_portal_content
+        where publish_status = '1'
+          and content_type = #{contentType}
+        order by sort_no asc, publish_time desc, content_id desc
+        limit 1
+    </select>
+
+</mapper>

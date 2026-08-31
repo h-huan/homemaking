@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hm.homemaking.mapper.HmCategoryMapper">
+
+    <resultMap id="HmServiceCategoryResult" type="HmServiceCategory">
+        <id property="categoryId" column="category_id"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="categoryIcon" column="category_icon"/>
+        <result property="bannerImage" column="banner_image"/>
+        <result property="bannerImageStorage" column="banner_image_storage"/>
+        <result property="bannerImageObjectKey" column="banner_image_object_key"/>
+        <result property="sortNo" column="sort_no"/>
+        <result property="showInMiniapp" column="show_in_miniapp"/>
+        <result property="showInPortal" column="show_in_portal"/>
+        <result property="status" column="status"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectCategoryVo">
+        select category_id, parent_id, category_name, category_icon, banner_image, banner_image_storage, banner_image_object_key, sort_no, show_in_miniapp,
+               show_in_portal, status, del_flag, create_by, create_time, update_by, update_time, remark
+        from hm_service_category
+    </sql>
+
+    <select id="selectCategoryList" parameterType="HmServiceCategory" resultMap="HmServiceCategoryResult">
+        <include refid="selectCategoryVo"/>
+        <where>
+            del_flag = '0'
+            <if test="categoryName != null and categoryName != ''">
+                and category_name like concat('%', #{categoryName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+        </where>
+        order by sort_no asc, category_id asc
+    </select>
+
+    <select id="selectCategoryById" parameterType="Long" resultMap="HmServiceCategoryResult">
+        <include refid="selectCategoryVo"/>
+        where category_id = #{categoryId}
+    </select>
+
+    <insert id="insertCategory" parameterType="HmServiceCategory" useGeneratedKeys="true" keyProperty="categoryId">
+        insert into hm_service_category (
+            parent_id, category_name, category_icon, banner_image, banner_image_storage, banner_image_object_key, sort_no, show_in_miniapp, show_in_portal,
+            status, del_flag, create_by, create_time, remark
+        ) values (
+            #{parentId}, #{categoryName}, #{categoryIcon}, #{bannerImage}, #{bannerImageStorage}, #{bannerImageObjectKey}, #{sortNo}, #{showInMiniapp},
+            #{showInPortal}, #{status}, '0', #{createBy}, CURRENT_TIMESTAMP, #{remark}
+        )
+    </insert>
+
+    <update id="updateCategory" parameterType="HmServiceCategory">
+        update hm_service_category
+        <set>
+            parent_id = #{parentId},
+            category_name = #{categoryName},
+            category_icon = #{categoryIcon},
+            banner_image = #{bannerImage},
+            banner_image_storage = #{bannerImageStorage},
+            banner_image_object_key = #{bannerImageObjectKey},
+            sort_no = #{sortNo},
+            show_in_miniapp = #{showInMiniapp},
+            show_in_portal = #{showInPortal},
+            status = #{status},
+            update_by = #{updateBy},
+            update_time = CURRENT_TIMESTAMP,
+            remark = #{remark}
+        </set>
+        where category_id = #{categoryId}
+    </update>
+
+    <update id="deleteCategoryById" parameterType="Long">
+        update hm_service_category
+        set del_flag = '2', update_time = CURRENT_TIMESTAMP
+        where category_id = #{categoryId}
+    </update>
+
+</mapper>

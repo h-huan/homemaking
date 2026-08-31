@@ -1,0 +1,147 @@
+﻿.mine-page {
+  padding-top: 0;
+  background:
+    radial-gradient(circle at top left, rgba(255, 90, 103, 0.1), transparent 260rpx),
+    #f7f8fa;
+}
+
+.mine-header {
+  margin: 0 -28rpx;
+  padding: 44rpx 28rpx 128rpx;
+  background: linear-gradient(180deg, #ff4b5c 0%, #ff5a67 38%, #ff7680 100%);
+  border-bottom-left-radius: 36rpx;
+  border-bottom-right-radius: 36rpx;
+}
+
+.mine-user-row {
+  display: flex;
+  align-items: center;
+}
+
+.mine-avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #ff4b5c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  font-weight: 700;
+  margin-right: 20rpx;
+}
+
+.mine-user-info {
+  flex: 1;
+  color: #fff;
+}
+
+.mine-user-name {
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.mine-user-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  opacity: 0.92;
+}
+
+.mine-login-btn {
+  width: 160rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  color: #ff4b5c;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.mine-stat-card {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+  margin-top: -72rpx;
+  padding-top: 30rpx;
+  padding-bottom: 24rpx;
+}
+
+.mine-stat-item {
+  text-align: center;
+}
+
+.mine-stat-count {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mine-stat-label {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.mine-menu-card {
+  padding-top: 18rpx;
+}
+
+.mine-card-title {
+  margin-bottom: 10rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #374151;
+}
+
+.mine-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 112rpx;
+  border-bottom: 1rpx solid #eef2f7;
+}
+
+.mine-menu-item:last-child {
+  border-bottom: none;
+}
+
+.mine-menu-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.mine-menu-icon {
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 20rpx;
+  border-radius: 14rpx;
+}
+
+.mine-menu-icon--empty {
+  background: linear-gradient(135deg, #e8edf7 0%, #f8fafc 100%);
+}
+
+.mine-menu-main {
+  flex: 1;
+  padding-right: 20rpx;
+}
+
+.mine-menu-title {
+  font-size: 28rpx;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.mine-menu-desc {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #9ca3af;
+}
+
+.mine-menu-arrow {
+  color: #9ca3af;
+}

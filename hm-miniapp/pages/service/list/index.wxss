@@ -1,0 +1,147 @@
+﻿.service-list-page {
+  background: linear-gradient(180deg, #fff8f2 0%, #f6f8fc 100%);
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 999rpx;
+  padding: 10rpx 12rpx 10rpx 24rpx;
+  box-shadow: 0 12rpx 26rpx rgba(15, 23, 42, 0.06);
+}
+
+.search-icon {
+  position: relative;
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.search-icon-circle {
+  width: 18rpx;
+  height: 18rpx;
+  border: 4rpx solid #ff7a33;
+  border-radius: 50%;
+}
+
+.search-icon-handle {
+  position: absolute;
+  right: 0;
+  bottom: 2rpx;
+  width: 12rpx;
+  height: 4rpx;
+  border-radius: 999rpx;
+  background: #ff7a33;
+  transform: rotate(45deg);
+  transform-origin: center;
+}
+
+.search-input {
+  flex: 1;
+  height: 72rpx;
+}
+
+.search-btn {
+  min-width: 132rpx;
+  height: 72rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #ff8c46 0%, #ff6c2f 100%);
+  color: #fff;
+  text-align: center;
+  line-height: 72rpx;
+  font-weight: 600;
+}
+
+.category-scroll {
+  white-space: nowrap;
+  margin-top: 20rpx;
+}
+
+.category-tabs {
+  display: inline-flex;
+  gap: 16rpx;
+}
+
+.category-tab {
+  padding: 14rpx 26rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.86);
+  color: #6b7280;
+  font-size: 24rpx;
+}
+
+.category-tab.active {
+  background: linear-gradient(135deg, #fff1e3 0%, #ffe2ca 100%);
+  color: #d96a2d;
+  font-weight: 600;
+}
+
+.service-card {
+  display: flex;
+  gap: 18rpx;
+  padding: 22rpx;
+  margin-top: 20rpx;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 28rpx;
+  box-shadow: 0 12rpx 26rpx rgba(15, 23, 42, 0.06);
+}
+
+.service-cover {
+  width: 188rpx;
+  height: 188rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #e9eef8 0%, #f7f9fc 100%);
+  flex-shrink: 0;
+}
+
+.service-cover--empty {
+  background: linear-gradient(135deg, #e9eef8 0%, #f7f9fc 100%);
+}
+
+.service-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.service-name {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 12rpx;
+}
+
+.service-desc {
+  color: #7b8798;
+  line-height: 1.7;
+  min-height: 76rpx;
+}
+
+.service-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18rpx;
+}
+
+.service-price {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #ff7a33;
+}
+
+.service-duration {
+  color: #94a3b8;
+  font-size: 22rpx;
+}
+
+.empty-wrap {
+  padding: 120rpx 0;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.search-icon--light .search-icon-circle { border-color: #ffffff; }
+.search-icon--light .search-icon-handle { background: #ffffff; }
+.search-btn { display:flex; align-items:center; justify-content:center; }
+

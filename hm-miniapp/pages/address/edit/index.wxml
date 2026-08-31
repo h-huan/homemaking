@@ -1,0 +1,39 @@
+<view class="page safe-bottom">
+  <view class="card">
+    <view class="form-item">
+      <view class="form-label">联系人</view>
+      <view class="input-card"><input class="input-field" placeholder="填写收件/联系人的姓名" data-field="contactName" value="{{form.contactName}}" bindinput="onInput" /></view>
+    </view>
+    <view class="form-item">
+      <view class="form-label">手机号</view>
+      <view class="input-card"><input class="input-field" type="number" maxlength="11" placeholder="用于预约确认和上门联系" data-field="contactMobile" value="{{form.contactMobile}}" bindinput="onInput" /></view>
+    </view>
+    <view class="form-item">
+      <view class="form-label">省份</view>
+      <view class="input-card"><input class="input-field" placeholder="例如：上海市" data-field="provinceName" value="{{form.provinceName}}" bindinput="onInput" /></view>
+    </view>
+    <view class="form-item">
+      <view class="form-label">城市</view>
+      <view class="input-card"><input class="input-field" placeholder="例如：上海市" data-field="cityName" value="{{form.cityName}}" bindinput="onInput" /></view>
+    </view>
+    <view class="form-item">
+      <view class="form-label">区县</view>
+      <view class="input-card"><input class="input-field" placeholder="例如：浦东新区" data-field="districtName" value="{{form.districtName}}" bindinput="onInput" /></view>
+    </view>
+    <view class="form-item">
+      <view class="form-label">详细地址</view>
+      <view class="input-card"><textarea class="textarea-field" placeholder="请填写门牌号、楼栋、房间号等详细信息" data-field="detailAddress" value="{{form.detailAddress}}" bindinput="onInput" /></view>
+    </view>
+    <view class="form-switch">
+      <view>
+        <view class="form-label">设为默认地址</view>
+        <view class="muted">下次预约时优先带出</view>
+      </view>
+      <switch color="#ef8a3b" checked="{{form.isDefault === '1'}}" bindchange="onSwitchChange" />
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <button class="primary-btn" bindtap="submit">保存地址</button>
+  </view>
+</view>

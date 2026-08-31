@@ -1,0 +1,17 @@
+<view class="page">
+  <view class="hero-card login-hero">
+    <view class="login-mark">家政服务</view>
+    <view class="login-title">微信登录</view>
+    <view class="login-desc">请完成微信登录</view>
+  </view>
+
+  <view class="card">
+    <button class="primary-btn" loading="{{loading}}" open-type="getPhoneNumber" bindgetphonenumber="handleQuickLogin">微信快捷登录</button>
+    <button class="secondary-btn" loading="{{loading}}" bindtap="handleWechatLogin">微信登录</button>
+  </view>
+
+  <view class="agreement-row" bindtap="toggleAgreement">
+    <view class="agreement-check {{agreementChecked ? 'checked' : ''}}">{{agreementChecked ? '√' : ''}}</view>
+    <text class="agreement-text">我已阅读并同意《服务协议》《隐私政策》</text>
+  </view>
+</view>

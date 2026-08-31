@@ -1,0 +1,42 @@
+<view class="page safe-bottom">
+  <view class="hero-card">
+    <view class="detail-cover">{{detail.shortName}}</view>
+    <view class="detail-title">{{detail.serviceInfo.serviceName}}</view>
+    <view class="detail-subtitle">{{detail.serviceInfo.serviceSubTitle || detail.serviceInfo.serviceDesc}}</view>
+    <view class="detail-price price-text">￥{{detail.serviceInfo.basePrice}}起</view>
+    <view class="detail-tags">
+      <view class="tag">标准流程</view>
+      <view class="tag">可预约</view>
+      <view class="tag">{{detail.serviceInfo.serviceDuration || 0}}分钟</view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{detail.skuList.length}}">
+    <view class="section-title">服务规格</view>
+    <view class="sku-list">
+      <view class="sku-item {{selectedSkuId == item.skuId ? 'active' : ''}}" wx:for="{{detail.skuList}}" wx:key="skuId" data-id="{{item.skuId}}" bindtap="selectSku">
+        <view class="sku-name">{{item.skuName}}</view>
+        <view class="price-text">￥{{item.price}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">预约说明</view>
+    <view class="detail-line">服务介绍：{{detail.serviceInfo.serviceDesc || '标准家政服务流程，按预约时间上门'}}</view>
+    <view class="detail-line">可约时段：{{detail.slotText || '以预约页选择为准'}}</view>
+    <view class="detail-line">预约周期：支持未来 {{detail.bookingRule.maxAdvanceDays || 7}} 天内预约</view>
+  </view>
+
+  <view class="card" wx:if="{{detail.extraItemList.length}}">
+    <view class="section-title">可选附加项</view>
+    <view class="extra-item" wx:for="{{detail.extraItemList}}" wx:key="extraItemId">
+      <view>{{item.extraName}}</view>
+      <view class="price-text">+￥{{item.extraPrice}}</view>
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <button class="primary-btn" bindtap="bookNow">立即预约</button>
+  </view>
+</view>

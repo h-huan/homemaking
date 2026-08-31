@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hm.homemaking.mapper.HmServiceMapper">
+
+    <resultMap id="HmServiceItemResult" type="HmServiceItem">
+        <id property="serviceItemId" column="service_item_id"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="serviceName" column="service_name"/>
+        <result property="orgId" column="org_id"/>
+        <result property="serviceSubTitle" column="service_sub_title"/>
+        <result property="serviceCover" column="service_cover"/>
+        <result property="serviceCoverStorage" column="service_cover_storage"/>
+        <result property="serviceCoverObjectKey" column="service_cover_object_key"/>
+        <result property="serviceDesc" column="service_desc"/>
+        <result property="serviceContent" column="service_content"/>
+        <result property="serviceDuration" column="service_duration"/>
+        <result property="saleType" column="sale_type"/>
+        <result property="basePrice" column="base_price"/>
+        <result property="unitName" column="unit_name"/>
+        <result property="needManualConfirm" column="need_manual_confirm"/>
+        <result property="allowAssignWorker" column="allow_assign_worker"/>
+        <result property="showInMiniapp" column="show_in_miniapp"/>
+        <result property="showInPortal" column="show_in_portal"/>
+        <result property="status" column="status"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <resultMap id="HmServiceSkuResult" type="HmServiceSku">
+        <id property="skuId" column="sku_id"/>
+        <result property="serviceItemId" column="service_item_id"/>
+        <result property="skuName" column="sku_name"/>
+        <result property="price" column="price"/>
+        <result property="originalPrice" column="original_price"/>
+        <result property="durationMinute" column="duration_minute"/>
+        <result property="sortNo" column="sort_no"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="HmServiceExtraItemResult" type="HmServiceExtraItem">
+        <id property="extraItemId" column="extra_item_id"/>
+        <result property="serviceItemId" column="service_item_id"/>
+        <result property="extraName" column="extra_name"/>
+        <result property="extraPrice" column="extra_price"/>
+        <result property="chargeType" column="charge_type"/>
+        <result property="sortNo" column="sort_no"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="HmBookingRuleResult" type="HmBookingRule">
+        <id property="ruleId" column="rule_id"/>
+        <result property="serviceItemId" column="service_item_id"/>
+        <result property="advanceDays" column="advance_days"/>
+        <result property="minAdvanceMinutes" column="min_advance_minutes"/>
+        <result property="maxAdvanceDays" column="max_advance_days"/>
+        <result property="allowSameDay" column="allow_same_day"/>
+        <result property="timeSlotsJson" column="time_slots_json"/>
+        <result property="cancelRuleJson" column="cancel_rule_json"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="HmServiceAreaResult" type="HmServiceArea">
+        <id property="areaId" column="area_id"/>
+        <result property="provinceCode" column="province_code"/>
+        <result property="provinceName" column="province_name"/>
+        <result property="cityCode" column="city_code"/>
+        <result property="cityName" column="city_name"/>
+        <result property="districtCode" column="district_code"/>
+        <result property="districtName" column="district_name"/>
+        <result property="areaName" column="area_name"/>
+        <result property="orgId" column="org_id"/>
+        <result property="extraFee" column="extra_fee"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="HmServiceCategoryResult" type="HmServiceCategory">
+        <id property="categoryId" column="category_id"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="categoryIcon" column="category_icon"/>
+        <result property="bannerImage" column="banner_image"/>
+        <result property="sortNo" column="sort_no"/>
+        <result property="showInMiniapp" column="show_in_miniapp"/>
+        <result property="showInPortal" column="show_in_portal"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <sql id="selectServiceVo">
+        select s.service_item_id, s.category_id, c.category_name, s.service_name, s.org_id, s.service_sub_title,
+               s.service_cover, s.service_cover_storage, s.service_cover_object_key, s.service_desc, s.service_content, s.service_duration, s.sale_type, s.base_price,
+               s.unit_name, s.need_manual_confirm, s.allow_assign_worker, s.show_in_miniapp, s.show_in_portal,
+               s.status, s.del_flag, s.create_by, s.create_time, s.update_by, s.update_time, s.remark
+        from hm_service_item s
+        left join hm_service_category c on s.category_id = c.category_id
+    </sql>
+
+    <select id="selectServiceList" parameterType="HmServiceItem" resultMap="HmServiceItemResult">
+        <include refid="selectServiceVo"/>
+        <where>
+            s.del_flag = '0'
+            <if test="categoryId != null">
+                and s.category_id = #{categoryId}
+            </if>
+            <if test="serviceName != null and serviceName != ''">
+                and s.service_name like concat('%', #{serviceName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                and s.status = #{status}
+            </if>
+        </where>
+        order by s.service_item_id desc
+    </select>
+
+    <select id="selectServiceById" parameterType="Long" resultMap="HmServiceItemResult">
+        <include refid="selectServiceVo"/>
+        where s.service_item_id = #{serviceItemId}
+    </select>
+
+    <insert id="insertService" parameterType="HmServiceItem" useGeneratedKeys="true" keyProperty="serviceItemId">
+        insert into hm_service_item (
+            category_id, service_name, org_id, service_sub_title, service_cover, service_cover_storage, service_cover_object_key, service_desc, service_content,
+            service_duration, sale_type, base_price, unit_name, need_manual_confirm, allow_assign_worker,
+            show_in_miniapp, show_in_portal, status, del_flag, create_by, create_time, remark
+        ) values (
+            #{categoryId}, #{serviceName}, #{orgId}, #{serviceSubTitle}, #{serviceCover}, #{serviceCoverStorage}, #{serviceCoverObjectKey}, #{serviceDesc},
+            #{serviceContent}, #{serviceDuration}, #{saleType}, #{basePrice}, #{unitName}, #{needManualConfirm},
+            #{allowAssignWorker}, #{showInMiniapp}, #{showInPortal}, #{status}, '0', #{createBy}, CURRENT_TIMESTAMP, #{remark}
+        )
+    </insert>
+
+    <update id="updateService" parameterType="HmServiceItem">
+        update hm_service_item
+        <set>
+            category_id = #{categoryId},
+            service_name = #{serviceName},
+            org_id = #{orgId},
+            service_sub_title = #{serviceSubTitle},
+            service_cover = #{serviceCover},
+            service_cover_storage = #{serviceCoverStorage},
+            service_cover_object_key = #{serviceCoverObjectKey},
+            service_desc = #{serviceDesc},
+            service_content = #{serviceContent},
+            service_duration = #{serviceDuration},
+            sale_type = #{saleType},
+            base_price = #{basePrice},
+            unit_name = #{unitName},
+            need_manual_confirm = #{needManualConfirm},
+            allow_assign_worker = #{allowAssignWorker},
+            show_in_miniapp = #{showInMiniapp},
+            show_in_portal = #{showInPortal},
+            status = #{status},
+            update_by = #{updateBy},
+            update_time = CURRENT_TIMESTAMP,
+            remark = #{remark}
+        </set>
+        where service_item_id = #{serviceItemId}
+    </update>
+
+    <update id="deleteServiceById" parameterType="Long">
+        update hm_service_item
+        set del_flag = '2', update_time = CURRENT_TIMESTAMP
+        where service_item_id = #{serviceItemId}
+    </update>
+
+    <select id="selectSkuListByServiceItemId" parameterType="Long" resultMap="HmServiceSkuResult">
+        select sku_id, service_item_id, sku_name, price, original_price, duration_minute, sort_no, status
+        from hm_service_sku
+        where service_item_id = #{serviceItemId}
+        order by sort_no asc, sku_id asc
+    </select>
+
+    <insert id="insertSku" parameterType="HmServiceSku" useGeneratedKeys="true" keyProperty="skuId">
+        insert into hm_service_sku (
+            service_item_id, sku_name, price, original_price, duration_minute, sort_no, status
+        ) values (
+            #{serviceItemId}, #{skuName}, #{price}, #{originalPrice}, #{durationMinute}, #{sortNo}, #{status}
+        )
+    </insert>
+
+    <delete id="deleteSkuByServiceItemId" parameterType="Long">
+        delete from hm_service_sku where service_item_id = #{serviceItemId}
+    </delete>
+
+    <select id="selectExtraItemListByServiceItemId" parameterType="Long" resultMap="HmServiceExtraItemResult">
+        select extra_item_id, service_item_id, extra_name, extra_price, charge_type, sort_no, status
+        from hm_service_extra_item
+        where service_item_id = #{serviceItemId}
+        order by sort_no asc, extra_item_id asc
+    </select>
+
+    <insert id="insertExtraItem" parameterType="HmServiceExtraItem" useGeneratedKeys="true" keyProperty="extraItemId">
+        insert into hm_service_extra_item (
+            service_item_id, extra_name, extra_price, charge_type, sort_no, status
+        ) values (
+            #{serviceItemId}, #{extraName}, #{extraPrice}, #{chargeType}, #{sortNo}, #{status}
+        )
+    </insert>
+
+    <delete id="deleteExtraItemByServiceItemId" parameterType="Long">
+        delete from hm_service_extra_item where service_item_id = #{serviceItemId}
+    </delete>
+
+    <select id="selectBookingRuleByServiceItemId" parameterType="Long" resultMap="HmBookingRuleResult">
+        select rule_id, service_item_id, advance_days, min_advance_minutes, max_advance_days, allow_same_day,
+               time_slots_json, cancel_rule_json, status
+        from hm_booking_rule
+        where service_item_id = #{serviceItemId}
+    </select>
+
+    <insert id="insertBookingRule" parameterType="HmBookingRule" useGeneratedKeys="true" keyProperty="ruleId">
+        insert into hm_booking_rule (
+            service_item_id, advance_days, min_advance_minutes, max_advance_days, allow_same_day,
+            time_slots_json, cancel_rule_json, status
+        ) values (
+            #{serviceItemId}, #{advanceDays}, #{minAdvanceMinutes}, #{maxAdvanceDays}, #{allowSameDay},
+            #{timeSlotsJson}, #{cancelRuleJson}, #{status}
+        )
+    </insert>
+
+    <update id="updateBookingRule" parameterType="HmBookingRule">
+        update hm_booking_rule
+        set advance_days = #{advanceDays},
+            min_advance_minutes = #{minAdvanceMinutes},
+            max_advance_days = #{maxAdvanceDays},
+            allow_same_day = #{allowSameDay},
+            time_slots_json = #{timeSlotsJson},
+            cancel_rule_json = #{cancelRuleJson},
+            status = #{status}
+        where service_item_id = #{serviceItemId}
+    </update>
+
+    <delete id="deleteBookingRuleByServiceItemId" parameterType="Long">
+        delete from hm_booking_rule where service_item_id = #{serviceItemId}
+    </delete>
+
+    <select id="selectAreaIdsByServiceItemId" parameterType="Long" resultType="Long">
+        select area_id from hm_service_item_area_rel where service_item_id = #{serviceItemId}
+    </select>
+
+    <insert id="insertServiceAreaRel">
+        insert into hm_service_item_area_rel(service_item_id, area_id)
+        values (#{param1}, #{param2})
+    </insert>
+
+    <delete id="deleteServiceAreaRelByServiceItemId" parameterType="Long">
+        delete from hm_service_item_area_rel where service_item_id = #{serviceItemId}
+    </delete>
+
+    <select id="selectAreaList" parameterType="HmServiceArea" resultMap="HmServiceAreaResult">
+        select area_id, province_code, province_name, city_code, city_name, district_code, district_name,
+               area_name, org_id, extra_fee, status
+        from hm_service_area
+        <where>
+            1 = 1
+            <if test="areaName != null and areaName != ''">
+                and area_name like concat('%', #{areaName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+        </where>
+        order by area_id desc
+    </select>
+
+    <select id="selectAreaById" parameterType="Long" resultMap="HmServiceAreaResult">
+        select area_id, province_code, province_name, city_code, city_name, district_code, district_name,
+               area_name, org_id, extra_fee, status
+        from hm_service_area
+        where area_id = #{areaId}
+    </select>
+
+    <insert id="insertArea" parameterType="HmServiceArea" useGeneratedKeys="true" keyProperty="areaId">
+        insert into hm_service_area (
+            province_code, province_name, city_code, city_name, district_code, district_name, area_name,
+            org_id, extra_fee, status
+        ) values (
+            #{provinceCode}, #{provinceName}, #{cityCode}, #{cityName}, #{districtCode}, #{districtName},
+            #{areaName}, #{orgId}, #{extraFee}, #{status}
+        )
+    </insert>
+
+    <update id="updateArea" parameterType="HmServiceArea">
+        update hm_service_area
+        set province_code = #{provinceCode},
+            province_name = #{provinceName},
+            city_code = #{cityCode},
+            city_name = #{cityName},
+            district_code = #{districtCode},
+            district_name = #{districtName},
+            area_name = #{areaName},
+            org_id = #{orgId},
+            extra_fee = #{extraFee},
+            status = #{status}
+        where area_id = #{areaId}
+    </update>
+
+    <select id="selectMiniCategoryList" resultMap="HmServiceCategoryResult">
+        select category_id, parent_id, category_name, category_icon, banner_image, sort_no, show_in_miniapp,
+               show_in_portal, status
+        from hm_service_category
+        where del_flag = '0' and status = '0' and show_in_miniapp = '1'
+        order by sort_no asc, category_id asc
+    </select>
+
+    <select id="selectMiniHotServiceList" resultMap="HmServiceItemResult">
+        <include refid="selectServiceVo"/>
+        where s.del_flag = '0' and s.status = '0' and s.show_in_miniapp = '1'
+        order by s.service_item_id desc
+        limit 6
+    </select>
+
+</mapper>

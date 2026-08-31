@@ -1,0 +1,76 @@
+<view class="page schedule-page">
+  <view class="schedule-toolbar">
+    <view class="schedule-address-pill">
+      <text class="schedule-address-icon">•</text>
+      <text class="schedule-address-text">{{addressText}}</text>
+    </view>
+  </view>
+
+  <view class="card schedule-calendar-card">
+    <view class="calendar-head">
+      <view class="calendar-switch" bindtap="prevMonth">上个月</view>
+      <view class="calendar-title">{{monthText}}</view>
+      <view class="calendar-switch" bindtap="nextMonth">下个月</view>
+    </view>
+
+    <view class="week-row">
+      <text wx:for="{{weekList}}" wx:key="*this">{{item}}</text>
+    </view>
+
+    <view class="days-grid">
+      <view class="blank-day" wx:for="{{Array(calendar.firstWeekDay)}}" wx:key="index"></view>
+      <view class="day-cell {{item.hasService ? 'active' : ''}} {{item.isToday ? 'today' : ''}}" wx:for="{{calendar.days}}" wx:key="date" data-id="{{item.orderId || ''}}" bindtap="openOrderDetail">
+        <view class="day-number">{{item.day}}</view>
+        <view class="day-mark {{item.statusTone}}" wx:if="{{item.hasService}}">{{item.statusText}}</view>
+        <view class="today-text" wx:if="{{item.isToday}}">今</view>
+      </view>
+    </view>
+
+    <view class="legend-row">
+      <view class="legend-item">
+        <view class="legend-dot orange"></view>
+        <text>待上门</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-dot blue"></view>
+        <text>服务中</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-dot green"></view>
+        <text>已完成</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="schedule-login-box card" wx:if="{{!loggedIn}}">
+    <view class="schedule-illus"></view>
+    <view class="schedule-login-title">登录后查看服务安排</view>
+    <view class="muted">可查看预约日期、上门时间和订单状态</view>
+    <button class="primary-btn schedule-login-btn" bindtap="goLogin">登录查看我的服务</button>
+  </view>
+
+  <view class="schedule-feature-card" wx:if="{{loggedIn && highlightedOrder}}">
+    <view class="schedule-feature-top">
+      <view>
+        <view class="schedule-feature-title">{{highlightedOrder.serviceName}}</view>
+        <view class="schedule-feature-time">{{highlightedOrder.appointmentDate}} {{highlightedOrder.appointmentTimeSlot}}</view>
+      </view>
+      <view class="status-tag {{highlightedOrder.statusTone}}">{{highlightedOrder.statusText}}</view>
+    </view>
+    <view class="schedule-feature-address">{{highlightedOrder.serviceAddress}}</view>
+  </view>
+
+  <view class="card" wx:if="{{loggedIn && recentOrders.length}}">
+    <view class="section-head">
+      <view class="section-title">近期预约</view>
+      <view class="section-desc">{{recentOrders.length}} 条记录</view>
+    </view>
+    <view class="schedule-order-item" wx:for="{{recentOrders}}" wx:key="orderId" data-id="{{item.orderId}}" bindtap="openOrderDetail">
+      <view class="schedule-order-main">
+        <view class="schedule-order-title">{{item.serviceName}}</view>
+        <view class="muted">{{item.appointmentDate}} {{item.appointmentTimeSlot}}</view>
+      </view>
+      <view class="status-tag {{item.statusTone}}">{{item.statusText}}</view>
+    </view>
+  </view>
+</view>

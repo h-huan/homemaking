@@ -1,0 +1,40 @@
+.address-card {
+  margin-bottom: 20rpx;
+}
+
+.address-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.address-name {
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.address-detail {
+  margin-top: 16rpx;
+  color: #7b6b61;
+  line-height: 1.8;
+}
+
+.address-actions {
+  display: flex;
+  gap: 28rpx;
+  margin-top: 20rpx;
+}
+
+.action-link {
+  color: #8f7f74;
+  font-size: 24rpx;
+}
+
+.action-link.warm {
+  color: #d36c27;
+}
+
+.action-link.danger {
+  color: #d05b5b;
+}

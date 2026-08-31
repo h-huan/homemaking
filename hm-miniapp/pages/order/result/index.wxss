@@ -1,0 +1,36 @@
+.result-card {
+  text-align: center;
+}
+
+.result-icon {
+  width: 110rpx;
+  height: 110rpx;
+  margin: 0 auto 20rpx;
+  border-radius: 50%;
+  background: #ecf8f1;
+  color: #2f9e62;
+  line-height: 110rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+}
+
+.result-title {
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.result-desc {
+  margin-top: 14rpx;
+  color: #8f7f74;
+}
+
+.result-amount {
+  margin-top: 22rpx;
+  font-size: 34rpx;
+  color: #dd6b20;
+  font-weight: 700;
+}
+
+.result-btn {
+  margin-top: 18rpx;
+}

@@ -1,0 +1,8 @@
+<view class="page">
+  <view class="empty-wrap">
+    <view class="empty-illus"></view>
+    <view class="section-title">还没有订单</view>
+    <view class="muted">挑选一个合适的服务，完成第一次预约吧</view>
+  </view>
+  <button class="primary-btn" bindtap="goHome">去首页看看</button>
+</view>

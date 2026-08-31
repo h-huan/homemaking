@@ -1,0 +1,29 @@
+<view class="page safe-bottom">
+  <view class="hero-card">
+    <view class="section-title">服务地址</view>
+    <view class="muted">提前维护常用地址，预约时可以更快确认上门地点。</view>
+  </view>
+
+  <view class="card address-card" wx:for="{{list}}" wx:key="addressId" data-id="{{item.addressId}}" bindtap="handleCardTap">
+    <view class="address-head">
+      <view class="address-name">{{item.contactName}} {{item.contactMobile}}</view>
+      <view class="tag" wx:if="{{item.isDefault === '1'}}">默认地址</view>
+    </view>
+    <view class="address-detail">{{item.provinceName}}{{item.cityName}}{{item.districtName}}{{item.detailAddress}}</view>
+    <view class="address-actions">
+      <view class="action-link" data-id="{{item.addressId}}" catchtap="goEdit">编辑</view>
+      <view class="action-link danger" data-id="{{item.addressId}}" catchtap="handleDelete">删除</view>
+      <view class="action-link warm" wx:if="{{selectMode}}">选中此地址</view>
+    </view>
+  </view>
+
+  <view class="empty-wrap" wx:if="{{!list.length}}">
+    <view class="empty-illus"></view>
+    <view class="section-title">还没有服务地址</view>
+    <view class="muted">先新增一个常用地址，预约时会更方便</view>
+  </view>
+
+  <view class="bottom-bar">
+    <button class="primary-btn" bindtap="goEdit">新增地址</button>
+  </view>
+</view>

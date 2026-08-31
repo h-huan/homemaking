@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hm.homemaking.mapper.HmOrderMapper">
+
+    <resultMap id="HmOrderResult" type="HmOrder">
+        <id property="orderId" column="order_id"/>
+        <result property="orderNo" column="order_no"/>
+        <result property="customerId" column="customer_id"/>
+        <result property="orgId" column="org_id"/>
+        <result property="serviceItemId" column="service_item_id"/>
+        <result property="serviceName" column="service_name"/>
+        <result property="skuId" column="sku_id"/>
+        <result property="skuName" column="sku_name"/>
+        <result property="orderType" column="order_type"/>
+        <result property="orderStatus" column="order_status"/>
+        <result property="payStatus" column="pay_status"/>
+        <result property="assignStatus" column="assign_status"/>
+        <result property="contactName" column="contact_name"/>
+        <result property="contactMobile" column="contact_mobile"/>
+        <result property="serviceAddress" column="service_address"/>
+        <result property="provinceCode" column="province_code"/>
+        <result property="cityCode" column="city_code"/>
+        <result property="districtCode" column="district_code"/>
+        <result property="appointmentDate" column="appointment_date"/>
+        <result property="appointmentTimeSlot" column="appointment_time_slot"/>
+        <result property="serviceStartTime" column="service_start_time"/>
+        <result property="serviceEndTime" column="service_end_time"/>
+        <result property="baseAmount" column="base_amount"/>
+        <result property="extraAmount" column="extra_amount"/>
+        <result property="discountAmount" column="discount_amount"/>
+        <result property="payAmount" column="pay_amount"/>
+        <result property="payTime" column="pay_time"/>
+        <result property="payChannel" column="pay_channel"/>
+        <result property="sourceChannel" column="source_channel"/>
+        <result property="customerRemark" column="customer_remark"/>
+        <result property="cancelReason" column="cancel_reason"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <resultMap id="HmOrderItemResult" type="HmOrderItem">
+        <id property="orderItemId" column="order_item_id"/>
+        <result property="orderId" column="order_id"/>
+        <result property="serviceItemId" column="service_item_id"/>
+        <result property="skuId" column="sku_id"/>
+        <result property="itemName" column="item_name"/>
+        <result property="itemPrice" column="item_price"/>
+        <result property="quantity" column="quantity"/>
+        <result property="itemAmount" column="item_amount"/>
+    </resultMap>
+
+    <resultMap id="HmOrderAssignResult" type="HmOrderAssign">
+        <id property="assignId" column="assign_id"/>
+        <result property="orderId" column="order_id"/>
+        <result property="workerId" column="worker_id"/>
+        <result property="workerName" column="worker_name"/>
+        <result property="assignStatus" column="assign_status"/>
+        <result property="assignTime" column="assign_time"/>
+        <result property="acceptTime" column="accept_time"/>
+        <result property="finishTime" column="finish_time"/>
+        <result property="cancelTime" column="cancel_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <resultMap id="HmOrderOperateLogResult" type="HmOrderOperateLog">
+        <id property="logId" column="log_id"/>
+        <result property="orderId" column="order_id"/>
+        <result property="operatorType" column="operator_type"/>
+        <result property="operatorId" column="operator_id"/>
+        <result property="operatorName" column="operator_name"/>
+        <result property="actionType" column="action_type"/>
+        <result property="actionDesc" column="action_desc"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <resultMap id="HmReviewResult" type="HmReview">
+        <id property="reviewId" column="review_id"/>
+        <result property="orderId" column="order_id"/>
+        <result property="customerId" column="customer_id"/>
+        <result property="workerId" column="worker_id"/>
+        <result property="score" column="score"/>
+        <result property="tagsJson" column="tags_json"/>
+        <result property="content" column="content"/>
+        <result property="imagesJson" column="images_json"/>
+        <result property="isAnonymous" column="is_anonymous"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="selectOrderVo">
+        select o.order_id, o.order_no, o.customer_id, o.org_id, o.service_item_id, s.service_name, o.sku_id,
+               k.sku_name, o.order_type, o.order_status, o.pay_status, o.assign_status, o.contact_name,
+               o.contact_mobile, o.service_address, o.province_code, o.city_code, o.district_code,
+               o.appointment_date, o.appointment_time_slot, o.service_start_time, o.service_end_time,
+               o.base_amount, o.extra_amount, o.discount_amount, o.pay_amount, o.pay_time, o.pay_channel,
+               o.source_channel, o.customer_remark, o.cancel_reason, o.create_time, o.update_time
+        from hm_order o
+        left join hm_service_item s on o.service_item_id = s.service_item_id
+        left join hm_service_sku k on o.sku_id = k.sku_id
+    </sql>
+
+    <select id="selectOrderList" parameterType="HmOrder" resultMap="HmOrderResult">
+        <include refid="selectOrderVo"/>
+        <where>
+            1 = 1
+            <if test="orderNo != null and orderNo != ''">
+                and o.order_no like concat('%', #{orderNo}, '%')
+            </if>
+            <if test="contactMobile != null and contactMobile != ''">
+                and o.contact_mobile like concat('%', #{contactMobile}, '%')
+            </if>
+            <if test="orderStatus != null and orderStatus != ''">
+                and o.order_status = #{orderStatus}
+            </if>
+            <if test="payStatus != null and payStatus != ''">
+                and o.pay_status = #{payStatus}
+            </if>
+            <if test="assignStatus != null and assignStatus != ''">
+                and o.assign_status = #{assignStatus}
+            </if>
+            <if test="customerId != null">
+                and o.customer_id = #{customerId}
+            </if>
+        </where>
+        order by o.order_id desc
+    </select>
+
+    <select id="selectOrderById" parameterType="Long" resultMap="HmOrderResult">
+        <include refid="selectOrderVo"/>
+        where o.order_id = #{orderId}
+    </select>
+
+    <select id="selectOrderByOrderNo" parameterType="String" resultMap="HmOrderResult">
+        <include refid="selectOrderVo"/>
+        where o.order_no = #{orderNo}
+    </select>
+
+    <insert id="insertOrder" parameterType="HmOrder" useGeneratedKeys="true" keyProperty="orderId">
+        insert into hm_order (
+            order_no, customer_id, org_id, service_item_id, sku_id, order_type, order_status, pay_status,
+            assign_status, contact_name, contact_mobile, service_address, province_code, city_code, district_code,
+            appointment_date, appointment_time_slot, base_amount, extra_amount, discount_amount, pay_amount,
+            pay_time, pay_channel, source_channel, customer_remark, cancel_reason, create_time
+        ) values (
+            #{orderNo}, #{customerId}, #{orgId}, #{serviceItemId}, #{skuId}, #{orderType}, #{orderStatus},
+            #{payStatus}, #{assignStatus}, #{contactName}, #{contactMobile}, #{serviceAddress}, #{provinceCode},
+            #{cityCode}, #{districtCode}, #{appointmentDate}, #{appointmentTimeSlot}, #{baseAmount},
+            #{extraAmount}, #{discountAmount}, #{payAmount}, #{payTime}, #{payChannel}, #{sourceChannel},
+            #{customerRemark}, #{cancelReason}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="updateOrder" parameterType="HmOrder">
+        update hm_order
+        <set>
+            order_status = #{orderStatus},
+            pay_status = #{payStatus},
+            assign_status = #{assignStatus},
+            service_start_time = #{serviceStartTime},
+            service_end_time = #{serviceEndTime},
+            pay_time = #{payTime},
+            pay_channel = #{payChannel},
+            customer_remark = #{customerRemark},
+            cancel_reason = #{cancelReason},
+            update_time = CURRENT_TIMESTAMP
+        </set>
+        where order_id = #{orderId}
+    </update>
+
+    <insert id="insertOrderItem" parameterType="HmOrderItem" useGeneratedKeys="true" keyProperty="orderItemId">
+        insert into hm_order_item(order_id, service_item_id, sku_id, item_name, item_price, quantity, item_amount)
+        values(#{orderId}, #{serviceItemId}, #{skuId}, #{itemName}, #{itemPrice}, #{quantity}, #{itemAmount})
+    </insert>
+
+    <select id="selectOrderItems" parameterType="Long" resultMap="HmOrderItemResult">
+        select order_item_id, order_id, service_item_id, sku_id, item_name, item_price, quantity, item_amount
+        from hm_order_item
+        where order_id = #{orderId}
+        order by order_item_id asc
+    </select>
+
+    <insert id="insertOrderAssign" parameterType="HmOrderAssign" useGeneratedKeys="true" keyProperty="assignId">
+        insert into hm_order_assign(order_id, worker_id, assign_status, assign_time, accept_time, finish_time, cancel_time, remark)
+        values(#{orderId}, #{workerId}, #{assignStatus}, #{assignTime}, #{acceptTime}, #{finishTime}, #{cancelTime}, #{remark})
+    </insert>
+
+    <select id="selectLatestAssign" parameterType="Long" resultMap="HmOrderAssignResult">
+        select a.assign_id, a.order_id, a.worker_id, u.nick_name as worker_name, a.assign_status, a.assign_time,
+               a.accept_time, a.finish_time, a.cancel_time, a.remark
+        from hm_order_assign a
+        left join hm_worker_profile p on a.worker_id = p.worker_profile_id
+        left join sys_user u on p.user_id = u.user_id
+        where a.order_id = #{orderId}
+        order by a.assign_id desc
+        limit 1
+    </select>
+
+    <insert id="insertOrderLog" parameterType="HmOrderOperateLog" useGeneratedKeys="true" keyProperty="logId">
+        insert into hm_order_operate_log(order_id, operator_type, operator_id, operator_name, action_type, action_desc, create_time)
+        values(#{orderId}, #{operatorType}, #{operatorId}, #{operatorName}, #{actionType}, #{actionDesc}, CURRENT_TIMESTAMP)
+    </insert>
+
+    <select id="selectOrderLogs" parameterType="Long" resultMap="HmOrderOperateLogResult">
+        select log_id, order_id, operator_type, operator_id, operator_name, action_type, action_desc, create_time
+        from hm_order_operate_log
+        where order_id = #{orderId}
+        order by log_id desc
+    </select>
+
+    <insert id="insertReview" parameterType="HmReview" useGeneratedKeys="true" keyProperty="reviewId">
+        insert into hm_review(order_id, customer_id, worker_id, score, tags_json, content, images_json, is_anonymous, status, create_time)
+        values(#{orderId}, #{customerId}, #{workerId}, #{score}, #{tagsJson}, #{content}, #{imagesJson}, #{isAnonymous}, #{status}, CURRENT_TIMESTAMP)
+    </insert>
+
+    <select id="selectReviewByOrderId" parameterType="Long" resultMap="HmReviewResult">
+        select review_id, order_id, customer_id, worker_id, score, tags_json, content, images_json, is_anonymous, status, create_time
+        from hm_review
+        where order_id = #{orderId}
+        limit 1
+    </select>
+
+</mapper>

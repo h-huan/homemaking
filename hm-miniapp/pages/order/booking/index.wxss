@@ -1,0 +1,45 @@
+.booking-price {
+  font-size: 46rpx;
+  margin-top: 18rpx;
+}
+
+.booking-name {
+  font-size: 30rpx;
+  font-weight: 700;
+  margin-bottom: 10rpx;
+}
+
+.chip-wrap,
+.option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.chip,
+.option-item {
+  padding: 18rpx 24rpx;
+  border-radius: 22rpx;
+  background: #fff8f1;
+  border: 1rpx solid transparent;
+}
+
+.chip.active,
+.option-item.active {
+  background: #fff1e3;
+  border-color: #ef8a3b;
+  color: #d36c27;
+}
+
+.fee-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 14rpx 0;
+  color: #6d5d53;
+}
+
+.fee-line.total {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #2f241e;
+}

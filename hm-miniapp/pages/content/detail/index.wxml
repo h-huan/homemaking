@@ -1,0 +1,18 @@
+<view class="page content-page">
+  <view class="card content-card" wx:if="{{content}}">
+    <view class="content-header">
+      <view class="content-eyebrow">{{content.contentType}}</view>
+      <view class="content-title">{{content.title}}</view>
+      <view class="content-sub" wx:if="{{content.subTitle}}">{{content.subTitle}}</view>
+      <view class="content-meta" wx:if="{{content.publishTime}}">更新时间 {{content.publishTime}}</view>
+    </view>
+
+    <view class="content-summary" wx:if="{{content.summary}}">{{content.summary}}</view>
+
+    <view class="content-cover" wx:if="{{content.coverImage}}">
+      <image class="content-cover-image" src="{{content.coverImage}}" mode="aspectFill"></image>
+    </view>
+
+    <rich-text class="content-rich" nodes="{{content.contentHtml}}"></rich-text>
+  </view>
+</view>

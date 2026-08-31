@@ -1,0 +1,70 @@
+<view class="page safe-bottom">
+  <view class="card">
+    <view class="section-title">{{detail.serviceInfo.serviceName}}</view>
+    <view class="muted">{{detail.serviceInfo.serviceSubTitle || detail.serviceInfo.serviceDesc}}</view>
+    <view class="price-text booking-price">￥{{calc ? calc.payAmount : detail.serviceInfo.basePrice}} 起</view>
+  </view>
+
+  <view class="card" bindtap="chooseAddress">
+    <view class="section-head">
+      <view class="section-title">服务地址</view>
+      <view class="section-desc">切换</view>
+    </view>
+    <view wx:if="{{selectedAddress}}">
+      <view class="booking-name">{{selectedAddress.contactName}} {{selectedAddress.contactMobile}}</view>
+      <view class="muted">{{selectedAddress.provinceName}}{{selectedAddress.cityName}}{{selectedAddress.districtName}}{{selectedAddress.detailAddress}}</view>
+    </view>
+    <view class="muted" wx:else>点击选择服务地址</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">预约日期</view>
+    <view class="chip-wrap">
+      <view class="chip {{form.appointmentDate === item.value ? 'active' : ''}}" wx:for="{{dateOptions}}" wx:key="value" data-value="{{item.value}}" bindtap="selectDate">{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">上门时间</view>
+    <view class="chip-wrap">
+      <view class="chip {{form.appointmentTimeSlot === item ? 'active' : ''}}" wx:for="{{slotOptions}}" wx:key="index" data-value="{{item}}" bindtap="selectSlot">{{item}}</view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{detail.skuList.length}}">
+    <view class="section-title">服务规格</view>
+    <view class="option-list">
+      <view class="option-item {{selectedSkuId == item.skuId ? 'active' : ''}}" wx:for="{{detail.skuList}}" wx:key="skuId" data-id="{{item.skuId}}" bindtap="selectSku">
+        <view>{{item.skuName}}</view>
+        <view class="price-text">￥{{item.price}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{detail.extraItemList.length}}">
+    <view class="section-title">附加项</view>
+    <view class="option-list">
+      <view class="option-item {{selectedExtraIds.indexOf(item.extraItemId) >= 0 ? 'active' : ''}}" wx:for="{{detail.extraItemList}}" wx:key="extraItemId" data-id="{{item.extraItemId}}" bindtap="toggleExtra">
+        <view>{{item.extraName}}</view>
+        <view class="price-text">+￥{{item.extraPrice}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">备注信息</view>
+    <view class="input-card">
+      <textarea class="textarea-field" placeholder="补充上门需求、环境说明或注意事项" value="{{form.customerRemark}}" bindinput="onRemark" />
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{calc}}">
+    <view class="fee-line"><text>基础金额</text><text>￥{{calc.baseAmount}}</text></view>
+    <view class="fee-line"><text>附加金额</text><text>￥{{calc.extraAmount}}</text></view>
+    <view class="fee-line total"><text>预计金额</text><text>￥{{calc.payAmount}}</text></view>
+  </view>
+
+  <view class="bottom-bar">
+    <button class="primary-btn" bindtap="goConfirm">确认预约信息</button>
+  </view>
+</view>

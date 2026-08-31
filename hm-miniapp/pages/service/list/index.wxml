@@ -1,0 +1,35 @@
+﻿<view class="page service-list-page">
+  <view class="search-box">
+    <view class="search-icon">
+      <view class="search-icon-circle"></view>
+      <view class="search-icon-handle"></view>
+    </view>
+    <input class="search-input" placeholder="搜索服务名称" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="handleSearch" />
+    <view class="search-btn" bindtap="handleSearch"><view class="search-icon search-icon--light"><view class="search-icon-circle"></view><view class="search-icon-handle"></view></view></view>
+  </view>
+
+  <scroll-view class="category-scroll" scroll-x>
+    <view class="category-tabs">
+      <view class="category-tab {{!activeCategoryId ? 'active' : ''}}" bindtap="switchCategory" data-id="">全部</view>
+      <view class="category-tab {{activeCategoryId == item.categoryId ? 'active' : ''}}" wx:for="{{categoryList}}" wx:key="categoryId" data-id="{{item.categoryId}}" bindtap="switchCategory">
+        {{item.categoryName}}
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="service-card" wx:for="{{rows}}" wx:key="serviceItemId" data-id="{{item.serviceItemId}}" bindtap="goDetail">
+    <image wx:if="{{item.serviceCover}}" class="service-cover" src="{{item.serviceCover}}" mode="aspectFill" />
+    <view wx:else class="service-cover service-cover--empty"></view>
+    <view class="service-main">
+      <view class="service-name">{{item.serviceName}}</view>
+      <view class="service-desc">{{item.serviceSubTitle || item.serviceDesc || '上门服务，按约到家'}}</view>
+      <view class="service-meta">
+        <view class="service-price">¥{{item.basePrice}}起</view>
+        <view class="service-duration" wx:if="{{item.serviceDuration}}">{{item.serviceDuration}}分钟</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-wrap" wx:if="{{!rows.length && !loadingMore}}">暂无匹配服务</view>
+</view>
+

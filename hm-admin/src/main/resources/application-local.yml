@@ -1,0 +1,81 @@
+server:
+  port: 8081
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    com.hm: info
+    org.springframework: warn
+
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driverClassName: org.h2.Driver
+    druid:
+      master:
+        url: jdbc:h2:file:./.localdb/homemaking_local_v2;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;NON_KEYWORDS=USER
+        username: sa
+        password:
+      slave:
+        enabled: false
+      initialSize: 1
+      minIdle: 1
+      maxActive: 5
+      maxWait: 60000
+      connectTimeout: 1000
+      socketTimeout: 3000
+      timeBetweenEvictionRunsMillis: 60000
+      minEvictableIdleTimeMillis: 300000
+      maxEvictableIdleTimeMillis: 900000
+      validationQuery: SELECT 1
+      testWhileIdle: true
+      testOnBorrow: false
+      testOnReturn: false
+      webStatFilter:
+        enabled: false
+      statViewServlet:
+        enabled: false
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+      schema-locations:
+        - classpath:db/local/01-ry-h2.sql
+        - classpath:db/local/02-homemaking-p0-h2.sql
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+      timeout: 1s
+      lettuce:
+        pool:
+          min-idle: 0
+          max-idle: 2
+          max-active: 2
+          max-wait: 100ms
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+    path: /swagger-ui.html
+    tags-sorter: alpha
+  group-configs:
+    - group: 'default'
+      display-name: 'local'
+      paths-to-match: '/**'
+      packages-to-scan: com.hm
+
+user:
+  password:
+    maxRetryCount: 5
+    lockTime: 10
+
+wechat:
+  mini:
+    enabled: true
+    appId: wxa2903d58ede69ca0
+    appSecret: 2c6050d9d486a853540e4b9b0c666beb

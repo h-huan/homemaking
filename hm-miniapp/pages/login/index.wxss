@@ -1,0 +1,65 @@
+.login-hero {
+  min-height: 300rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.login-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 136rpx;
+  height: 48rpx;
+  border-radius: 999rpx;
+  background: #fff1e3;
+  color: #c96827;
+  font-size: 22rpx;
+  font-weight: 600;
+  margin-bottom: 20rpx;
+}
+
+.login-title {
+  font-size: 52rpx;
+  font-weight: 700;
+  margin-bottom: 14rpx;
+}
+
+.login-desc {
+  line-height: 1.8;
+  color: #7b6b61;
+}
+
+.secondary-btn {
+  margin-top: 18rpx;
+}
+
+.agreement-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 8rpx;
+}
+
+.agreement-check {
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  border: 2rpx solid #dccabd;
+  margin-right: 12rpx;
+  text-align: center;
+  line-height: 30rpx;
+  font-size: 22rpx;
+  color: transparent;
+}
+
+.agreement-check.checked {
+  background: #ef8a3b;
+  border-color: #ef8a3b;
+  color: #fff;
+}
+
+.agreement-text {
+  font-size: 24rpx;
+  color: #8f7f74;
+}

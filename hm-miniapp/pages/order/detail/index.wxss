@@ -1,0 +1,31 @@
+.detail-amount {
+  margin-top: 22rpx;
+  font-size: 46rpx;
+  color: #dd6b20;
+  font-weight: 700;
+}
+
+.detail-address {
+  max-width: 420rpx;
+  text-align: right;
+  line-height: 1.6;
+}
+
+.log-item {
+  display: flex;
+  gap: 18rpx;
+  padding: 12rpx 0;
+}
+
+.log-dot {
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  background: #ef8a3b;
+  margin-top: 10rpx;
+}
+
+.log-title {
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
