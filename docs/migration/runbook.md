@@ -1,5 +1,7 @@
 # HM 初始化与迁移操作说明
 
+完整打包、上传、环境变量替换和 Linux 启动流程见[当前部署说明](../deployment/README.md)；所有变量及填写位置见[替换清单](../deployment/environment-variables.md)。本页主要说明空库和旧数据迁移。
+
 ## 环境与空库初始化
 
 使用 Java 17、MySQL **8.0.16 或更高版本**、Redis、Node 和项目锁定的 pnpm。迁移断言依赖 CHECK 约束，不支持将 MySQL 5.7 的执行结果当成验收。新库使用 utf8mb4，应用时区与数据库时区统一为 Asia/Shanghai。
@@ -40,6 +42,8 @@
 
 ## 通知中心
 
+退款接入限制：家政目前没有独立退款业务回执接口，而 pay 应用的 `refundNotifyUrl` 必填。不能填写不存在的地址或复用支付成功回调；先补齐退款回执并验收，详见[真实渠道接入条件](../deployment/README.md#8-接入真实渠道之前)。
+
 默认不发送真实通知；配置完成并验收后设置 `HM_HOMEMAKING_NOTIFICATION_DELIVERY_ENABLED=true`。通知统一经过平台全局/事件上限、租户全局/事件规则、客户事件偏好。默认每日 5 条、间隔 30 分钟、22:00–08:00 静默；营销默认关闭。紧急消息可越过静默时段，仍受频控及客户选择限制。
 
 租户页面设置通知规则；总部可通过 `PUT /admin-api/homemaking/notification-policy?event=*&platform=true` 管理平台上限。`PUT /admin-api/homemaking/notification-template` 配置 event、channel（MP/MINI/SMS）、templateId、fieldMapping、enabled。模板字段必须对应微信审核模板或已有短信模板，不能通用复制某个账号的模板 ID。小程序订阅需用户授权并登记 consent；短信兜底仅对重要/紧急消息、且平台/租户/客户三方均允许时生效。
@@ -62,8 +66,8 @@
 mvn -s .mvn/settings.xml -Dtest=BusinessIsolationTest,IdentityMappingTest,NotificationPolicyTest,PayOwnershipTest,DesensitizeTest -Dsurefire.failIfNoSpecifiedTests=false package
 cd hm-ui
 pnpm install --frozen-lockfile
-pnpm ts:check
 pnpm build:prod
+pnpm ts:check
 ```
 
 完整 upstream 单元/集成套件需要其独立配置与依赖，不应将上面的 34 项选定回归当成全仓所有测试。可复现 H2 迁移映射检查见 `tools/migration/README.md`。

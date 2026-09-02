@@ -8,12 +8,14 @@ Java 17 模块化单体，Vue 3 + TypeScript + Element Plus。
 
 ## 构建
 
+部署前先阅读[当前版本部署步骤](docs/deployment/README.md)和[环境变量与替换位置](docs/deployment/environment-variables.md)。从 `deploy/*.example` 复制配置；前端在打包前填写 `.env.prod.local`，后端由服务器在启动时注入环境变量。
+
 ```sh
 mvn -s .mvn/settings.xml -DskipTests package
 cd hm-ui
 pnpm install --frozen-lockfile
-pnpm ts:check
 pnpm build:prod
+pnpm ts:check
 ```
 
 ## 配置与启动
@@ -30,6 +32,9 @@ pnpm build:prod
 运营台：`/homemaking/operations`；白标与通知：`/homemaking/settings`。小程序源码位于 `hm-miniapp`，发布前需设置真实 API 域名和租户编号。
 
 - [初始化、账号配置和数据迁移](docs/migration/runbook.md)
+- [打包、上传、数据库与服务器配置](docs/deployment/README.md)
+- [部署变量逐项替换清单](docs/deployment/environment-variables.md)
+- [凭据清理记录](docs/migration/secret-remediation.md)与[提交前扫描](tools/security/README.md)
 - [验收报告与当前边界](docs/migration/final-verification.md)
 - [安全检查](docs/migration/security-review.md)
 - [架构设计](docs/migration/design.md)

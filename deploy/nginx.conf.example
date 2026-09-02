@@ -1,0 +1,63 @@
+# Include under Nginx's http {} context (for example /etc/nginx/conf.d/hm.conf).
+# Replace hm.example.invalid, certificate paths and deployment root.
+# This is the full example for a dedicated host; reconcile default_server with existing sites.
+# $hm_connection_upgrade and $uri are Nginx variables: DO NOT replace them.
+map $http_upgrade $hm_connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+# Log URL paths without query strings: OAuth codes and tokens must not enter access logs.
+log_format hm_path_only '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
+
+server {
+    listen 80 default_server;
+    server_name _;
+    return 444;
+}
+server {
+    listen 80;
+    server_name hm.example.invalid;
+    return 301 https://hm.example.invalid$request_uri;
+}
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_certificate /etc/nginx/certs/hm/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/hm/privkey.pem;
+    return 444;
+}
+server {
+    listen 443 ssl;
+    server_name hm.example.invalid;
+    ssl_certificate /etc/nginx/certs/hm/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/hm/privkey.pem;
+    root /opt/hm/current/web;
+    index index.html;
+    client_max_body_size 32m;
+    access_log /var/log/nginx/hm-access.log hm_path_only;
+
+    # Preserve /admin-api and /app-api. proxy_pass has NO trailing URI slash.
+    location ~ ^/(admin-api|app-api)/ {
+        proxy_pass http://127.0.0.1:48080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+    location /infra/ws {
+        proxy_pass http://127.0.0.1:48080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $hm_connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_read_timeout 60s;
+    }
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

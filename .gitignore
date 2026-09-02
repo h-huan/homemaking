@@ -61,3 +61,6 @@ node_modules/
 *.log
 .flattened-pom.xml
 .env.secrets
+# Private deployment values; only *.example templates are committed.
+/deploy/backend.env
+/hm-ui/.env.prod.local
