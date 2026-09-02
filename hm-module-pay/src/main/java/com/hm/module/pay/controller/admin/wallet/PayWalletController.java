@@ -25,6 +25,7 @@ import static com.hm.framework.common.pojo.CommonResult.success;
 import static com.hm.module.pay.enums.ErrorCodeConstants.WALLET_NOT_FOUND;
 
 @Tag(name = "管理后台 - 用户钱包")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="hm.pay.extended-features-enabled",havingValue="true")
 @RestController
 @RequestMapping("/pay/wallet")
 @Validated

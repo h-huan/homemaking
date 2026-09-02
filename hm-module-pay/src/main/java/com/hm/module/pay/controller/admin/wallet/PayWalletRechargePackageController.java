@@ -23,6 +23,7 @@ import static com.hm.framework.common.pojo.CommonResult.success;
 
 
 @Tag(name = "管理后台 - 钱包充值套餐")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="hm.pay.extended-features-enabled",havingValue="true")
 @RestController
 @RequestMapping("/pay/wallet-recharge-package")
 @Validated

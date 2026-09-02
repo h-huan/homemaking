@@ -25,9 +25,9 @@ public @interface ApiAccessLog {
     /**
      * 是否记录请求参数
      *
-     * 默认记录，主要考虑请求数据一般不大。可手动设置为 false 进行关闭
+     * 默认不记录；只有确认不含敏感内容的接口才可显式开启。
      */
-    boolean requestEnable() default true;
+    boolean requestEnable() default false;
     /**
      * 是否记录响应结果
      *

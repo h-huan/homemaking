@@ -35,6 +35,7 @@ import static com.hm.framework.web.core.util.WebFrameworkUtils.getLoginUserId;
 import static com.hm.framework.web.core.util.WebFrameworkUtils.getLoginUserType;
 
 @Tag(name = "用户 APP - 钱包充值")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="hm.pay.extended-features-enabled",havingValue="true")
 @RestController
 @RequestMapping("/pay/wallet-recharge")
 @Validated

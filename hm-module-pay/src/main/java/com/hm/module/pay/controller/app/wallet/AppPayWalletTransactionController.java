@@ -30,6 +30,7 @@ import static com.hm.framework.common.util.date.DateUtils.FORMAT_YEAR_MONTH_DAY_
 import static com.hm.framework.security.core.util.SecurityFrameworkUtils.getLoginUserId;
 
 @Tag(name = "用户 APP - 钱包余额明细")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="hm.pay.extended-features-enabled",havingValue="true")
 @RestController
 @RequestMapping("/pay/wallet-transaction")
 @Validated

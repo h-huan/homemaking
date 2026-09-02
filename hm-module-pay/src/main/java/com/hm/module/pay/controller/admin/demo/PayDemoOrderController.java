@@ -24,6 +24,7 @@ import static com.hm.framework.common.util.servlet.ServletUtils.getClientIP;
 import static com.hm.framework.security.core.util.SecurityFrameworkUtils.getLoginUserId;
 
 @Tag(name = "管理后台 - 示例订单") // 目的：演示支付、退款功能
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="hm.pay.extended-features-enabled",havingValue="true")
 @RestController
 @RequestMapping("/pay/demo-order")
 @Validated

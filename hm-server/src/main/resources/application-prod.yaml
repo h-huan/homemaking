@@ -25,7 +25,7 @@ spring:
       host: ${HM_REDIS_HOST:127.0.0.1}
       port: ${HM_REDIS_PORT:6379}
       database: ${HM_REDIS_DATABASE:0}
-      password: ${HM_REDIS_PASSWORD:}
+      password: ${HM_REDIS_PASSWORD}
   boot:
     admin:
       client:

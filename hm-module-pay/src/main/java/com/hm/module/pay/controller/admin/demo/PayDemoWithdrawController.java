@@ -22,6 +22,7 @@ import static com.hm.framework.common.pojo.CommonResult.success;
 import static com.hm.framework.security.core.util.SecurityFrameworkUtils.getLoginUserId;
 
 @Tag(name = "管理后台 - 示例提现订单") // 目的：演示转账功能
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="hm.pay.extended-features-enabled",havingValue="true")
 @RestController
 @RequestMapping("/pay/demo-withdraw")
 @Validated

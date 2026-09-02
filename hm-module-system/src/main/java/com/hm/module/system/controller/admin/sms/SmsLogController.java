@@ -40,7 +40,7 @@ public class SmsLogController {
 
     @GetMapping("/page")
     @Operation(summary = "获得短信日志分页")
-    @PreAuthorize("@ss.hasPermission('system:sms-log:query')")
+    @PreAuthorize("(@ss.hasPermission('system:sms-log:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<PageResult<SmsLogRespVO>> getSmsLogPage(@Valid SmsLogPageReqVO pageReqVO) {
         PageResult<SmsLogDO> pageResult = smsLogService.getSmsLogPage(pageReqVO);
         return success(BeanUtils.toBean(pageResult, SmsLogRespVO.class));
@@ -49,7 +49,7 @@ public class SmsLogController {
     @GetMapping("/get")
     @Operation(summary = "获得短信日志")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("@ss.hasPermission('system:sms-log:query')")
+    @PreAuthorize("(@ss.hasPermission('system:sms-log:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<SmsLogRespVO> getSmsLog(@RequestParam("id") Long id) {
         SmsLogDO smsLog = smsLogService.getSmsLog(id);
         return success(BeanUtils.toBean(smsLog, SmsLogRespVO.class));
@@ -57,7 +57,7 @@ public class SmsLogController {
 
     @GetMapping("/export-excel")
     @Operation(summary = "导出短信日志 Excel")
-    @PreAuthorize("@ss.hasPermission('system:sms-log:export')")
+    @PreAuthorize("(@ss.hasPermission('system:sms-log:export')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     @ApiAccessLog(operateType = EXPORT)
     public void exportSmsLogExcel(@Valid SmsLogPageReqVO exportReqVO,
                                   HttpServletResponse response) throws IOException {

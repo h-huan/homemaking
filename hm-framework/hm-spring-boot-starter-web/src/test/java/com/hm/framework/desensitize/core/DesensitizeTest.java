@@ -23,7 +23,7 @@ public class DesensitizeTest {
     public void test() {
         // 准备参数
         DesensitizeDemo desensitizeDemo = new DesensitizeDemo();
-        desensitizeDemo.setNickname("HM 家政");
+        desensitizeDemo.setNickname("张小明");
         desensitizeDemo.setBankCard("9988002866797031");
         desensitizeDemo.setCarLicense("粤A66666");
         desensitizeDemo.setFixedPhone("01086551122");
@@ -42,7 +42,7 @@ public class DesensitizeTest {
         DesensitizeDemo d = JsonUtils.parseObject(JsonUtils.toJsonString(desensitizeDemo), DesensitizeDemo.class);
         // 断言
         assertNotNull(d);
-        assertEquals("芋***", d.getNickname());
+        assertEquals("张**", d.getNickname());
         assertEquals("998800********31", d.getBankCard());
         assertEquals("粤A6***6", d.getCarLicense());
         assertEquals("0108*****22", d.getFixedPhone());

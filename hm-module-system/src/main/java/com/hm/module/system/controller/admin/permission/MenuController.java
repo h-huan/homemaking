@@ -34,7 +34,7 @@ public class MenuController {
 
     @PostMapping("/create")
     @Operation(summary = "创建菜单")
-    @PreAuthorize("@ss.hasPermission('system:menu:create')")
+    @PreAuthorize("(@ss.hasPermission('system:menu:create')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<Long> createMenu(@Valid @RequestBody MenuSaveVO createReqVO) {
         Long menuId = menuService.createMenu(createReqVO);
         return success(menuId);
@@ -42,7 +42,7 @@ public class MenuController {
 
     @PutMapping("/update")
     @Operation(summary = "修改菜单")
-    @PreAuthorize("@ss.hasPermission('system:menu:update')")
+    @PreAuthorize("(@ss.hasPermission('system:menu:update')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<Boolean> updateMenu(@Valid @RequestBody MenuSaveVO updateReqVO) {
         menuService.updateMenu(updateReqVO);
         return success(true);
@@ -51,7 +51,7 @@ public class MenuController {
     @DeleteMapping("/delete")
     @Operation(summary = "删除菜单")
     @Parameter(name = "id", description = "菜单编号", required= true, example = "1024")
-    @PreAuthorize("@ss.hasPermission('system:menu:delete')")
+    @PreAuthorize("(@ss.hasPermission('system:menu:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<Boolean> deleteMenu(@RequestParam("id") Long id) {
         menuService.deleteMenu(id);
         return success(true);
@@ -60,7 +60,7 @@ public class MenuController {
     @DeleteMapping("/delete-list")
     @Operation(summary = "批量删除菜单")
     @Parameter(name = "ids", description = "编号列表", required = true)
-    @PreAuthorize("@ss.hasPermission('system:menu:delete')")
+    @PreAuthorize("(@ss.hasPermission('system:menu:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<Boolean> deleteMenuList(@RequestParam("ids") List<Long> ids) {
         menuService.deleteMenuList(ids);
         return success(true);
@@ -68,7 +68,7 @@ public class MenuController {
 
     @GetMapping("/list")
     @Operation(summary = "获取菜单列表", description = "用于【菜单管理】界面")
-    @PreAuthorize("@ss.hasPermission('system:menu:query')")
+    @PreAuthorize("(@ss.hasPermission('system:menu:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<List<MenuRespVO>> getMenuList(MenuListReqVO reqVO) {
         List<MenuDO> list = menuService.getMenuList(reqVO);
         list.sort(Comparator.comparing(MenuDO::getSort));
@@ -88,7 +88,7 @@ public class MenuController {
 
     @GetMapping("/get")
     @Operation(summary = "获取菜单信息")
-    @PreAuthorize("@ss.hasPermission('system:menu:query')")
+    @PreAuthorize("(@ss.hasPermission('system:menu:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<MenuRespVO> getMenu(@RequestParam("id") Long id) {
         MenuDO menu = menuService.getMenu(id);
         return success(BeanUtils.toBean(menu, MenuRespVO.class));

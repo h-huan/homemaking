@@ -77,7 +77,7 @@ public class FileServiceImpl implements FileService {
         if (content == null || content.length == 0 || content.length > 16 * 1024 * 1024) {
             throw new IllegalArgumentException("文件大小必须在 1 字节到 16 MB 之间");
         }
-        type = FileTypeUtils.getMineType(content, name);
+        type = FileTypeUtils.getMineType(content);
         if (!Set.of("image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf").contains(type)) {
             throw new IllegalArgumentException("只允许图片和 PDF 文件");
         }

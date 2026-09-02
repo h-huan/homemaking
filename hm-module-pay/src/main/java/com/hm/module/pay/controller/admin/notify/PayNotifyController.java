@@ -62,6 +62,7 @@ public class PayNotifyController {
 
     @PostMapping(value = "/order/{channelId}")
     @Operation(summary = "支付渠道的统一【支付】回调")
+    @com.hm.framework.apilog.core.annotation.ApiAccessLog(requestEnable=false)
     @PermitAll
     @TenantIgnore
     public String notifyOrder(@PathVariable("channelId") Long channelId,
@@ -84,6 +85,7 @@ public class PayNotifyController {
 
     @PostMapping(value = "/refund/{channelId}")
     @Operation(summary = "支付渠道的统一【退款】回调")
+    @com.hm.framework.apilog.core.annotation.ApiAccessLog(requestEnable=false)
     @PermitAll
     @TenantIgnore
     public String notifyRefund(@PathVariable("channelId") Long channelId,
@@ -106,6 +108,7 @@ public class PayNotifyController {
 
     @PostMapping(value = "/transfer/{channelId}")
     @Operation(summary = "支付渠道的统一【转账】回调")
+    @com.hm.framework.apilog.core.annotation.ApiAccessLog(requestEnable=false)
     @PermitAll
     @TenantIgnore
     public String notifyTransfer(@PathVariable("channelId") Long channelId,

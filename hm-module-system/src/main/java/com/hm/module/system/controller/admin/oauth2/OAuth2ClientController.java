@@ -32,14 +32,14 @@ public class OAuth2ClientController {
 
     @PostMapping("/create")
     @Operation(summary = "创建 OAuth2 客户端")
-    @PreAuthorize("@ss.hasPermission('system:oauth2-client:create')")
+    @PreAuthorize("(@ss.hasPermission('system:oauth2-client:create')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<Long> createOAuth2Client(@Valid @RequestBody OAuth2ClientSaveReqVO createReqVO) {
         return success(oAuth2ClientService.createOAuth2Client(createReqVO));
     }
 
     @PutMapping("/update")
     @Operation(summary = "更新 OAuth2 客户端")
-    @PreAuthorize("@ss.hasPermission('system:oauth2-client:update')")
+    @PreAuthorize("(@ss.hasPermission('system:oauth2-client:update')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<Boolean> updateOAuth2Client(@Valid @RequestBody OAuth2ClientSaveReqVO updateReqVO) {
         oAuth2ClientService.updateOAuth2Client(updateReqVO);
         return success(true);
@@ -48,7 +48,7 @@ public class OAuth2ClientController {
     @DeleteMapping("/delete")
     @Operation(summary = "删除 OAuth2 客户端")
     @Parameter(name = "id", description = "编号", required = true)
-    @PreAuthorize("@ss.hasPermission('system:oauth2-client:delete')")
+    @PreAuthorize("(@ss.hasPermission('system:oauth2-client:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<Boolean> deleteOAuth2Client(@RequestParam("id") Long id) {
         oAuth2ClientService.deleteOAuth2Client(id);
         return success(true);
@@ -57,7 +57,7 @@ public class OAuth2ClientController {
     @DeleteMapping("/delete-list")
     @Parameter(name = "ids", description = "编号列表", required = true)
     @Operation(summary = "批量删除 OAuth2 客户端")
-    @PreAuthorize("@ss.hasPermission('system:oauth2-client:delete')")
+    @PreAuthorize("(@ss.hasPermission('system:oauth2-client:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<Boolean> deleteOAuth2ClientList(@RequestParam("ids") List<Long> ids) {
         oAuth2ClientService.deleteOAuth2ClientList(ids);
         return success(true);
@@ -66,7 +66,7 @@ public class OAuth2ClientController {
     @GetMapping("/get")
     @Operation(summary = "获得 OAuth2 客户端")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("@ss.hasPermission('system:oauth2-client:query')")
+    @PreAuthorize("(@ss.hasPermission('system:oauth2-client:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<OAuth2ClientRespVO> getOAuth2Client(@RequestParam("id") Long id) {
         OAuth2ClientDO client = oAuth2ClientService.getOAuth2Client(id);
         return success(BeanUtils.toBean(client, OAuth2ClientRespVO.class));
@@ -74,7 +74,7 @@ public class OAuth2ClientController {
 
     @GetMapping("/page")
     @Operation(summary = "获得 OAuth2 客户端分页")
-    @PreAuthorize("@ss.hasPermission('system:oauth2-client:query')")
+    @PreAuthorize("(@ss.hasPermission('system:oauth2-client:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
     public CommonResult<PageResult<OAuth2ClientRespVO>> getOAuth2ClientPage(@Valid OAuth2ClientPageReqVO pageVO) {
         PageResult<OAuth2ClientDO> pageResult = oAuth2ClientService.getOAuth2ClientPage(pageVO);
         return success(BeanUtils.toBean(pageResult, OAuth2ClientRespVO.class));
