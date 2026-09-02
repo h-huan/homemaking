@@ -85,9 +85,9 @@ const setupAll = async () => {
   app.use(print)
 
   app.mount('#app')
+  await loadPublicBrand()
 }
 
 setupAll()
-void loadPublicBrand()
 
 Logger.prettyPrimary(`欢迎使用`, import.meta.env.VITE_APP_TITLE)

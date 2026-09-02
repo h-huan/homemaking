@@ -26,7 +26,7 @@
 
 工具读取两次隐藏输入，生成 BCrypt，且只能修改总部首次锁定账号。不会打印或保存明文密码，不会重设已初始化账号。Linux 可在临时目录从服务器 JAR 提取 `BOOT-INF/lib`，再以这些 JAR 为 classpath 运行 `tools/bootstrap/SetAdminPassword.java`。
 
-后端：`java -jar hm-server/target/hm-server.jar`。默认仅监听 127.0.0.1:48080。前端构建后将 `hm-ui/dist` 配置为静态站点，反向代理 `/admin-api` 和 `/app-api` 到后端；SPA 路由包括 `/wechat/callback` 必须回退到 index.html。可信代理需正确转发已验证 Host 并拒绝未知域名，外部必须使用 HTTPS。
+后端：`java -jar hm-server/target/hm-server.jar`。默认仅监听 127.0.0.1:48080。生产模式前端构建后将 `hm-ui/dist-prod` 配置为静态站点，反向代理 `/admin-api` 和 `/app-api` 到后端；SPA 路由包括 `/wechat/callback` 必须回退到 index.html。可信代理需正确转发已验证 Host 并拒绝未知域名，外部必须使用 HTTPS。
 
 小程序 `hm-miniapp/app.js` 中设置各租户的正式 HTTPS baseUrl 和 tenantId，使用对应 AppID 构建发布；旧登录 token 不兼容，升级后重新微信登录。微信后台配置 request 合法域名。
 

@@ -172,6 +172,7 @@ async function loadBrand() {
   loading.value = true
   try {
     const raw = await api.getBrand()
+    applyTenantBrand(raw)
     const b: api.BusinessRow = {}
     for (const [k, v] of Object.entries(raw))
       b[k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())] = v

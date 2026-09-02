@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { useAppStoreWithOut } from '@/store/modules/app'
 export const tenantBrand = reactive({
   name: 'HM 家政管理平台',
   logo: '/hm-logo.svg',
@@ -21,8 +22,11 @@ export function applyTenantBrand(data: Record<string, any>) {
     tenantBrand.homeModules = ['services']
   }
   document.title = tenantBrand.name
-  if (/^#[0-9a-fA-F]{6}$/.test(data.primary_color))
-    document.documentElement.style.setProperty('--el-color-primary', data.primary_color)
+  if (/^#[0-9a-fA-F]{6}$/.test(data.primary_color)) {
+    const theme = useAppStoreWithOut()
+    theme.setTheme({ elColorPrimary: data.primary_color, leftMenuBgActiveColor: data.primary_color })
+    theme.setCssVarTheme()
+  }
   const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
   if (icon) icon.href = data.favicon || '/hm-logo.svg'
 }
