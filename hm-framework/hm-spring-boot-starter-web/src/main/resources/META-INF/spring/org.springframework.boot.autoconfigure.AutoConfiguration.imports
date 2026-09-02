@@ -1,0 +1,7 @@
+com.hm.framework.apilog.config.HmApiLogAutoConfiguration
+com.hm.framework.jackson.config.HmJacksonAutoConfiguration
+com.hm.framework.swagger.config.HmSwaggerAutoConfiguration
+com.hm.framework.web.config.HmWebAutoConfiguration
+com.hm.framework.xss.config.HmXssAutoConfiguration
+com.hm.framework.banner.config.HmBannerAutoConfiguration
+com.hm.framework.encrypt.config.HmApiEncryptAutoConfiguration

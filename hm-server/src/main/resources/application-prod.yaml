@@ -1,0 +1,78 @@
+server:
+  address: ${HM_BIND_ADDRESS:127.0.0.1}
+  port: ${HM_PORT:48080}
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration
+  datasource:
+    druid:
+      stat-view-servlet:
+        enabled: false
+      web-stat-filter:
+        enabled: false
+    dynamic:
+      primary: master
+      strict: true
+      datasource:
+        master:
+          name: hm
+          url: ${HM_DB_URL:jdbc:mysql://127.0.0.1:3306/hm?useSSL=true&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8}
+          username: ${HM_DB_USER:hm}
+          password: ${HM_DB_PASSWORD}
+  data:
+    redis:
+      host: ${HM_REDIS_HOST:127.0.0.1}
+      port: ${HM_REDIS_PORT:6379}
+      database: ${HM_REDIS_DATABASE:0}
+      password: ${HM_REDIS_PASSWORD:}
+  boot:
+    admin:
+      client:
+        enabled: false
+  quartz:
+    auto-startup: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+logging:
+  file:
+    name: ${HM_LOG_FILE:./logs/hm-server.log}
+hm:
+  captcha:
+    enable: true
+  security:
+    mock-enable: false
+  pay:
+    order-notify-url: ${HM_PUBLIC_API_URL:http://localhost:48080}/admin-api/pay/notify/order
+    refund-notify-url: ${HM_PUBLIC_API_URL:http://localhost:48080}/admin-api/pay/notify/refund
+    transfer-notify-url: ${HM_PUBLIC_API_URL:http://localhost:48080}/admin-api/pay/notify/transfer
+  access-log:
+    enable: true
+  demo: false
+  tencent-lbs-key: ${HM_TENCENT_LBS_KEY:}
+wx:
+  mp:
+    app-id: ${HM_WECHAT_MP_APP_ID:}
+    secret: ${HM_WECHAT_MP_SECRET:}
+  miniapp:
+    appid: ${HM_WECHAT_MINI_APP_ID:}
+    secret: ${HM_WECHAT_MINI_SECRET:}
+justauth:
+  enabled: true
+  cache:
+    type: REDIS
+    prefix: 'hm:social_auth_state:'
+    timeout: 5m
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+knife4j:
+  enable: false

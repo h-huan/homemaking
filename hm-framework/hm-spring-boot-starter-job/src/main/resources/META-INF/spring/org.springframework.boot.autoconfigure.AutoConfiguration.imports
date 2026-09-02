@@ -1,0 +1,2 @@
+com.hm.framework.quartz.config.HmQuartzAutoConfiguration
+com.hm.framework.quartz.config.HmAsyncAutoConfiguration

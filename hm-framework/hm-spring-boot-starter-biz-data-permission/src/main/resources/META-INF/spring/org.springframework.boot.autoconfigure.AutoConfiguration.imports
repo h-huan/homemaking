@@ -1,0 +1,2 @@
+com.hm.framework.datapermission.config.HmDataPermissionAutoConfiguration
+com.hm.framework.datapermission.config.HmDeptDataPermissionAutoConfiguration

@@ -1,248 +1,159 @@
 <template>
-   <div class="app-container">
-      <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch">
-         <el-form-item label="部门名称" prop="deptName">
-            <el-input
-               v-model="queryParams.deptName"
-               placeholder="请输入部门名称"
-               clearable
-               style="width: 200px"
-               @keyup.enter="handleQuery"
-            />
-         </el-form-item>
-         <el-form-item label="状态" prop="status">
-            <el-select v-model="queryParams.status" placeholder="部门状态" clearable style="width: 200px">
-               <el-option
-                  v-for="dict in sys_normal_disable"
-                  :key="dict.value"
-                  :label="dict.label"
-                  :value="dict.value"
-               />
-            </el-select>
-         </el-form-item>
-         <el-form-item>
-            <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
-            <el-button icon="Refresh" @click="resetQuery">重置</el-button>
-         </el-form-item>
-      </el-form>
+  <!-- 搜索工作栏 -->
+  <ContentWrap>
+    <el-form
+      class="-mb-15px"
+      :model="queryParams"
+      ref="queryFormRef"
+      :inline="true"
+      label-width="68px"
+    >
+      <el-form-item label="部门名称" prop="name">
+        <el-input
+          v-model="queryParams.name"
+          placeholder="请输入部门名称"
+          clearable
+          @keyup.enter="handleQuery"
+          class="!w-240px"
+        />
+      </el-form-item>
+      <el-form-item label="部门状态" prop="status">
+        <el-select
+          v-model="queryParams.status"
+          placeholder="请选择部门状态"
+          clearable
+          class="!w-240px"
+        >
+          <el-option
+            v-for="dict in getIntDictOptions(DICT_TYPE.COMMON_STATUS)"
+            :key="dict.value"
+            :label="dict.label"
+            :value="dict.value"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button @click="handleQuery"><Icon icon="ep:search" class="mr-5px" /> 搜索</el-button>
+        <el-button @click="resetQuery"><Icon icon="ep:refresh" class="mr-5px" /> 重置</el-button>
+        <el-button
+          type="primary"
+          plain
+          @click="openForm('create')"
+          v-hasPermi="['system:dept:create']"
+        >
+          <Icon icon="ep:plus" class="mr-5px" /> 新增
+        </el-button>
+        <el-button type="danger" plain @click="toggleExpandAll">
+          <Icon icon="ep:sort" class="mr-5px" /> 展开/折叠
+        </el-button>
+        <el-button
+          type="danger"
+          plain
+          :disabled="checkedIds.length === 0"
+          @click="handleDeleteBatch"
+          v-hasPermi="['system:dept:delete']"
+        >
+          <Icon icon="ep:delete" class="mr-5px" /> 批量删除
+        </el-button>
+      </el-form-item>
+    </el-form>
+  </ContentWrap>
 
-      <el-row :gutter="10" class="mb8">
-         <el-col :span="1.5">
-            <el-button
-               type="primary"
-               plain
-               icon="Plus"
-               @click="handleAdd"
-               v-hasPermi="['system:dept:add']"
-            >新增</el-button>
-         </el-col>
-         <el-col :span="1.5">
-            <el-button
-               type="warning"
-               plain
-               icon="Check"
-               @click="handleSaveSort"
-               v-hasPermi="['system:dept:edit']"
-            >保存排序</el-button>
-         </el-col>
-         <el-col :span="1.5">
-            <el-button
-               type="info"
-               plain
-               icon="Sort"
-               @click="toggleExpandAll"
-            >展开/折叠</el-button>
-         </el-col>
-         <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
-      </el-row>
+  <!-- 列表 -->
+  <ContentWrap>
+    <el-table
+      v-loading="loading"
+      :data="list"
+      row-key="id"
+      :default-expand-all="isExpandAll"
+      v-if="refreshTable"
+      @selection-change="handleRowCheckboxChange"
+    >
+      <el-table-column type="selection" width="55" />
+      <el-table-column prop="name" label="部门名称" />
+      <el-table-column prop="leader" label="负责人">
+        <template #default="scope">
+          {{ userList.find((user) => user.id === scope.row.leaderUserId)?.nickname }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="sort" label="排序" />
+      <el-table-column prop="status" label="状态">
+        <template #default="scope">
+          <dict-tag :type="DICT_TYPE.COMMON_STATUS" :value="scope.row.status" />
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="创建时间"
+        align="center"
+        prop="createTime"
+        width="180"
+        :formatter="dateFormatter"
+      />
+      <el-table-column label="操作" align="center">
+        <template #default="scope">
+          <el-button
+            link
+            type="primary"
+            @click="openForm('update', scope.row.id)"
+            v-hasPermi="['system:dept:update']"
+          >
+            修改
+          </el-button>
+          <el-button
+            link
+            type="danger"
+            @click="handleDelete(scope.row.id)"
+            v-hasPermi="['system:dept:delete']"
+          >
+            删除
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </ContentWrap>
 
-      <el-table
-         v-if="refreshTable"
-         v-loading="loading"
-         :data="deptList"
-         row-key="deptId"
-         :default-expand-all="isExpandAll"
-         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-      >
-         <el-table-column prop="deptName" label="部门名称" width="260"></el-table-column>
-         <el-table-column prop="orderNum" label="排序" width="200">
-            <template #default="scope">
-               <el-input-number v-model="scope.row.orderNum" controls-position="right" :min="0" style="width: 88px" />
-            </template>
-         </el-table-column>
-         <el-table-column prop="status" label="状态" width="100">
-            <template #default="scope">
-               <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
-            </template>
-         </el-table-column>
-         <el-table-column label="创建时间" align="center" prop="createTime" width="200">
-            <template #default="scope">
-               <span>{{ parseTime(scope.row.createTime) }}</span>
-            </template>
-         </el-table-column>
-         <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
-            <template #default="scope">
-               <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:dept:edit']">修改</el-button>
-               <el-button link type="primary" icon="Plus" @click="handleAdd(scope.row)" v-hasPermi="['system:dept:add']">新增</el-button>
-               <el-button v-if="scope.row.parentId != 0" link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['system:dept:remove']">删除</el-button>
-            </template>
-         </el-table-column>
-      </el-table>
-
-      <!-- 添加或修改部门对话框 -->
-      <el-dialog :title="title" v-model="open" width="600px" append-to-body>
-         <el-form ref="deptRef" :model="form" :rules="rules" label-width="80px">
-            <el-row>
-               <el-col :span="24" v-if="form.parentId !== 0">
-                  <el-form-item label="上级部门" prop="parentId">
-                     <el-tree-select
-                        v-model="form.parentId"
-                        :data="deptOptions"
-                        :props="{ value: 'deptId', label: 'deptName', children: 'children' }"
-                        value-key="deptId"
-                        placeholder="选择上级部门"
-                        check-strictly
-                     />
-                  </el-form-item>
-               </el-col>
-               <el-col :span="12">
-                  <el-form-item label="部门名称" prop="deptName">
-                     <el-input v-model="form.deptName" placeholder="请输入部门名称" />
-                  </el-form-item>
-               </el-col>
-               <el-col :span="12">
-                  <el-form-item label="显示排序" prop="orderNum">
-                     <el-input-number v-model="form.orderNum" controls-position="right" :min="0" />
-                  </el-form-item>
-               </el-col>
-               <el-col :span="12">
-                  <el-form-item label="负责人" prop="leader">
-                     <el-input v-model="form.leader" placeholder="请输入负责人" maxlength="20" />
-                  </el-form-item>
-               </el-col>
-               <el-col :span="12">
-                  <el-form-item label="联系电话" prop="phone">
-                     <el-input v-model="form.phone" placeholder="请输入联系电话" maxlength="11" />
-                  </el-form-item>
-               </el-col>
-               <el-col :span="12">
-                  <el-form-item label="邮箱" prop="email">
-                     <el-input v-model="form.email" placeholder="请输入邮箱" maxlength="50" />
-                  </el-form-item>
-               </el-col>
-               <el-col :span="12">
-                  <el-form-item label="部门状态">
-                     <el-radio-group v-model="form.status">
-                        <el-radio
-                           v-for="dict in sys_normal_disable"
-                           :key="dict.value"
-                           :value="dict.value"
-                        >{{ dict.label }}</el-radio>
-                     </el-radio-group>
-                  </el-form-item>
-               </el-col>
-            </el-row>
-         </el-form>
-         <template #footer>
-            <div class="dialog-footer">
-               <el-button type="primary" @click="submitForm">确 定</el-button>
-               <el-button @click="cancel">取 消</el-button>
-            </div>
-         </template>
-      </el-dialog>
-   </div>
+  <!-- 表单弹窗：添加/修改 -->
+  <DeptForm ref="formRef" @success="getList" />
 </template>
+<script lang="ts" setup>
+import { DICT_TYPE, getIntDictOptions } from '@/utils/dict'
+import { dateFormatter } from '@/utils/formatTime'
+import { handleTree } from '@/utils/tree'
+import * as DeptApi from '@/api/system/dept'
+import DeptForm from './DeptForm.vue'
+import * as UserApi from '@/api/system/user'
 
-<script setup name="Dept">
-import { listDept, getDept, delDept, addDept, updateDept, updateDeptSort, listDeptExcludeChild } from "@/api/system/dept"
+defineOptions({ name: 'SystemDept' })
 
-const { proxy } = getCurrentInstance()
-const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
+const message = useMessage() // 消息弹窗
+const { t } = useI18n() // 国际化
 
-const deptList = ref([])
-const open = ref(false)
-const loading = ref(true)
-const showSearch = ref(true)
-const title = ref("")
-const deptOptions = ref([])
-const isExpandAll = ref(true)
-const refreshTable = ref(true)
-const originalOrders = ref({})
-
-const data = reactive({
-  form: {},
-  queryParams: {
-    deptName: undefined,
-    status: undefined
-  },
-  rules: {
-    parentId: [{ required: true, message: "上级部门不能为空", trigger: "blur" }],
-    deptName: [{ required: true, message: "部门名称不能为空", trigger: "blur" }],
-    orderNum: [{ required: true, message: "显示排序不能为空", trigger: "blur" }],
-    email: [{ type: "email", message: "请输入正确的邮箱地址", trigger: ["blur", "change"] }],
-    phone: [{ pattern: /^1[3|4|5|6|7|8|9][0-9]\d{8}$/, message: "请输入正确的手机号码", trigger: "blur" }]
-  },
+const loading = ref(true) // 列表的加载中
+const list = ref() // 列表的数据
+const queryParams = reactive({
+  pageNo: 1,
+  pageSize: 100,
+  name: undefined,
+  status: undefined
 })
-
-const { queryParams, form, rules } = toRefs(data)
+const queryFormRef = ref() // 搜索的表单
+const isExpandAll = ref(true) // 是否展开，默认全部展开
+const refreshTable = ref(true) // 重新渲染表格状态
+const userList = ref<UserApi.UserVO[]>([]) // 用户列表
 
 /** 查询部门列表 */
-function getList() {
+const getList = async () => {
   loading.value = true
-  listDept(queryParams.value).then(response => {
-    deptList.value = proxy.handleTree(response.data, "deptId")
-    recordOriginalOrders(deptList.value)
+  try {
+    const data = await DeptApi.getDeptList(queryParams)
+    list.value = handleTree(data)
+  } finally {
     loading.value = false
-  })
-}
-
-/** 取消按钮 */
-function cancel() {
-  open.value = false
-  reset()
-}
-
-/** 表单重置 */
-function reset() {
-  form.value = {
-    deptId: undefined,
-    parentId: undefined,
-    deptName: undefined,
-    orderNum: 0,
-    leader: undefined,
-    phone: undefined,
-    email: undefined,
-    status: "0"
   }
-  proxy.resetForm("deptRef")
-}
-
-/** 搜索按钮操作 */
-function handleQuery() {
-  getList()
-}
-
-/** 重置按钮操作 */
-function resetQuery() {
-  proxy.resetForm("queryRef")
-  handleQuery()
-}
-
-/** 新增按钮操作 */
-function handleAdd(row) {
-  reset()
-  listDept().then(response => {
-    deptOptions.value = proxy.handleTree(response.data, "deptId")
-  })
-  if (row != undefined) {
-    form.value.parentId = row.deptId
-  }
-  open.value = true
-  title.value = "添加部门"
 }
 
 /** 展开/折叠操作 */
-function toggleExpandAll() {
+const toggleExpandAll = () => {
   refreshTable.value = false
   isExpandAll.value = !isExpandAll.value
   nextTick(() => {
@@ -250,85 +161,60 @@ function toggleExpandAll() {
   })
 }
 
-/** 修改按钮操作 */
-function handleUpdate(row) {
-  reset()
-  listDeptExcludeChild(row.deptId).then(response => {
-    deptOptions.value = proxy.handleTree(response.data, "deptId")
-  })
-  getDept(row.deptId).then(response => {
-    form.value = response.data
-    open.value = true
-    title.value = "修改部门"
-  })
+/** 搜索按钮操作 */
+const handleQuery = () => {
+  getList()
 }
 
-/** 提交按钮 */
-function submitForm() {
-  proxy.$refs["deptRef"].validate(valid => {
-    if (valid) {
-      if (form.value.deptId != undefined) {
-        updateDept(form.value).then(response => {
-          proxy.$modal.msgSuccess("修改成功")
-          open.value = false
-          getList()
-        })
-      } else {
-        addDept(form.value).then(response => {
-          proxy.$modal.msgSuccess("新增成功")
-          open.value = false
-          getList()
-        })
-      }
-    }
-  })
+/** 重置按钮操作 */
+const resetQuery = () => {
+  queryParams.pageNo = 1
+  queryFormRef.value.resetFields()
+  handleQuery()
 }
 
-/** 递归记录原始排序 */
-function recordOriginalOrders(list) {
-  list.forEach(item => {
-    originalOrders.value[item.deptId] = item.orderNum
-    if (item.children && item.children.length) {
-      recordOriginalOrders(item.children)
-    }
-  })
-}
-
-/** 保存排序 */
-function handleSaveSort() {
-  const changedDeptIds = []
-  const changedOrderNums = []
-  const collectChanged = (list) => {
-    list.forEach(item => {
-      if (String(originalOrders.value[item.deptId]) !== String(item.orderNum)) {
-        changedDeptIds.push(item.deptId)
-        changedOrderNums.push(item.orderNum)
-      }
-      if (item.children && item.children.length) {
-        collectChanged(item.children)
-      }
-    })
-  }
-  collectChanged(deptList.value)
-  if (changedDeptIds.length === 0) {
-   proxy.$modal.msgWarning("未检测到排序修改")
-    return
-  }
-  updateDeptSort({ deptIds: changedDeptIds.join(","), orderNums: changedOrderNums.join(",") }).then(() => {
-   proxy.$modal.msgSuccess("排序保存成功")
-    recordOriginalOrders(deptList.value)
-  })
+/** 添加/修改操作 */
+const formRef = ref()
+const openForm = (type: string, id?: number) => {
+  formRef.value.open(type, id)
 }
 
 /** 删除按钮操作 */
-function handleDelete(row) {
-  proxy.$modal.confirm('是否确认删除名称为"' + row.deptName + '"的数据项?').then(function() {
-    return delDept(row.deptId)
-  }).then(() => {
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
+const handleDelete = async (id: number) => {
+  try {
+    // 删除的二次确认
+    await message.delConfirm()
+    // 发起删除
+    await DeptApi.deleteDept(id)
+    message.success(t('common.delSuccess'))
+    // 刷新列表
+    await getList()
+  } catch {}
 }
 
-getList()
+/** 批量删除按钮操作 */
+const checkedIds = ref<number[]>([])
+const handleRowCheckboxChange = (rows: DeptApi.DeptVO[]) => {
+  checkedIds.value = rows.map((row) => row.id)
+}
+
+const handleDeleteBatch = async () => {
+  try {
+    // 删除的二次确认
+    await message.delConfirm()
+    // 发起批量删除
+    await DeptApi.deleteDeptList(checkedIds.value)
+    checkedIds.value = []
+    message.success(t('common.delSuccess'))
+    // 刷新列表
+    await getList()
+  } catch {}
+}
+
+/** 初始化 **/
+onMounted(async () => {
+  await getList()
+  // 获取用户列表
+  userList.value = await UserApi.getSimpleUserList()
+})
 </script>

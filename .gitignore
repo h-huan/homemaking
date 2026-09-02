@@ -7,8 +7,8 @@
 
 target/
 !.mvn/wrapper/maven-wrapper.jar
-.m2repo/
-hm-admin/.localdb/
+
+.flattened-pom.xml
 
 ######################################################################
 # IDE
@@ -27,9 +27,6 @@ hm-admin/.localdb/
 *.iml
 *.ipr
 
-### JRebel ###
-rebel.xml
-
 ### NetBeans ###
 nbproject/private/
 build/*
@@ -41,9 +38,6 @@ nbdist/
 ######################################################################
 # Others
 *.log
-logs/
-.playwright-cli/
-*.class
 *.xml.versionsBackup
 *.swp
 
@@ -51,6 +45,19 @@ logs/
 !*/build/*.html
 !*/build/*.xml
 
+### JRebel ###
+rebel.xml
 
-node_modules
-package-lock.json
+application-my.yaml
+
+/hm-ui-app/unpackage/
+.DS_Store
+**/.DS_Store
+node_modules/
+.m2repo/
+.pnpm-store/
+.runtime/
+.local/
+*.log
+.flattened-pom.xml
+.env.secrets

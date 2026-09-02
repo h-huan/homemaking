@@ -1,0 +1,2 @@
+com.hm.framework.redis.config.HmRedisAutoConfiguration
+com.hm.framework.redis.config.HmCacheAutoConfiguration

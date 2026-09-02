@@ -1,0 +1,3 @@
+com.hm.framework.mq.redis.config.HmRedisMQProducerAutoConfiguration
+com.hm.framework.mq.redis.config.HmRedisMQConsumerAutoConfiguration
+com.hm.framework.mq.rabbitmq.config.HmRabbitMQAutoConfiguration

@@ -1,0 +1,4 @@
+com.hm.framework.idempotent.config.HmIdempotentConfiguration
+com.hm.framework.lock4j.config.HmLock4jConfiguration
+com.hm.framework.ratelimiter.config.HmRateLimiterConfiguration
+com.hm.framework.signature.config.HmApiSignatureAutoConfiguration

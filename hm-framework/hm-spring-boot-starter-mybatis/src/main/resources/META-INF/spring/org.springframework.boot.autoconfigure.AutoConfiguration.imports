@@ -1,0 +1,3 @@
+com.hm.framework.datasource.config.HmDataSourceAutoConfiguration
+com.hm.framework.mybatis.config.HmMybatisAutoConfiguration
+com.hm.framework.translate.config.HmTranslateAutoConfiguration
