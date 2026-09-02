@@ -1,13 +1,13 @@
 import { watch, ref } from 'vue'
 import { isString } from '@/utils/is'
-import { useAppStoreWithOut } from '@/store/modules/app'
+import { tenantBrand } from '@/hooks/web/useTenantBrand'
 
-const appStore = useAppStoreWithOut()
+
 
 export const useTitle = (newTitle?: string) => {
   const { t } = useI18n()
   const title = ref(
-    newTitle ? `${appStore.getTitle} - ${t(newTitle as string)}` : appStore.getTitle
+    newTitle ? `${tenantBrand.name} - ${t(newTitle as string)}` : tenantBrand.name
   )
 
   watch(

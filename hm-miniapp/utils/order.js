@@ -1,5 +1,5 @@
 const STATUS_MAP = {
-  '10': { label: '待支付', className: 'gray', desc: '支付功能后续开放' },
+  '10': { label: '待支付', className: 'gray', desc: '请完成付款，付款后安排服务' },
   '20': { label: '待确认', className: 'blue', desc: '平台正在确认预约信息' },
   '30': { label: '待派单', className: 'blue', desc: '预约已提交，等待安排服务人员' },
   '40': { label: '待上门', className: 'blue', desc: '服务人员已安排，请留意上门时间' },

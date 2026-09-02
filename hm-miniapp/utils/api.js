@@ -1,10 +1,14 @@
 const { request } = require('./request')
 
 const api = {
-  login: (code) => request({ url: '/mini/auth/login', method: 'POST', data: { code } }),
-  bindMobile: (data) => request({ url: '/mini/auth/bindMobile', method: 'POST', data }),
-  getProfile: () => request({ url: '/mini/auth/profile' }),
+  login: async (code) => { const result = await request({ url: '/homemaking/wechat/mini-login', method: 'POST', data: { code, appId: wx.getAccountInfoSync().miniProgram.appId } }); return { ...result, token: result.accessToken } },
+  bindMobile: (data) => request({ url: '/homemaking/wechat/phone', method: 'POST', data: { appId: wx.getAccountInfoSync().miniProgram.appId, code: data.phoneCode } }),
+  getProfile: async () => { const result = await request({ url: '/homemaking/me' }); return { ...result, customerId: result.id, isBindMobile: !!result.mobile } },
   getHome: () => request({ url: '/mini/home/index' }),
+  getNotificationPreferences: () => request({ url: '/homemaking/notification-preferences' }),
+  saveNotificationPreference: (data) => request({ url: '/homemaking/notification-preference', method: 'PUT', data }),
+  getSubscriptionTemplates: () => request({ url: '/homemaking/wechat/subscription-templates', params: { appId: wx.getAccountInfoSync().miniProgram.appId } }),
+  saveSubscription: (templateId, accepted) => request({ url: '/homemaking/wechat/subscription', method: 'POST', data: { appId: wx.getAccountInfoSync().miniProgram.appId, templateId, accepted } }),
   getContent: (contentType) => request({ url: `/mini/home/content/${contentType}` }),
   getServiceDetail: (serviceItemId) => request({ url: `/mini/service/${serviceItemId}` }),
   listServices: (params) => request({ url: '/mini/service/list', params }),
@@ -16,6 +20,8 @@ const api = {
   submitOrder: (data) => request({ url: '/mini/order/submit', method: 'POST', data }),
   listOrders: (params) => request({ url: '/mini/order/list', data: params }),
   getOrder: (orderId) => request({ url: `/mini/order/${orderId}` }),
+  preparePayment: (orderId) => request({ url: `/homemaking/orders/${orderId}/mini-pay`, method: 'POST', data: { appId: wx.getAccountInfoSync().miniProgram.appId } }),
+  syncPayment: (orderId) => request({ url: `/homemaking/orders/${orderId}/sync-pay`, method: 'POST' }),
   cancelOrder: (orderId, cancelReason) => request({ url: `/mini/order/cancel/${orderId}`, method: 'POST', data: { cancelReason } })
 }
 

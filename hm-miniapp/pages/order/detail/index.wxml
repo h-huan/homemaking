@@ -36,7 +36,14 @@
     </view>
   </view>
 
-  <view class="bottom-bar" wx:if="{{detail.orderStatus === '20' || detail.orderStatus === '30'}}">
+  <view class="card">
+    <view class="section-title">预约提醒</view>
+    <view class="fee-line"><text>接收上门提醒</text><switch checked="{{reminderEnabled}}" disabled="{{savingPreference}}" data-key="reminderEnabled" bindchange="handlePreference" /></view>
+    <view class="fee-line"><text>允许必要时使用短信提醒</text><switch checked="{{allowSms}}" disabled="{{savingPreference}}" data-key="allowSms" bindchange="handlePreference" /></view>
+    <button wx:if="{{subscriptionTemplates.length}}" bindtap="handleSubscribe">订阅微信服务通知</button>
+  </view>
+  <view class="bottom-bar" wx:if="{{detail.orderStatus === '10'}}">
     <button class="ghost-btn" bindtap="handleCancel">取消预约</button>
+    <button class="primary-btn" bindtap="handlePay" loading="{{paying}}" disabled="{{paying}}">微信支付</button>
   </view>
 </view>

@@ -51,6 +51,7 @@ Page({
     calc: null
   },
   async onLoad(options) {
+    this.setData({ 'form.requestKey': `hm-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}` })
     this.serviceItemId = Number(options.serviceItemId)
     this.initSkuId = options.skuId ? Number(options.skuId) : null
     await this.loadData()

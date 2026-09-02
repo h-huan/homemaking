@@ -20,11 +20,12 @@ function request(options) {
       data: method === 'GET' ? {} : data,
       header: {
         'Content-Type': 'application/json',
+        'tenant-id': String(app.globalData.tenantId),
         Authorization: token ? `Bearer ${token}` : ''
       },
       success(res) {
         const data = res.data || {}
-        if (data.code === 200) {
+        if (data.code === 0) {
           resolve(data.data)
           return
         }

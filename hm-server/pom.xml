@@ -165,6 +165,7 @@
 
         <dependency><groupId>com.hm</groupId><artifactId>hm-module-pay</artifactId><version>${revision}</version></dependency>
         <dependency><groupId>com.hm</groupId><artifactId>hm-module-mp</artifactId><version>${revision}</version></dependency>
+        <dependency><groupId>com.hm</groupId><artifactId>hm-module-homemaking</artifactId><version>${revision}</version></dependency>
     </dependencies>
 
     <build>

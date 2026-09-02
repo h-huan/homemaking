@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref, unref, watch } from 'vue'
+import { tenantBrand } from '@/hooks/web/useTenantBrand'
 import { useAppStore } from '@/store/modules/app'
 import { useDesign } from '@/hooks/web/useDesign'
 import { getLayoutRenderMode, isHeaderNavLayout } from '@/utils/layout'
@@ -14,7 +15,7 @@ const appStore = useAppStore()
 
 const show = ref(true)
 
-const title = computed(() => appStore.getTitle)
+const title = computed(() => tenantBrand.name)
 
 const layout = computed(() => appStore.getLayout)
 
@@ -73,7 +74,7 @@ watch(
     >
       <img
         class="h-[calc(var(--logo-height)-10px)] w-[calc(var(--logo-height)-10px)]"
-        src="/hm-logo.svg"
+        :src="tenantBrand.logo"
       />
       <div
         v-if="show"

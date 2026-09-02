@@ -65,8 +65,9 @@ public class AppPayOrderController {
             return success(null);
         }
         // 重要：校验订单是否是当前用户，避免越权
-        if (order.getUserId() != null // 特殊：早期订单未存储 userId，所以忽略
-                && ObjUtil.notEqual(order.getUserId(), getLoginUserId())) {
+        if (order.getUserId() == null || getLoginUserId() == null
+                || !Objects.equals(order.getUserId(), getLoginUserId())
+                || !Objects.equals(order.getUserType(), getLoginUserType())) {
             return success(null);
         }
 
@@ -81,7 +82,17 @@ public class AppPayOrderController {
 
     @PostMapping("/submit")
     @Operation(summary = "提交支付订单")
-    public CommonResult<AppPayOrderSubmitRespVO> submitPayOrder(@RequestBody AppPayOrderSubmitReqVO reqVO) {
+    public CommonResult<AppPayOrderSubmitRespVO> submitPayOrder(@jakarta.validation.Valid @RequestBody AppPayOrderSubmitReqVO reqVO) {
+        PayOrderDO owned = payOrderService.getOrder(reqVO.getId());
+        if (owned == null || owned.getUserId() == null || getLoginUserId() == null
+                || !Objects.equals(owned.getUserId(), getLoginUserId())
+                || !Objects.equals(owned.getUserType(), getLoginUserType())) {
+            throw new org.springframework.security.access.AccessDeniedException("无权访问此支付订单");
+        }
+        // Homemaking payments must use its server-side identity and channel binding.
+        if (owned.getMerchantOrderId() != null && owned.getMerchantOrderId().startsWith("HM-")) {
+            throw new org.springframework.security.access.AccessDeniedException("请从家政订单发起支付");
+        }
         // 1. 钱包支付事，需要额外传 user_id 和 user_type
         if (Objects.equals(reqVO.getChannelCode(), PayChannelEnum.WALLET.getCode())) {
             if (reqVO.getChannelExtras() == null) {

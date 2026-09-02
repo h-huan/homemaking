@@ -107,6 +107,7 @@ Page({
   data: {
     home: { bannerList: [], categoryList: [], hotServiceList: [], advantageList: [], recommendWorkerList: [] },
     profile: {},
+    modules: {},
     bindPopupVisible: false,
     serviceNavList: [],
     priceTabList: [],
@@ -120,6 +121,8 @@ Page({
   async loadData() {
     try {
       const home = await api.getHome()
+      const modules = (home.homeModules || ['services', 'stores', 'workers']).reduce((enabled, key) => { enabled[key] = true; return enabled }, {})
+      if (home.brandName) wx.setNavigationBarTitle({ title: home.brandName })
       const categoryMap = (home.categoryList || []).reduce((acc, item) => {
         acc[item.categoryId] = item
         return acc
@@ -130,6 +133,7 @@ Page({
         return acc
       }, {})
       const nextData = {
+        modules,
         home: {
           ...home,
           hotServiceList,
@@ -213,5 +217,9 @@ Page({
   },
   closeBindPopup() {
     this.setData({ bindPopupVisible: false })
+  },
+  callStore(e) {
+    const phone = e.currentTarget.dataset.phone
+    if (phone) wx.makePhoneCall({ phoneNumber: phone })
   }
 })

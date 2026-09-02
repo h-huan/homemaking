@@ -82,7 +82,7 @@
         mode="pop"
         @success="handleLogin"
       />
-      <el-col :span="24" class="px-10px">
+      <el-col v-if="alternateLogin" :span="24" class="px-10px">
         <el-form-item>
           <el-row :gutter="5" justify="space-between" style="width: 100%">
             <el-col :span="8">
@@ -103,8 +103,8 @@
           </el-row>
         </el-form-item>
       </el-col>
-      <el-divider content-position="center">{{ t('login.otherLogin') }}</el-divider>
-      <el-col :span="24" class="px-10px">
+      <el-divider v-if="alternateLogin" content-position="center">{{ t('login.otherLogin') }}</el-divider>
+      <el-col v-if="alternateLogin" :span="24" class="px-10px">
         <el-form-item>
           <div class="w-full flex justify-between">
             <Icon
@@ -119,21 +119,7 @@
           </div>
         </el-form-item>
       </el-col>
-      <el-divider content-position="center">萌新必读</el-divider>
-      <el-col :span="24" class="px-10px">
-        <el-form-item>
-          <div class="w-full flex justify-between">
-            <el-link href="https://doc.iocoder.cn/" target="_blank">📚开发指南</el-link>
-            <el-link href="https://doc.iocoder.cn/video/" target="_blank">🔥视频教程</el-link>
-            <el-link href="https://www.iocoder.cn/Interview/good-collection/" target="_blank">
-              ⚡面试手册
-            </el-link>
-            <el-link href="http://static.yudao.iocoder.cn/mp/Aix9975.jpeg" target="_blank">
-              🤝外包咨询
-            </el-link>
-          </div>
-        </el-form-item>
-      </el-col>
+
     </el-row>
   </el-form>
 </template>
@@ -182,10 +168,11 @@ const loginData = reactive({
     username: import.meta.env.VITE_APP_DEFAULT_LOGIN_USERNAME || '',
     password: import.meta.env.VITE_APP_DEFAULT_LOGIN_PASSWORD || '',
     captchaVerification: '',
-    rememberMe: true // 默认记录我。如果不需要，可手动修改
+    rememberMe: false // 默认记录我。如果不需要，可手动修改
   }
 })
 
+const alternateLogin = import.meta.env.VITE_APP_ALTERNATE_LOGIN_ENABLE === 'true'
 const socialList = [
   { icon: 'ant-design:wechat-filled', type: 30 },
   { icon: 'ant-design:dingtalk-circle-filled', type: 20 },
@@ -218,7 +205,7 @@ const getLoginFormCache = () => {
     loginData.loginForm = {
       ...loginData.loginForm,
       username: loginForm.username ? loginForm.username : loginData.loginForm.username,
-      password: loginForm.password ? loginForm.password : loginData.loginForm.password,
+      password: '',
       rememberMe: loginForm.rememberMe,
       tenantName: loginForm.tenantName ? loginForm.tenantName : loginData.loginForm.tenantName
     }
@@ -227,11 +214,11 @@ const getLoginFormCache = () => {
 // 根据域名，获得租户信息
 const getTenantByWebsite = async () => {
   if (loginData.tenantEnable === 'true') {
-    const website = location.host
-    const res = await LoginApi.getTenantByWebsite(website)
-    if (res) {
-      loginData.loginForm.tenantName = res.name
-      authUtil.setTenantId(res.id)
+    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/app-api/homemaking/public/brand`)
+    const result = await response.json()
+    if (result.code === 0 && result.data.tenant_name) {
+      loginData.loginForm.tenantName = result.data.tenant_name
+      authUtil.setTenantId(result.data.tenant_id)
     }
   }
 }
@@ -257,7 +244,7 @@ const handleLogin = async (params: any) => {
       background: 'rgba(0, 0, 0, 0.7)'
     })
     if (loginDataLoginForm.rememberMe) {
-      authUtil.setLoginForm(loginDataLoginForm)
+      authUtil.setLoginForm({ ...loginDataLoginForm, password: '' })
     } else {
       authUtil.removeLoginForm()
     }
@@ -273,7 +260,7 @@ const handleLogin = async (params: any) => {
     }
   } finally {
     loginLoading.value = false
-    loading.value.close()
+    loading.value?.close()
   }
 }
 

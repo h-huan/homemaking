@@ -6,11 +6,12 @@
     <div class="relative mx-auto h-full flex">
       <div
         :class="`${prefixCls}__left flex-1 bg-gray-500 bg-opacity-20 relative p-30px lt-xl:hidden overflow-x-hidden overflow-y-auto`"
+        :style="tenantBrand.loginBackground ? { backgroundImage: `url(${JSON.stringify(tenantBrand.loginBackground)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}"
       >
         <!-- 左上角的 logo + 系统标题 -->
         <div class="relative flex items-center text-white">
-          <img alt="" class="mr-10px h-48px w-48px" src="/hm-logo.svg" />
-          <span class="text-20px font-bold">{{ underlineToHump(appStore.getTitle) }}</span>
+          <img alt="" class="mr-10px h-48px w-48px" :src="tenantBrand.logo" />
+          <span class="text-20px font-bold">{{ tenantBrand.name }}</span>
         </div>
         <!-- 左边的背景图 + 欢迎语 -->
         <div class="h-[calc(100%-60px)] flex items-center justify-center">
@@ -19,8 +20,8 @@
             enter-active-class="animate__animated animate__bounceInLeft"
             tag="div"
           >
-            <img key="1" alt="" class="w-350px" src="@/assets/svgs/login-box-bg.svg" />
-            <div key="2" class="text-3xl text-white">{{ t('login.welcome') }}</div>
+            <img v-if="!tenantBrand.loginBackground" key="1" alt="" class="w-350px" src="@/assets/svgs/login-box-bg.svg" />
+            <div key="2" class="text-3xl text-white">{{ tenantBrand.loginTitle }}</div>
             <div key="3" class="mt-5 text-14px font-normal text-white">
               {{ t('login.message') }}
             </div>
@@ -36,8 +37,8 @@
           style="color: var(--el-text-color-primary)"
         >
           <div class="flex items-center at-2xl:hidden at-xl:hidden">
-            <img alt="" class="mr-10px h-48px w-48px" src="/hm-logo.svg" />
-            <span class="text-20px font-bold">{{ underlineToHump(appStore.getTitle) }}</span>
+            <img alt="" class="mr-10px h-48px w-48px" :src="tenantBrand.logo" />
+            <span class="text-20px font-bold">{{ tenantBrand.name }}</span>
           </div>
           <div class="flex items-center justify-end space-x-10px h-48px">
             <ThemeSwitch />
@@ -68,10 +69,10 @@
   </div>
 </template>
 <script lang="ts" setup>
-import { underlineToHump } from '@/utils'
+import { tenantBrand } from '@/hooks/web/useTenantBrand'
 
 import { useDesign } from '@/hooks/web/useDesign'
-import { useAppStore } from '@/store/modules/app'
+
 import { ThemeSwitch } from '@/layout/components/ThemeSwitch'
 import { LocaleDropdown } from '@/layout/components/LocaleDropdown'
 
@@ -87,7 +88,7 @@ import {
 defineOptions({ name: 'Login' })
 
 const { t } = useI18n()
-const appStore = useAppStore()
+
 const { getPrefixCls } = useDesign()
 const prefixCls = getPrefixCls('login')
 </script>

@@ -1,0 +1,32 @@
+const fs=require('fs'),path=require('path');const root=path.resolve(__dirname,'../..');
+process.chdir(root);
+const src=fs.readFileSync(path.join(root,'legacy/sql/homemaking_p0.sql'),'utf8');
+let ddl=[...src.matchAll(/create table if not exists hm_\w+[\s\S]*?\) engine=[^;]*;/gi)].map(m=>m[0].replace(/\) engine=[^;]*;/i,');')).join('\n');
+let sql=fs.readFileSync(path.join(root,'sql/mysql/hm-migrate-legacy.sql'),'utf8').replace('START TRANSACTION;','BEGIN;').replace('DROP TEMPORARY TABLE','DROP TABLE');
+// Only dialect adapters: preserve mappings, prices, conditions and imported source columns.
+sql=sql.replace(/JSON_OBJECT\(([^\n]+?)\) FROM/g,(_,body)=>'JSON_OBJECT('+body.replace(/'(\w+)',(\w+)/g,"'$1': $2")+') FROM').replaceAll(' AS CHAR)',' AS VARCHAR)');
+sql=sql.replace(/UPDATE hm_order o JOIN \(SELECT order_id,MAX\(assign_id\) latest[\s\S]*?WHERE o.tenant_id=1;/,`UPDATE hm_order o SET worker_id=(SELECT a.worker_id FROM hm_legacy_snapshot.hm_order_assign a WHERE a.assign_id=(SELECT MAX(x.assign_id) FROM hm_legacy_snapshot.hm_order_assign x WHERE x.order_id=o.id AND x.assign_status<>'0')) WHERE o.tenant_id=1;`);
+sql=sql.replace(/UPDATE hm_booking b JOIN hm_order o[\s\S]*?WHERE b.tenant_id=1;/,`UPDATE hm_booking b SET worker_id=(SELECT o.worker_id FROM hm_order o WHERE o.booking_id=b.id AND o.tenant_id=b.tenant_id) WHERE b.tenant_id=1;`);
+fs.mkdirSync('.runtime/migration',{recursive:true});fs.writeFileSync('.runtime/migration/source.sql',`CREATE SCHEMA hm_legacy_snapshot; SET SCHEMA hm_legacy_snapshot;
+CREATE TABLE sys_user(user_id BIGINT PRIMARY KEY,nick_name VARCHAR(64),user_name VARCHAR(64),phonenumber VARCHAR(32),avatar VARCHAR(255));
+${ddl}
+INSERT INTO hm_customer_user(customer_id,nickname) VALUES(1,'Existing customer');
+INSERT INTO hm_user_auth(auth_id,customer_id,auth_type,auth_key,unionid) VALUES(1,1,'WECHAT_MINI','old-open','old-union');
+INSERT INTO hm_org(org_id,org_name,org_type) VALUES(1,'Headquarters','HQ');
+INSERT INTO sys_user VALUES(2,'Worker','worker','13800000000','');
+INSERT INTO hm_worker_profile(worker_profile_id,user_id,org_id) VALUES(7,2,1);
+INSERT INTO hm_service_category(category_id,category_name) VALUES(9,'Cleaning');
+INSERT INTO hm_service_item(service_item_id,category_id,service_name,org_id,base_price,service_duration) VALUES(1,9,'Clean',1,123.45,60);
+INSERT INTO hm_service_sku(sku_id,service_item_id,sku_name,price,duration_minute) VALUES(1,1,'Standard',150,120);
+INSERT INTO hm_service_extra_item(extra_item_id,service_item_id,extra_name,extra_price) VALUES(1,1,'Extra',20);
+INSERT INTO hm_service_area(area_id,area_name,district_code) VALUES(1,'Area','110101');
+INSERT INTO hm_service_item_area_rel(service_item_id,area_id) VALUES(1,1);
+INSERT INTO hm_booking_rule(service_item_id,time_slots_json) VALUES(1,'["09:00-11:00"]');
+INSERT INTO hm_customer_address(customer_id,contact_name,contact_mobile,detail_address) VALUES(1,'Customer','13800000001','Address');
+INSERT INTO hm_order(order_id,order_no,customer_id,org_id,service_item_id,order_status,pay_status,contact_name,contact_mobile,service_address,appointment_date,appointment_time_slot,pay_amount) VALUES(100,'OLD-100',1,1,1,'40','1','Customer','13800000001','Address','2026-09-05','09:00-11:00',123.45);
+INSERT INTO hm_order_assign(order_id,worker_id) VALUES(100,7);
+INSERT INTO hm_order_refund(refund_id,order_id,refund_no,refund_amount,refund_reason,finish_time) VALUES(1,100,'R-OLD-100',10,'Partial refund','2026-09-01 09:00:00');
+INSERT INTO hm_order_item(order_id,service_item_id,item_name,item_price,item_amount) VALUES(100,1,'Clean',123.45,123.45);
+INSERT INTO hm_order_operate_log(order_id,operator_type,action_type) VALUES(100,'ADMIN','ASSIGNED');
+SET SCHEMA public;
+`);fs.writeFileSync('.runtime/migration/translated.sql',sql);

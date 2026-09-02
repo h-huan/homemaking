@@ -34,6 +34,7 @@ import { setupAuth, setupMountedFocus } from '@/directives'
 import { createApp } from 'vue'
 
 import App from './App.vue'
+import { loadPublicBrand } from '@/hooks/web/useTenantBrand'
 
 import './permission'
 
@@ -87,5 +88,6 @@ const setupAll = async () => {
 }
 
 setupAll()
+void loadPublicBrand()
 
 Logger.prettyPrimary(`欢迎使用`, import.meta.env.VITE_APP_TITLE)

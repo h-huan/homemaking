@@ -1,4 +1,4 @@
-﻿<view class="page safe-bottom home-page">
+<view class="page safe-bottom home-page" style="--hm-primary: {{home.primaryColor || '#136f63'}}">
   <view class="home-hero">
     <view class="home-search-row" bindtap="openSearch">
       <view class="home-city">{{searchConfig.cityName}}</view>
@@ -12,7 +12,7 @@
       <view class="home-search-action"><view class="search-icon search-icon--light"><view class="search-icon-circle"></view><view class="search-icon-handle"></view></view></view>
     </view>
 
-    <view class="price-tabs" wx:if="{{priceTabList.length}}">
+    <view class="price-tabs" wx:if="{{modules.services && priceTabList.length}}">
       <view class="price-tab" wx:for="{{priceTabList}}" wx:key="serviceItemId" data-id="{{item.serviceItemId}}" bindtap="goDetail">
         <view class="price-tab-title">{{item.title}}</view>
         <view class="price-tab-price">¥{{item.price}}</view>
@@ -20,7 +20,7 @@
     </view>
   </view>
 
-  <view class="section section-soft">
+  <view class="section section-soft" wx:if="{{modules.services}}">
     <view class="service-nav-grid">
       <view class="service-nav-item" wx:for="{{serviceNavList}}" wx:key="index" data-id="{{item.id}}" data-path="{{item.path}}" bindtap="goServiceList">
         <view class="service-nav-icon-wrap">
@@ -32,7 +32,10 @@
     </view>
   </view>
 
-  <view class="section">
+  <view class="section" wx:if="{{modules.banners}}">
+    <swiper wx:if="{{home.bannerList.length}}" autoplay circular indicator-dots class="hm-banners">
+      <swiper-item wx:for="{{home.bannerList}}" wx:key="index"><image src="{{item.imageUrl || item.bannerImage}}" mode="aspectFill" class="hm-banner" /></swiper-item>
+    </swiper>
     <view class="promo-grid">
       <view class="promo-main" wx:if="{{promoCardList[0]}}" data-id="{{promoCardList[0].serviceItemId}}" bindtap="goDetail">
         <view class="promo-copy">
@@ -53,7 +56,7 @@
     </view>
   </view>
 
-  <view class="section">
+  <view class="section" wx:if="{{modules.services}}">
     <view class="section-head">
       <view class="section-title">{{sectionConfig.familyTitle}}</view>
       <view class="section-desc" bindtap="goCategoryTab">{{sectionConfig.familyMoreText}}</view>
@@ -70,7 +73,7 @@
     </scroll-view>
   </view>
 
-  <view class="section">
+  <view class="section" wx:if="{{modules.services}}">
     <view class="section-head">
       <view class="section-title">{{sectionConfig.recommendTitle}}</view>
       <view class="section-desc" bindtap="goCategoryTab">{{sectionConfig.recommendMoreText}}</view>
@@ -85,7 +88,7 @@
     </view>
   </view>
 
-  <view class="section" wx:if="{{home.advantageList.length}}">
+  <view class="section" wx:if="{{modules.services && home.advantageList.length}}">
     <view class="section-head">
       <view class="section-title">{{sectionConfig.advantageTitle}}</view>
     </view>
@@ -98,7 +101,24 @@
     </view>
   </view>
 
-  <view class="section" wx:if="{{home.recommendWorkerList.length}}">
+  <view class="section" wx:if="{{modules.stores && home.storeList.length}}">
+    <view class="section-title">服务门店</view>
+    <view class="card" wx:for="{{home.storeList}}" wx:key="id"><view>{{item.name}}</view><view class="muted">{{item.address}}</view></view>
+  </view>
+  <view class="section" wx:if="{{modules.workers && home.recommendWorkerList.length}}">
+    <view class="section-title">服务人员</view>
+    <view class="card" wx:for="{{home.recommendWorkerList}}" wx:key="workerId"><view>{{item.workerName}}</view><view class="muted">{{item.intro}}</view></view>
+  </view>
+  <view class="section" wx:if="{{modules.reviews && home.reviewList.length}}">
+    <view class="section-title">客户评价</view>
+    <view class="card" wx:for="{{home.reviewList}}" wx:key="id"><view>{{item.rating}} / 5</view><view>{{item.content}}</view></view>
+  </view>
+  <view class="section" wx:if="{{modules.contact}}">
+    <view class="section-title">联系我们</view>
+    <view wx:for="{{home.storeList}}" wx:key="id" class="card"><view>{{item.name}}</view><button wx:if="{{item.phone}}" data-phone="{{item.phone}}" bindtap="callStore">{{item.phone}}</button></view>
+    <view wx:if="{{home.website}}" class="muted">{{home.website}}</view>
+  </view>
+  <view class="section">
     <view class="section-head">
       <view class="section-title">{{sectionConfig.quickTitle}}</view>
     </view>

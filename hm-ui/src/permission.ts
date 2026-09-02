@@ -16,6 +16,7 @@ const { loadStart, loadDone } = usePageLoading()
 
 // 路由不重定向白名单
 const whiteList = [
+  '/wechat/callback',
   '/login',
   '/social-login',
   '/auth-redirect',

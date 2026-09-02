@@ -1,0 +1,61 @@
+package com.hm.module.homemaking.controller.app;
+
+import com.hm.framework.common.pojo.CommonResult;
+import com.hm.module.homemaking.dal.HmRepository;
+import com.hm.module.homemaking.service.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.security.PermitAll;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.*;
+import java.util.*;
+import static com.hm.framework.common.pojo.CommonResult.success;
+import static com.hm.module.homemaking.dal.HmRepository.*;
+
+/** Compatibility DTOs let the existing miniapp migrate independently of the admin framework. */
+@RestController @RequestMapping("/mini")
+public class LegacyMiniController {
+    private final HmRepository repo;private final OrderService orders;private final CustomerAccess access;private final PricingService pricing;private final ObjectMapper json;
+    public LegacyMiniController(HmRepository repo,OrderService orders,CustomerAccess access,PricingService pricing,ObjectMapper json){this.repo=repo;this.orders=orders;this.access=access;this.pricing=pricing;this.json=json;}
+    private Map<String,Object> service(Map<String,Object> r){var m=new LinkedHashMap<String,Object>();m.put("serviceItemId",r.get("id"));m.put("serviceName",r.get("name"));m.put("categoryName",r.get("category"));m.put("serviceDesc",r.get("description"));m.put("serviceCover",r.get("cover"));m.put("basePrice",cents(r,"price_cents")/100.0);m.put("serviceDuration",r.get("duration_minutes"));return m;}
+    @PermitAll @GetMapping("/home/index") public CommonResult<?> home(){var data=new LinkedHashMap<String,Object>();
+        for(var row:repo.jdbc().queryForList("SELECT config_key,config_value FROM hm_home_content WHERE tenant_id=?",repo.tenant()))try{data.put((String)row.get("config_key"),json.readValue((String)row.get("config_value"),Object.class));}catch(Exception ignored){}
+        var categories=repo.jdbc().queryForList("SELECT c.* FROM hm_service_category c WHERE c.tenant_id=? AND EXISTS(SELECT 1 FROM hm_service s WHERE s.tenant_id=c.tenant_id AND s.category=c.name AND s.status='ACTIVE') ORDER BY c.id",repo.tenant());var list=new ArrayList<Map<String,Object>>();for(var c:categories)list.add(Map.of("categoryId",c.get("id"),"categoryName",c.get("name"),"categoryIcon",c.get("icon")));
+        data.put("categoryList",list);data.put("hotServiceList",repo.jdbc().queryForList("SELECT * FROM hm_service WHERE tenant_id=? AND status='ACTIVE' ORDER BY id LIMIT 12",repo.tenant()).stream().map(this::service).toList());
+        data.put("recommendWorkerList",repo.jdbc().queryForList("SELECT id,name,avatar,skills FROM hm_worker WHERE tenant_id=? AND status='ACTIVE' ORDER BY id LIMIT 8",repo.tenant()).stream().map(w->Map.of("workerId",w.get("id"),"workerName",w.get("name"),"avatar",w.get("avatar"),"intro",w.get("skills"))).toList());
+        data.put("storeList",repo.jdbc().queryForList("SELECT id,name,address,phone FROM hm_store WHERE tenant_id=? AND status='ACTIVE' ORDER BY id LIMIT 12",repo.tenant()));
+        data.put("reviewList",repo.jdbc().queryForList("SELECT id,rating,content FROM hm_review WHERE tenant_id=? ORDER BY id DESC LIMIT 8",repo.tenant()));
+        var profiles=repo.jdbc().queryForList("SELECT brand_name,primary_color,home_modules,website FROM hm_tenant_profile WHERE tenant_id=?",repo.tenant());
+        var modules=new ArrayList<String>(List.of("services","stores","workers"));
+        if(!profiles.isEmpty()){var profile=profiles.get(0);data.put("brandName",profile.get("brand_name"));data.put("primaryColor",profile.get("primary_color"));data.put("website",profile.get("website"));try{modules=json.readValue((String)profile.get("home_modules"),new com.fasterxml.jackson.core.type.TypeReference<ArrayList<String>>(){});}catch(Exception e){modules.clear();}}
+        data.put("homeModules",modules);return success(data);}
+    @PermitAll @GetMapping("/home/content/{type}") public CommonResult<?> content(@PathVariable String type){var rows=repo.jdbc().queryForList("SELECT title,summary,content_html AS contentHtml,cover_image AS coverImage FROM hm_portal_content WHERE tenant_id=? AND content_type=? AND published=TRUE ORDER BY id DESC LIMIT 1",repo.tenant(),type);return success(rows.isEmpty()?Map.of():rows.get(0));}
+    @PermitAll @GetMapping("/service/{id}") public CommonResult<?> detail(@PathVariable long id){var row=repo.require("hm_service",id,false);check("ACTIVE".equals(row.get("status")),"服务不可用");var data=new LinkedHashMap<String,Object>();data.put("serviceInfo",service(row));
+        var skus=repo.jdbc().queryForList("SELECT id AS skuId,name AS skuName,price_cents/100.0 AS price,duration_minutes AS durationMinute FROM hm_service_sku WHERE tenant_id=? AND service_id=? AND status='ACTIVE' ORDER BY id",repo.tenant(),id);
+        data.put("skuList",skus);data.put("extraItemList",repo.jdbc().queryForList("SELECT id AS extraItemId,name AS extraName,price_cents/100.0 AS extraPrice FROM hm_service_extra WHERE tenant_id=? AND service_id=? AND status='ACTIVE' ORDER BY id",repo.tenant(),id));
+        var rule=pricing.rule(id);data.put("bookingRule",Map.of("maxAdvanceDays",rule.get("max_advance_days"),"allowSameDay",Boolean.FALSE.equals(rule.get("allow_same_day"))?"0":"1","timeSlotsJson",Objects.toString(rule.get("time_slots_json"),"[]")));return success(data);}
+    @PermitAll @GetMapping("/service/list") public CommonResult<?> services(@RequestParam(defaultValue="1") int pageNum,@RequestParam(defaultValue="10") int pageSize,@RequestParam(required=false) Integer categoryId,@RequestParam(defaultValue="") String keyword){
+        pageSize=Math.min(100,Math.max(1,pageSize));pageNum=Math.max(1,pageNum);String where=" WHERE tenant_id=? AND status='ACTIVE' AND name LIKE ?";var args=new ArrayList<Object>();args.add(repo.tenant());args.add("%"+keyword+"%");
+        if(categoryId!=null){var names=repo.jdbc().queryForList("SELECT name FROM hm_service_category WHERE tenant_id=? AND id=?",String.class,repo.tenant(),categoryId);if(names.isEmpty())return success(Map.of("rows",List.of(),"total",0));where+=" AND category=?";args.add(names.get(0));}
+        long total=repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_service"+where,Long.class,args.toArray());args.add(pageSize);args.add((pageNum-1)*pageSize);return success(Map.of("rows",repo.jdbc().queryForList("SELECT * FROM hm_service"+where+" ORDER BY id DESC LIMIT ? OFFSET ?",args.toArray()).stream().map(this::service).toList(),"total",total));}
+    private Map<String,Object> address(Map<String,Object> row){return Map.of("addressId",row.get("id"),"contactName",row.get("contact_name"),"contactMobile",row.get("phone"),"detailAddress",row.get("address"),"districtCode",row.get("district_code"),"isDefault",Boolean.TRUE.equals(row.get("is_default"))?"1":"0");}
+    @GetMapping("/address/list") public CommonResult<?> addresses(){return success(orders.addresses().stream().map(this::address).toList());}
+    @GetMapping("/address/{id}") public CommonResult<?> address(@PathVariable long id){return success(address(access.own("hm_customer_address",id,false)));}
+    public record MiniAddress(Long addressId,@NotBlank @Size(max=100) String contactName,@NotBlank @Size(max=32) String contactMobile,@Size(max=100) String provinceName,@Size(max=100) String cityName,@Size(max=100) String districtName,@Size(max=20) String districtCode,@NotBlank @Size(max=255) String detailAddress,String isDefault){}
+    @Transactional @RequestMapping(value="/address",method={RequestMethod.POST,RequestMethod.PUT}) public CommonResult<?> saveAddress(@Valid @RequestBody MiniAddress r){long id=orders.saveAddress(new OrderService.Address(r.addressId(),r.contactName(),r.contactMobile(),CatalogService.s(r.provinceName())+CatalogService.s(r.cityName())+CatalogService.s(r.districtName())+r.detailAddress(),"1".equals(r.isDefault())));repo.jdbc().update("UPDATE hm_customer_address SET district_code=? WHERE tenant_id=? AND customer_id=? AND id=?",CatalogService.s(r.districtCode()),repo.tenant(),access.current(),id);return success(id);}
+    @DeleteMapping("/address/{id}") public CommonResult<?> deleteAddress(@PathVariable long id){access.own("hm_customer_address",id,false);repo.jdbc().update("DELETE FROM hm_customer_address WHERE tenant_id=? AND customer_id=? AND id=?",repo.tenant(),access.current(),id);return success(true);}
+    public record MiniBook(@NotNull Long serviceItemId,Long skuId,List<PricingService.Extra> extraItemList,@NotNull Long addressId,@NotNull LocalDate appointmentDate,@NotBlank String appointmentTimeSlot,@Size(max=500) String customerRemark,@NotBlank @Size(max=100) String requestKey){}
+    @PostMapping("/order/calc") public CommonResult<?> calc(@RequestBody MiniBook r){var q=pricing.quote(r.serviceItemId(),r.skuId(),r.extraItemList(),r.addressId());return success(Map.of("payAmount",q.totalCents()/100.0,"baseAmount",q.items().get(0).totalCents()/100.0,"extraAmount",(q.totalCents()-q.items().get(0).totalCents())/100.0,"discountAmount",0,"itemList",q.items()));}
+    @PostMapping("/order/submit") public CommonResult<?> submit(@Valid @RequestBody MiniBook r){LocalDateTime start=r.appointmentDate().atTime(LocalTime.parse(r.appointmentTimeSlot().split("-")[0]));long id=orders.book(new OrderService.Book(r.serviceItemId(),null,start,r.addressId(),r.requestKey(),r.skuId(),r.extraItemList(),r.customerRemark()));return success(orderMap(orders.detail(id,false)));}
+    private Map<String,Object> orderMap(Map<String,Object> row){var m=new LinkedHashMap<String,Object>();m.put("orderId",row.get("id"));m.put("orderNo","HM-"+row.get("id"));m.put("serviceName",row.get("service_name"));m.put("payAmount",cents(row,"price_cents")/100.0);m.put("orderStatus",switch((String)row.get("status")){case "UNPAID"->"10";case "PAID"->"30";case "ASSIGNED"->"40";case "IN_SERVICE"->"50";case "COMPLETED"->"60";case "CANCELLED"->"80";case "REFUNDED"->"90";default->"20";});m.put("contactName",row.get("contact_name"));m.put("contactMobile",row.get("phone"));m.put("serviceAddress",row.get("address"));m.put("customerRemark",row.get("customer_remark"));m.put("createTime",row.get("created_at"));
+        if(row.get("booking") instanceof Map<?,?> booking){var start=OrderService.time(booking.get("starts_at"));var end=OrderService.time(booking.get("ends_at"));m.put("appointmentDate",start.toLocalDate().toString());m.put("appointmentTimeSlot",start.toLocalTime()+"-"+end.toLocalTime());
+            m.put("itemList",repo.jdbc().queryForList("SELECT * FROM hm_order_item WHERE tenant_id=? AND order_id=? ORDER BY id",repo.tenant(),row.get("id")).stream().map(i->Map.of("orderItemId",i.get("id"),"itemName",i.get("name"),"quantity",i.get("quantity"),"itemAmount",cents(i,"total_cents")/100.0)).toList());
+            m.put("operateLogs",repo.jdbc().queryForList("SELECT * FROM hm_order_log WHERE tenant_id=? AND order_id=? ORDER BY id",repo.tenant(),row.get("id")).stream().map(l->Map.of("logId",l.get("id"),"actionDesc",actionName((String)l.get("action")),"createTime",l.get("created_at"))).toList());
+        }return m;}
+    private String actionName(String action){return switch(action){case "CREATED"->"预约已提交";case "PAID"->"付款已确认";case "ASSIGNED"->"服务人员已安排";case "STARTED"->"服务已开始";case "COMPLETED"->"服务已完成";case "CANCELLED"->"预约已取消";case "REFUNDED"->"退款已完成";default->"订单已更新";};}
+    @GetMapping("/order/list") public CommonResult<?> list(@RequestParam(defaultValue="1") int pageNum,@RequestParam(defaultValue="10") int pageSize){var result=orders.list(pageNum,pageSize,false);return success(Map.of("rows",((List<Map<String,Object>>)result.get("list")).stream().map(this::orderMap).toList(),"total",result.get("total")));}
+    @GetMapping("/order/{id}") public CommonResult<?> order(@PathVariable long id){return success(orderMap(orders.detail(id,false)));}
+    @PostMapping("/order/cancel/{id}") public CommonResult<?> cancel(@PathVariable long id){orders.cancel(id,false);return success(true);}
+}

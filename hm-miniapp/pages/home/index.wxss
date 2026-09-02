@@ -343,3 +343,8 @@
 .search-icon--light .search-icon-circle { border-color: #ffffff; }
 .search-icon--light .search-icon-handle { background: #ffffff; }
 
+
+.hm-banners { height: 300rpx; margin-bottom: 24rpx; }
+.hm-banner { width: 100%; height: 100%; border-radius: 20rpx; }
+.home-page .home-search-action, .home-page .primary-btn { background: var(--hm-primary); }
+.home-page .service-grid-price { color: var(--hm-primary); }

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useAppStore } from '@/store/modules/app'
+import { tenantBrand } from '@/hooks/web/useTenantBrand'
 import { useDesign } from '@/hooks/web/useDesign'
 
 defineOptions({ name: 'Footer' })
@@ -8,9 +8,7 @@ const { getPrefixCls } = useDesign()
 
 const prefixCls = getPrefixCls('footer')
 
-const appStore = useAppStore()
-
-const title = computed(() => appStore.getTitle)
+const title = computed(() => tenantBrand.name)
 
 // 添加当前年份计算属性
 const currentYear = computed(() => new Date().getFullYear())

@@ -15,6 +15,7 @@
         <!-- 各种 module 拓展 -->
         <module>hm-module-system</module>
         <module>hm-module-infra</module>
+        <module>hm-module-homemaking</module>
 <!--        <module>hm-module-member</module>-->
 <!--        <module>hm-module-bpm</module>-->
 <!--        <module>hm-module-report</module>-->
