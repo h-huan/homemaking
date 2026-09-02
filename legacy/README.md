@@ -1,3 +1,5 @@
+> 本目录只作旧业务迁移参考，凭据已替换为占位值，旧前端密码持久化已禁用。请勿直接按历史说明部署；当前版本见 [部署说明](../docs/deployment/README.md)。原说明保留如下。
+
 <p align="center">
 	<img alt="logo" src="https://oscimg.oschina.net/oscnet/up-d3d0a9303e11d522a06cd263f3079027715.png">
 </p>

@@ -1,0 +1,16 @@
+title = "HM credentials scan (default rules plus cloud identifiers)"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "hm-tencent-cloud-secret-id"
+description = "Tencent Cloud Secret ID"
+regex = '''\bAKID[A-Za-z0-9]{13,40}\b'''
+keywords = ["AKID"]
+
+[[rules]]
+id = "hm-volcengine-access-key-id"
+description = "VolcEngine Access Key ID"
+regex = '''\bAKLT[A-Za-z0-9]{12,80}\b'''
+keywords = ["AKLT"]
