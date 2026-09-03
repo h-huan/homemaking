@@ -40,11 +40,14 @@ pnpm build
 - [初始化、账号配置和数据迁移](docs/migration/runbook.md)
 - [打包、上传、数据库与服务器配置](docs/deployment/README.md)
 - [部署变量逐项替换清单](docs/deployment/environment-variables.md)
-- [凭据清理记录](docs/migration/secret-remediation.md)与[提交前扫描](tools/security/README.md)
-- [验收报告与当前边界](docs/migration/final-verification.md)
+- [凭据检查与历史风险](tools/security/README.md)
 - [安全检查](docs/migration/security-review.md)
 - [架构设计](docs/migration/design.md)
 
 本分支提供可构建、可启动的迁移实现。生产数据尚未导入；真实微信、支付渠道和 MySQL 原生迁移演练仍需使用实际环境验收。
 
 日常开业配置、规格/加项/区域、排班与人员角色、官网发布和财务操作见[运营手册](docs/deployment/operations.md)。
+
+## 仓库维护约定
+
+仅提交产品源码、必要测试、可复用工具、数据库升级、配置模板，以及部署/运维/架构/安全/来源许可等长期维护文档。同一主题优先更新已有说明。AI 阶段计划、进度记录、验收流水、聊天摘要、截图、调试脚本和本机环境文件存放于被忽略的 `.runtime/`，不提交到 Git；需要回顾的测试结果写在提交说明或 PR 中。新增运行参数或数据库升级时，必须同步现有部署说明和变量清单。

@@ -1,6 +1,6 @@
-# Approved HM SaaS migration design
+# HM SaaS architecture
 
-Modular Spring Boot monolith, Java 17 and Vue 3 / TypeScript / Element Plus. Exact upstream revisions are recorded in THIRD-PARTY-NOTICES.md. Only saas-platform is changed.
+Modular Spring Boot monolith, Java 17 and Vue 3 / TypeScript / Element Plus. Exact upstream revisions are recorded in THIRD-PARTY-NOTICES.md.
 
 Default modules: system, infra, pay, mp, homemaking. CRM, ERP, Mall, BPM, AI, MES, WMS, HRM, FMS, IM, member, report and IoT source remains available but excluded from the application dependency graph.
 
@@ -10,4 +10,4 @@ Tenant branding contains public website, logo, favicon, palette, login page, hom
 
 Notification decisions intersect platform caps, tenant rules and customer consent. Deduplication, daily and event limits, quiet hours, message level and channel fallback apply before delivery. Persistent outbox delivery must survive retry; SMS is a controlled fallback, not a parallel blast.
 
-Phases: compile/start branded base; migrate business and schema; identity/branding/notifications; security regression. Verify upload safety, anonymous entry points, tenant access, callback verification and secrets. No live production database migration or real notification is executed during development.
+Scheduling checks worker skills, areas, shifts, leave and occupied slots. Orders retain price snapshots. Published portal content is separate from drafts; private evidence is stored outside website roots and read only through authorized order endpoints. Settlement records support allocation, refund reversals and audited manual payout records; automatic bank transfers are not implemented.

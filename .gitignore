@@ -67,3 +67,8 @@ node_modules/
 /data/homemaking-evidence/
 /output/playwright/
 /.playwright-cli/
+
+# Local agent working notes; keep maintained product/deployment docs tracked.
+/task_plan.md
+/findings.md
+/progress.md
