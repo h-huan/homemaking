@@ -40,7 +40,13 @@ class BusinessIsolationTest {
         @Bean CatalogService catalog(HmRepository r){return new CatalogService(r);}
         @Bean ServiceSettingsService serviceSettings(HmRepository r,PricingService p,com.fasterxml.jackson.databind.ObjectMapper j){return new ServiceSettingsService(r,p,j);}
         @Bean com.hm.module.pay.api.refund.PayRefundApi refundApi(){return mock(com.hm.module.pay.api.refund.PayRefundApi.class);}
-        @Bean PaymentService payments(HmRepository r,CustomerAccess c,OrderService o,com.hm.module.pay.api.refund.PayRefundApi f,NotificationService n,SettlementService s){return new PaymentService(r,c,o,mock(com.hm.module.pay.api.order.PayOrderApi.class),f,mock(com.hm.module.pay.service.order.PayOrderService.class),n,s);}
+        @Bean com.hm.module.pay.api.order.PayOrderApi payOrderApi(){return mock(com.hm.module.pay.api.order.PayOrderApi.class);}
+        @Bean com.hm.module.pay.service.order.PayOrderService payOrderService(){return mock(com.hm.module.pay.service.order.PayOrderService.class);}
+        @Bean com.hm.module.pay.service.app.PayAppService payApps(){return mock(com.hm.module.pay.service.app.PayAppService.class);}
+        @Bean com.hm.module.pay.service.channel.PayChannelService payChannels(){return mock(com.hm.module.pay.service.channel.PayChannelService.class);}
+        @Bean PaymentPolicyService paymentPolicy(HmRepository r,com.hm.module.pay.service.app.PayAppService a,com.hm.module.pay.service.channel.PayChannelService c){return new PaymentPolicyService(r,a,c,jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator());}
+        @Bean PaymentLedgerService ledger(HmRepository r,OrderService o,SettlementService s,PaymentPolicyService p){return new PaymentLedgerService(r,o,s,p);}
+        @Bean PaymentService payments(HmRepository r,CustomerAccess c,OrderService o,com.hm.module.pay.api.refund.PayRefundApi f,NotificationService n,SettlementService s,com.hm.module.pay.api.order.PayOrderApi a,com.hm.module.pay.service.order.PayOrderService p){return new PaymentService(r,c,o,a,f,p,n,s);}
         @Bean EvidenceStorage storage(){return mock(EvidenceStorage.class);}
         @Bean WorkerService workers(HmRepository r,OrderService o,EvidenceStorage f,CustomerAccess c){return new WorkerService(r,o,f,c);}
         @Bean PortalService portal(HmRepository r,com.fasterxml.jackson.databind.ObjectMapper j,QuotaService q){return new PortalService(r,j,q);}
@@ -51,6 +57,7 @@ class BusinessIsolationTest {
     @BeforeEach void seed(){
         jdbc.execute("DROP ALL OBJECTS");
         var scripts=new ResourceDatabasePopulator(new FileSystemResource(Path.of("../sql/mysql/hm-homemaking.sql")),new FileSystemResource(Path.of("../sql/mysql/upgrades/V002__operations_and_portal.sql")));scripts.setSqlScriptEncoding("UTF-8");scripts.execute(dataSource);
+        BusinessTestSchema.payment(dataSource);
         jdbc.update("INSERT INTO hm_customer(id,nickname) VALUES(1,'A'),(2,'B')");
         jdbc.update("INSERT INTO hm_customer_tenant(tenant_id,customer_id) VALUES(1,1),(1,2),(2,2)");
         jdbc.update("INSERT INTO hm_store(id,tenant_id,name) VALUES(1,1,'HQ'),(2,2,'Franchise')");

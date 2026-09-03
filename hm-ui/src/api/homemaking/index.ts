@@ -1,6 +1,19 @@
 import request from '@/config/axios'
 
 export type BusinessRow = Record<string, any>
+export const getPaymentSettings = () => request.get({ url: '/homemaking/payment-settings' })
+export const savePaymentSettings = (data: BusinessRow) =>
+  request.put({ url: '/homemaking/payment-settings', data })
+export const getPaymentEntries = (id: number) =>
+  request.get({ url: `/homemaking/orders/${id}/payments` })
+export const recordOfflineReceipt = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/orders/${id}/offline-receipt`, data })
+export const recordOfflineRefund = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/aftersales/${id}/offline-refund`, data })
+export const reverseReceipt = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/orders/${id}/reverse-receipt`, data })
+export const paymentLedger = (params: BusinessRow) =>
+  request.get({ url: '/homemaking/payment-ledger', params })
 export const listCatalog = (kind: string, params = {}) =>
   request.get({ url: `/homemaking/catalog/${kind}`, params })
 export const saveCatalog = (kind: string, data: BusinessRow) =>

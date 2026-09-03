@@ -50,6 +50,37 @@
           >
         </el-form>
       </el-tab-pane>
+      <el-tab-pane v-if="can('payment:configure')" label="支付方式" name="payment">
+        <el-form label-position="top" class="hm-form">
+          <el-alert
+            :title="
+              payment.options.onlineAvailable
+                ? '微信在线支付配置已就绪'
+                : payment.options.mode === 'OFFLINE'
+                  ? '当前采用线下付款，无需商户号即可运营'
+                  : '线上支付未就绪，客户端采用线下付款，请检查支付应用、商户号、证书及小程序归属'
+            "
+            :type="payment.options.onlineAvailable ? 'success' : 'info'"
+            :closable="false"
+          />
+          <el-form-item label="租户支付模式"
+            ><el-radio-group v-model="paymentMode"
+              ><el-radio value="OFFLINE">线下支付</el-radio
+              ><el-radio value="ONLINE">线上支付</el-radio
+              ><el-radio value="BOTH">线上与线下</el-radio></el-radio-group
+            ></el-form-item
+          >
+          <p
+            >总部直营默认线下支付。店长、老板或财务核实到账后，在订单中确认收款；现金、微信转账、支付宝转账、银行转账及其他渠道均会记录金额与操作人。</p
+          >
+          <p
+            >线上支付需先在支付管理配置本租户应用和微信渠道，再在品牌页绑定支付应用标识与小程序。未完成配置时不会向客户显示不可用的支付入口；历史线上订单的回调及原路退款继续处理。</p
+          >
+          <el-button type="primary" :loading="savingPayment" @click="savePaymentMode"
+            >保存支付方式</el-button
+          >
+        </el-form>
+      </el-tab-pane>
       <el-tab-pane label="域名" name="domain"
         ><div class="hm-form"
           ><p>填写域名后，按提示添加 DNS TXT 记录。验证通过后启用品牌识别。</p
@@ -154,6 +185,24 @@ import { applyTenantBrand } from '@/hooks/web/useTenantBrand'
 import { useHmAccess } from './useAccess'
 const { can, loadAccess } = useHmAccess()
 defineOptions({ name: 'HomemakingSettings' })
+const payment = ref<any>({ options: { mode: 'OFFLINE', onlineAvailable: false }, version: 0 }),
+  paymentMode = ref('OFFLINE'),
+  savingPayment = ref(false)
+async function loadPayment() {
+  payment.value = await api.getPaymentSettings()
+  paymentMode.value = payment.value.options.mode
+}
+async function savePaymentMode() {
+  savingPayment.value = true
+  try {
+    await api.savePaymentSettings({ mode: paymentMode.value, version: payment.value.version })
+    await loadPayment()
+    await loadBrand()
+    ElMessage.success('支付方式已保存')
+  } finally {
+    savingPayment.value = false
+  }
+}
 const tab = ref('brand'),
   loading = ref(false),
   saving = ref(false),
@@ -201,6 +250,7 @@ async function saveBrand() {
   try {
     await api.saveBrand(brand.value)
     await loadBrand()
+    if (can('payment:configure')) await loadPayment()
     applyTenantBrand(await api.getBrand())
     ElMessage.success('品牌设置已保存')
   } finally {
@@ -229,6 +279,7 @@ async function loadHistory() {
 onMounted(async () => {
   await loadAccess()
   await Promise.all([loadBrand(), loadPolicy(), loadHistory()])
+  if (can('payment:configure')) await loadPayment()
 })
 </script>
 <style scoped>

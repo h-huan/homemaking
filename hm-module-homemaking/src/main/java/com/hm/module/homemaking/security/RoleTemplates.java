@@ -18,7 +18,7 @@ public final class RoleTemplates {
             "orders:read,dispatch,reschedule,cancel,fulfill", "customers:read", "aftersales:read,reject,refund",
             "reviews:read,moderate", "schedule:read,write,templates", "finance:read,statement,approve,payout,reconcile",
             "brand:read,write", "notification:read,write", "portal:read,write,publish", "staff:read,write",
-            "quota:read", "platform:manage", "worker:read,fulfill");
+            "quota:read", "platform:manage", "worker:read,fulfill", "payment:read,receive,reverse,configure");
     private static Set<String> owner() {
         var p = new LinkedHashSet<>(ALL);
         p.remove("homemaking:platform:manage"); p.remove("homemaking:worker:read"); p.remove("homemaking:worker:fulfill");
@@ -27,10 +27,10 @@ public final class RoleTemplates {
     public static final List<Template> ALL_TEMPLATES = List.of(
         new Template("PLATFORM", "平台管理员", "TENANT", ALL),
         new Template("OWNER", "租户老板", "TENANT", owner()),
-        new Template("MANAGER", "店长", "STORES", permissions("stores:read,write", "workers:read,write,bind", "services:read,write", "orders:read,dispatch,reschedule,cancel,fulfill", "customers:read", "aftersales:read,reject", "reviews:read,moderate", "schedule:read,write")),
+        new Template("MANAGER", "店长", "STORES", permissions("stores:read,write", "workers:read,write,bind", "services:read,write", "orders:read,dispatch,reschedule,cancel,fulfill", "customers:read", "aftersales:read,reject", "reviews:read,moderate", "schedule:read,write", "payment:read,receive")),
         new Template("DISPATCHER", "调度", "STORES", permissions("stores:read", "workers:read", "services:read", "orders:read,dispatch,reschedule", "schedule:read,write")),
         new Template("SUPPORT", "客服", "STORES", permissions("stores:read", "workers:read", "services:read", "orders:read,reschedule,cancel", "customers:read", "aftersales:read,reject", "reviews:read,moderate", "schedule:read")),
-        new Template("FINANCE", "财务", "STORES", permissions("stores:read", "workers:read", "orders:read", "aftersales:read,refund", "finance:read,statement,approve,payout,reconcile")),
+        new Template("FINANCE", "财务", "STORES", permissions("stores:read", "workers:read", "orders:read", "aftersales:read,refund", "finance:read,statement,approve,payout,reconcile", "payment:read,receive,reverse")),
         new Template("WORKER", "服务人员", "SELF", permissions("worker:read,fulfill"))
     );
     public static Template get(String code) { return ALL_TEMPLATES.stream().filter(t -> t.code.equals(code)).findFirst().orElseThrow(() -> new IllegalArgumentException("未知角色模板")); }

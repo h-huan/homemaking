@@ -112,6 +112,13 @@
           <template v-if="tab === 'orders'">
             <el-button link type="primary" @click="showOrder(row.id)">详情</el-button>
             <el-button
+              v-if="row.status === 'UNPAID' && !row.pay_order_id && can('payment:receive')"
+              link
+              type="primary"
+              @click="openPayment('RECEIPT', row)"
+              >确认收款</el-button
+            >
+            <el-button
               v-if="
                 ['UNPAID', 'PAID', 'ASSIGNED'].includes(row.status) &&
                 ['WAITING', 'ACCEPTED'].includes(row.fulfillment_status)
@@ -156,13 +163,24 @@
           </template>
           <template v-if="tab === 'aftersales'">
             <el-button
+              v-if="
+                row.status === 'REQUESTED' &&
+                row.payment_method === 'OFFLINE' &&
+                can('aftersales:refund')
+              "
+              link
+              type="primary"
+              @click="openPayment('REFUND', row)"
+              >登记线下退款</el-button
+            >
+            <el-button
               v-if="row.status === 'REQUESTED'"
               link
               :disabled="!can('aftersales:reject')"
               @click="reject(row)"
               >驳回</el-button
             ><el-button
-              v-if="row.status === 'REQUESTED'"
+              v-if="row.status === 'REQUESTED' && row.payment_method !== 'OFFLINE'"
               link
               type="danger"
               :disabled="!can('aftersales:refund')"
@@ -285,13 +303,61 @@
         ><el-descriptions :column="1" border
           ><el-descriptions-item label="服务">{{ detail.service_name }}</el-descriptions-item
           ><el-descriptions-item label="时间"
-            >{{ detail.booking?.starts_at }} — {{ detail.booking?.ends_at }}</el-descriptions-item
+            >{{ formatDate(detail.booking?.starts_at) }} —
+            {{ formatDate(detail.booking?.ends_at) }}</el-descriptions-item
+          ><el-descriptions-item label="支付方式">{{
+            paymentMethods[detail.payment_method]
+          }}</el-descriptions-item>
+          <el-descriptions-item label="应收 / 已收 / 已退"
+            >￥{{ money(detail.price_cents) }} / ￥{{ money(detail.paid_cents) }} / ￥{{
+              money(detail.refunded_cents)
+            }}</el-descriptions-item
           ><el-descriptions-item label="地址">{{ detail.address }}</el-descriptions-item
           ><el-descriptions-item label="联系人"
             >{{ detail.contact_name }} · {{ detail.phone }}</el-descriptions-item
           ></el-descriptions
-        ><el-timeline class="detail-timeline"
-          ><el-timeline-item v-for="log in detail.logs" :key="log.id" :timestamp="log.created_at"
+        ><el-table v-if="can('payment:read')" :data="paymentEntries" empty-text="暂无收支凭证">
+          <el-table-column prop="id" label="流水" width="80" /><el-table-column
+            label="类型"
+            width="100"
+            ><template #default="{ row }">{{ paymentKinds[row.kind] }}</template></el-table-column
+          >
+          <el-table-column label="渠道" width="120"
+            ><template #default="{ row }">{{
+              paymentChannels[row.channel]
+            }}</template></el-table-column
+          >
+          <el-table-column label="金额" min-width="110"
+            ><template #default="{ row }"
+              >￥{{ money(row.amount_cents) }}</template
+            ></el-table-column
+          >
+          <el-table-column label="发生时间" min-width="170">
+            <template #default="{ row }">{{ formatDate(row.occurred_at) }}</template>
+          </el-table-column>
+          <el-table-column label="操作人" min-width="130"
+            ><template #default="{ row }">{{
+              row.operator_name || (row.operator_id ? '#' + row.operator_id : '支付渠道')
+            }}</template></el-table-column
+          >
+          <el-table-column prop="note" label="备注" min-width="160" />
+          <el-table-column v-if="can('payment:reverse')" label="操作" width="100"
+            ><template #default="{ row }"
+              ><el-button
+                v-if="canReverse(row)"
+                link
+                type="danger"
+                @click="openPayment('REVERSAL', row)"
+                >冲正</el-button
+              ></template
+            ></el-table-column
+          >
+        </el-table>
+        <el-timeline class="detail-timeline"
+          ><el-timeline-item
+            v-for="log in detail.logs"
+            :key="log.id"
+            :timestamp="formatDate(log.created_at)"
             >{{ log.action }} · {{ log.detail }}</el-timeline-item
           ></el-timeline
         ><div class="evidence-grid"
@@ -306,6 +372,12 @@
         ></template
       ></el-drawer
     >
+    <PaymentEntryDialog
+      v-model="paymentVisible"
+      :kind="paymentKind"
+      :target="paymentTarget"
+      @saved="paymentSaved"
+    />
     <ServiceSettings v-model="settingsVisible" :service="settingsService" @saved="load" />
   </HmPage>
 </template>
@@ -313,10 +385,13 @@
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import * as api from '@/api/homemaking'
+import { formatDate } from '@/utils/formatTime'
 import HmPage from './components/HmPage.vue'
 import { useHmAccess } from './useAccess'
 const { can, range, loadAccess } = useHmAccess()
 import ServiceSettings from './components/ServiceSettings.vue'
+import PaymentEntryDialog from './components/PaymentEntryDialog.vue'
+import { paymentChannels, paymentKinds, paymentMethods } from './paymentLabels'
 const settingsVisible = ref(false),
   settingsService = ref<api.BusinessRow>()
 defineOptions({ name: 'HomemakingOperations' })
@@ -370,6 +445,34 @@ const labels: Record<string, string> = {
   REJECTED: '已驳回',
   FAILED: '退款失败'
 }
+const paymentVisible = ref(false),
+  paymentKind = ref<'RECEIPT' | 'REFUND' | 'REVERSAL'>('RECEIPT'),
+  paymentTarget = ref<api.BusinessRow>(),
+  paymentEntries = ref<api.BusinessRow[]>([])
+async function openPayment(kind: 'RECEIPT' | 'REFUND' | 'REVERSAL', row: api.BusinessRow) {
+  if (kind === 'RECEIPT') {
+    const current = await api.getOrderDetail(row.id)
+    if (!current.payment_options.offlineAvailable)
+      return ElMessage.warning(current.payment_options.message)
+  }
+  paymentKind.value = kind
+  paymentTarget.value = row
+  paymentVisible.value = true
+}
+function canReverse(row: api.BusinessRow) {
+  return (
+    row.kind === 'RECEIPT' &&
+    row.payment_method === 'OFFLINE' &&
+    ['PAID', 'ASSIGNED'].includes(detail.value?.status) &&
+    ['WAITING', 'ACCEPTED'].includes(detail.value?.fulfillment_status) &&
+    !Number(detail.value?.refunded_cents) &&
+    !paymentEntries.value.some((e) => e.reversal_of === row.id)
+  )
+}
+async function paymentSaved() {
+  await load()
+  if (detailVisible.value && detail.value) await showOrder(detail.value.id)
+}
 const detailVisible = ref(false),
   detail = ref<any>(),
   detailPhotos = ref<any[]>([]),
@@ -407,6 +510,7 @@ async function reschedule() {
 }
 async function showOrder(id: number) {
   detail.value = await api.getOrderDetail(id)
+  paymentEntries.value = can('payment:read') ? await api.getPaymentEntries(id) : []
   detailVisible.value = true
   detailPhotos.value.forEach((p) => URL.revokeObjectURL(p.url))
   detailPhotos.value = []

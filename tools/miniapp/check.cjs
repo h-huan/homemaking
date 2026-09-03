@@ -53,5 +53,18 @@ async function run() {
   moveFirst.resolve([{ available: true, label: '09:00-11:00' }]); await c
   assert.equal(reschedule.data.slot, '16:00-18:00')
   console.log('PASS: booking and reschedule ignore stale capacity; latest quotation wins; double submission blocked.')
+  let prepared = 0, requested = 0, synced = 0
+  const detail = page('pages/order/detail/index.js', {
+    preparePayment: async () => { prepared++; return { status: 0, displayContent: JSON.stringify({ timeStamp: 'test-time', nonceStr: 'test-nonce', packageValue: 'test-package', signType: 'RSA', paySign: 'TEST_ONLY' }) } },
+    syncPayment: async () => { synced++ }
+  }, { requestPayment: options => { requested++; options.success() }, showToast() {} })
+  detail.data.detail = { orderId: 1, orderStatus: '10', paymentOptions: { onlineAvailable: false, offlineAvailable: true } }
+  detail.loadDetail = async () => { detail.data.detail.orderStatus = '30' }
+  await detail.handlePay(); assert.equal(prepared, 0); assert.equal(requested, 0)
+  detail.data.detail.paymentOptions.onlineAvailable = true
+  await detail.handlePay(); assert.equal(prepared, 1); assert.equal(requested, 1); assert.equal(synced, 1)
+  const template = fs.readFileSync(path.join(root, 'pages/order/detail/index.wxml'), 'utf8')
+  assert.match(template, /wx:if="\{\{detail.orderStatus === '10' && detail.paymentOptions.onlineAvailable\}\}"[^>]+bindtap="handlePay"/)
+  console.log('PASS: unavailable online payment is hidden and cannot be invoked; enabled WeChat payment still submits and reconciles.')
 }
 run().catch(error => { console.error(error); process.exitCode = 1 })

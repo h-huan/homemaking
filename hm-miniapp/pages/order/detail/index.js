@@ -18,7 +18,8 @@ require('../../../utils/page')({
   },
   async loadDetail() {
     const detail = await api.getOrder(this.orderId)
-    detail.statusMeta = getOrderStatusMeta(detail.orderStatus)
+    detail.statusMeta = getOrderStatusMeta(detail.orderStatus, detail.paymentOptions)
+    detail.paymentMethodLabel = ({ OFFLINE: '线下付款', ONLINE: '微信在线支付', LEGACY: '历史付款' })[detail.paymentMethod] || '待确认'
     detail.operateLogs = detail.operateLogs || []
     detail.aftersales = detail.aftersales || []
     detail.fulfillmentLabel = ({ WAITING: '等待接单', ACCEPTED: '人员已接单', ARRIVED: '人员已到达', STARTED: '正在服务', COMPLETED: '服务已完成' })[detail.fulfillmentStatus] || '等待安排'
@@ -57,7 +58,7 @@ require('../../../utils/page')({
     finally { this.setData({ savingPreference: false }) }
   },
   async handlePay() {
-    if (this.data.paying) return
+    if (this.data.paying || !this.data.detail.paymentOptions || !this.data.detail.paymentOptions.onlineAvailable) return
     this.setData({ paying: true })
     try {
       const payment = await api.preparePayment(this.data.detail.orderId)

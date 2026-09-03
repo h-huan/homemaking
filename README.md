@@ -23,7 +23,7 @@ pnpm build
 
 ## 配置与启动
 
-新建空的 MySQL 8.0.16+ 数据库，依次执行 sql/mysql/hm-base.sql、hm-pay-mp.sql、hm-bootstrap.sql、hm-homemaking.sql、hm-menu.sql，再执行 sql/mysql/upgrades/V002__operations_and_portal.sql、V003__operations_menu.sql、V004__admin_permissions.sql。已有 502a15e 版本数据库依次执行 V002、V003、V004；已完成 V003 的数据库仅执行 V004；不要重跑初始化 SQL。详见[增量升级说明](sql/mysql/upgrades/README.md)。
+新建空的 MySQL 8.0.16+ 数据库，依次执行 sql/mysql/hm-base.sql、hm-pay-mp.sql、hm-bootstrap.sql、hm-homemaking.sql、hm-menu.sql，再执行 sql/mysql/upgrades/V002__operations_and_portal.sql、V003__operations_menu.sql、V004__admin_permissions.sql、V005__payment_modes.sql。已有 502a15e 版本数据库依次执行 V002 至 V005；已完成 V003 的数据库仅执行 V004、V005；已完成 V004 的数据库仅执行 V005；不要重跑初始化 SQL。详见[增量升级说明](sql/mysql/upgrades/README.md)。
 设置 HM_DB_URL、HM_DB_USER、HM_DB_PASSWORD、HM_DATA_ENCRYPTION_KEY（随机至少 16 字符）、HM_REDIS_HOST/PORT/PASSWORD。
 生产新增 `HM_EVIDENCE_ROOT=/var/lib/hm/evidence`，用于私有履约照片；目录须可写、随数据库备份，不能映射到 Nginx 静态目录。
 启动：`java -jar hm-server/target/hm-server.jar`。默认只监听 127.0.0.1:48080。
@@ -51,3 +51,5 @@ pnpm build
 ## 仓库维护约定
 
 仅提交产品源码、必要测试、可复用工具、数据库升级、配置模板，以及部署/运维/架构/安全/来源许可等长期维护文档。同一主题优先更新已有说明。AI 阶段计划、进度记录、验收流水、聊天摘要、截图、调试脚本和本机环境文件存放于被忽略的 `.runtime/`，不提交到 Git；需要回顾的测试结果写在提交说明或 PR 中。新增运行参数或数据库升级时，必须同步现有部署说明和变量清单。
+
+租户支付模式默认 `OFFLINE`，总部直营无商户号也可通过线下收款运营。有权限的店长/老板/财务核实到账后登记整单收款；退款、冲正、结算和收支统计保留完整凭证。`ONLINE` / `BOTH` 为可配置能力，商户配置不可用时客户端采用线下方式；真实线上商户联调是开启线上支付的门槛，不阻塞线下 V1.0 运营。操作见[支付运营说明](docs/deployment/operations.md#收款退款与冲正)。

@@ -1,0 +1,20 @@
+package com.hm.module.homemaking.service;
+
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import javax.sql.DataSource;
+import java.nio.file.*;
+import java.nio.charset.StandardCharsets;
+import java.io.*;
+
+final class BusinessTestSchema {
+    private BusinessTestSchema() {}
+    static void payment(DataSource source) {
+        try {
+            // Domain tests load the actual business DDL; admin/menu DML is verified on the full acceptance schema.
+            String script=Files.readString(Path.of("../sql/mysql/upgrades/V005__payment_modes.sql")).split("INSERT INTO system_menu",2)[0];
+            var populator=new ResourceDatabasePopulator(new ByteArrayResource(script.getBytes(StandardCharsets.UTF_8)));
+            populator.setSqlScriptEncoding("UTF-8");populator.execute(source);
+        } catch(IOException e){throw new UncheckedIOException(e);}
+    }
+}

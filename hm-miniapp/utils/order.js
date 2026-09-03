@@ -10,7 +10,8 @@ const STATUS_MAP = {
   '90': { label: '已退款', className: 'gray', desc: '订单已退款' }
 }
 
-function getOrderStatusMeta(status) {
+function getOrderStatusMeta(status, paymentOptions) {
+  if (status === '10' && paymentOptions) return { label: paymentOptions.onlineAvailable ? '待付款' : '待收款确认', className: 'gray', desc: paymentOptions.message || '请联系门店线下付款，到账后由工作人员确认' }
   return STATUS_MAP[status] || { label: '处理中', className: 'gray', desc: '订单处理中' }
 }
 

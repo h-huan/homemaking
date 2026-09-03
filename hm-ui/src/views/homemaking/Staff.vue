@@ -8,11 +8,17 @@
       <el-table-column prop="username" label="账号" />
       <el-table-column prop="nickname" label="姓名" />
       <el-table-column label="家政角色"
-        ><template #default="{ row }">{{ row.super_admin ? '超级管理员（保留）' : roleName(row.template_code) }}</template></el-table-column
+        ><template #default="{ row }">{{
+          row.super_admin ? '超级管理员（保留）' : roleName(row.template_code)
+        }}</template></el-table-column
       >
       <el-table-column label="操作"
         ><template #default="{ row }"
-          ><el-button v-if="can('staff:write') && row.editable" link type="primary" @click="edit(row)"
+          ><el-button
+            v-if="can('staff:write') && row.editable"
+            link
+            type="primary"
+            @click="edit(row)"
             >分配角色与范围</el-button
           ></template
         ></el-table-column
@@ -76,8 +82,7 @@ const rangeLabel = computed(() =>
       ? '只可处理本人任务；保存后需在排班中心绑定对应服务人员。'
       : '覆盖本租户全部门店；平台管理员可经授权租户访问进入其他租户。'
 )
-const roleName = (code: string) =>
-  templates.value.find((t) => t.code === code)?.name || '未分配'
+const roleName = (code: string) => templates.value.find((t) => t.code === code)?.name || '未分配'
 const groups: Record<string, string> = {
   stores: '门店',
   workers: '人员',
@@ -94,7 +99,8 @@ const groups: Record<string, string> = {
   staff: '权限',
   quota: '配额',
   platform: '平台',
-  worker: '工作台'
+  worker: '工作台',
+  payment: '支付'
 }
 const actions: Record<string, string> = {
   read: '查看',
@@ -113,7 +119,10 @@ const actions: Record<string, string> = {
   payout: '登记打款',
   reconcile: '对账',
   publish: '发布',
-  manage: '管理'
+  manage: '管理',
+  receive: '确认收款',
+  reverse: '收款冲正',
+  configure: '模式配置'
 }
 function permissionName(p: string) {
   const [, group, action] = p.split(':')

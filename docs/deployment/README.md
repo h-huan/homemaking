@@ -1,6 +1,6 @@
 # 当前 SaaS 版本部署说明
 
-更新日期：2026-09-03。适用于 `saas-platform`，默认启用 system、infra、pay、mp、homemaking。此次新增独立官网、排班履约、私有照片、套餐与结算及 V002–V004 增量升级及后台角色权限。
+更新日期：2026-09-03。适用于 `saas-platform`，默认启用 system、infra、pay、mp、homemaking。包括独立官网、排班履约、私有照片、套餐与结算、后台角色权限与线下优先支付；数据库升级覆盖 V002–V005。
 
 本说明按“单台 Linux 主机运行 Java + Nginx，连接 MySQL/Redis”的方式提供模板；Windows 可负责打包和本地初始化。服务器地址、实际域名和账号尚未提供，下面的目录是部署约定示例，**不是已经替你部署好的地址**。当前副本、原仓库目录、未来 Git 克隆目录都可以作为打包目录，不需要把 `.codex` 隐藏目录上传到服务器。
 
@@ -132,6 +132,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON `CHANGE_ME_DATABASE`.* TO 'CHANGE_ME_DB_
 6. `sql/mysql/upgrades/V002__operations_and_portal.sql`
 7. `sql/mysql/upgrades/V003__operations_menu.sql`
 8. `sql/mysql/upgrades/V004__admin_permissions.sql`
+9. `sql/mysql/upgrades/V005__payment_modes.sql`
 
 例如 Linux shell，在上传 SQL 的发布目录执行（命令中的主机/账号/库名全部替换）：
 
@@ -144,11 +145,12 @@ mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --passw
 mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V002__operations_and_portal.sql
 mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V003__operations_menu.sql
 mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V004__admin_permissions.sql
+mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V005__payment_modes.sql
 ```
 
 每条执行成功后再执行下一条，密码交互输入。Windows PowerShell 不支持上述 `<` 写法，可使用数据库客户端选择目标库逐份执行。无需机械替换表名前缀，也不要用旧 `ruoyi-vue-pro.sql` 替代这些 HM 脚本。
 
-**已有 502a15e 数据库依次执行 V002、V003、V004；已完成 V003 的数据库仅执行 V004，不能重跑前五份初始化脚本。** 执行前停止写入、备份并确认恢复方案；V002、V004 不可重复执行，部分 DDL 失败不能依靠事务整体回滚。详细步骤见[增量升级说明](../../sql/mysql/upgrades/README.md)。旧家政数据迁移另见[迁移操作说明](../migration/runbook.md#旧库迁移)。
+**已有 502a15e 数据库依次执行 V002 至 V005；已完成 V003 的数据库仅执行 V004、V005；已完成 V004 的数据库仅执行 V005，不能重跑前五份初始化脚本。** 执行前停止写入、备份并确认恢复方案；V002、V004、V005 不可重复执行，部分 DDL 失败不能依靠事务整体回滚。详细步骤见[增量升级说明](../../sql/mysql/upgrades/README.md)。旧家政数据迁移另见[迁移操作说明](../migration/runbook.md#旧库迁移)。
 
 ## 6. 首次管理员与后端启动
 
@@ -200,12 +202,14 @@ systemctl reload nginx
 - 在文件配置中创建并设置主存储，验证合法图片上传；空库没有可直接使用的存储账号。
 - 品牌页登记域名并完成 `_hm-verification.域名` TXT 验证；DNS A/AAAA、Nginx 与证书也需匹配。
 - 官网页保存并发布草稿，再访问官网域名；`/app-api/homemaking/public/portal` 应返回当前租户的已发布内容，未验证或未发布的域名返回 404。
-- 排班页先设置人员技能、行政区和日期班次；未配置时客户看到无可约时段，这是产能保护。人员账号需绑定到同租户后台用户，并授予 `homemaking:worker` 权限。
+- 排班页先设置人员技能、行政区和日期班次；未配置时客户看到无可约时段，这是产能保护。人员账号需绑定到同租户后台用户，并在人员权限页授予「服务人员」模板。
 - 工作台上传服务前后照片，客户仅能查看自己订单的凭证；确认私有照片落在 `HM_EVIDENCE_ROOT`，不在网页包或公共对象桶。
 
 小程序修改 `hm-miniapp/app.js` 的 HTTPS baseUrl 和 tenantId、`project.config.json` 的 AppID，核对开发者工具当前 AppID及合法域名后重新上传。完整清单见[小程序替换位置](environment-variables.md#小程序这三处必须逐项确认)。
 
 ## 8. 接入真实渠道之前
+
+V1.0 默认允许线下支付运营，无需先取得线上商户号。支付设置在「品牌与通知 → 支付方式」，可选择 OFFLINE / ONLINE / BOTH。保持 OFFLINE 时，不需填写支付商户私钥/证书；小程序登录所需的微信 AppID/AppSecret 属于身份能力，仍须按实际账号配置。线上回调路径与代码保留，开通线上前再验证真实付款、退款与重试。
 
 这些配置在数据库/管理页面里，不仅仅是环境变量：
 
@@ -219,7 +223,7 @@ systemctl reload nginx
 
 每次发布记录 Git commit、JAR、前端整包及数据库升级脚本。上传到新的版本目录，停止旧服务后切换 `/opt/hm/current`，再启动并检查；不要只替换单个前端 JS 文件。保留前一版本产物。涉及数据库变化时，回滚必须同时考虑数据兼容性，不能仅换回旧 JAR。
 
-本轮新增变量只有私有照片目录 `HM_EVIDENCE_ROOT`；数据库、Redis、微信和支付凭据继续使用原有私有配置。官网、套餐、分佣、排班在后台/数据库维护，不应写成前端秘密。结算“登记打款”只记录已经发生的人工打款，不会调用银行或微信转账接口。
+权限与支付收口没有新增秘密环境变量；此前私有照片目录 `HM_EVIDENCE_ROOT` 仍需保留。数据库、Redis、微信和支付凭据继续使用原有私有配置。官网、套餐、分佣、排班在后台/数据库维护，不应写成前端秘密。结算“登记打款”只记录已经发生的人工打款，不会调用银行或微信转账接口。
 
 | 现象 | 优先检查 |
 | --- | --- |
@@ -239,3 +243,5 @@ systemctl reload nginx
 日常开业配置、规格/加项/区域、排班与人员角色、官网发布和财务操作见[运营手册](operations.md)。
 
 本地小程序合约检查：在仓库根目录运行 `node tools/miniapp/check.cjs`，覆盖页面资源、请求乱序与重复提交；不替代微信开发者工具和真机验收。
+
+支付升级验收：在 OFFLINE 模式用客户账号预约，确认小程序无强制在线支付；用店长/财务登记真实已收款金额，检查订单可派单，执行退款或误登记冲正后核对收支和结算。真实线上商户验收只在准备开放线上支付时执行，不作为线下 V1.0 运营的前置条件。服务器、MySQL 会话与运营使用的时间保持一致（部署模板的 Java 时区为 Asia/Shanghai），收支同时记录实际发生时间与服务器登记时间。

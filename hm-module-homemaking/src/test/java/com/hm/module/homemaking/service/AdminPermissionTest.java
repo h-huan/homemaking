@@ -33,7 +33,7 @@ class AdminPermissionTest {
     static boolean grantMenus;
     @Configuration @EnableMethodSecurity @EnableAspectJAutoProxy
     @Import({BusinessIsolationTest.Config.class, HomemakingAdminAccess.class, AdminScopeAspect.class,
-        StaffAccessService.class, HomemakingAdminController.class, HomemakingStaffController.class, HomemakingWorkerController.class})
+        StaffAccessService.class, HomemakingAdminController.class, HomemakingStaffController.class, HomemakingWorkerController.class,HomemakingPaymentController.class})
     static class Config {
         @Bean PermissionApi permissionApi(){return mock(PermissionApi.class, call -> {
             if(call.getMethod().getName().equals("hasAnyPermissions"))return grantMenus;
@@ -50,6 +50,7 @@ class AdminPermissionTest {
     @Autowired JdbcTemplate jdbc; @Autowired DataSource dataSource;
     @Autowired HomemakingAdminController admin; @Autowired HomemakingStaffController staff;
     @Autowired HomemakingWorkerController worker; @Autowired HomemakingAdminAccess access;
+    @Autowired HomemakingPaymentController payment;
     @Autowired HmRepository repo; @Autowired OrderService orders;
     @Autowired PermissionService permissions; @Autowired RoleService roles;
     long orderId;
@@ -57,6 +58,7 @@ class AdminPermissionTest {
         jdbc.execute("DROP ALL OBJECTS"); rolesByUser.clear(); grantMenus=true; reset(permissions,roles);
         var scripts=new ResourceDatabasePopulator(new FileSystemResource("../sql/mysql/hm-homemaking.sql"),new FileSystemResource("../sql/mysql/upgrades/V002__operations_and_portal.sql"));
         scripts.setSqlScriptEncoding("UTF-8");scripts.execute(dataSource);
+        BusinessTestSchema.payment(dataSource);
         jdbc.execute("CREATE TABLE system_users(id BIGINT PRIMARY KEY,tenant_id BIGINT,username VARCHAR(40),nickname VARCHAR(40),deleted BOOLEAN DEFAULT FALSE,status INT DEFAULT 0)");
         jdbc.execute("CREATE TABLE system_role(id BIGINT PRIMARY KEY,tenant_id BIGINT,code VARCHAR(40),deleted BOOLEAN DEFAULT FALSE)");
         jdbc.execute("CREATE TABLE system_user_role(user_id BIGINT,role_id BIGINT,tenant_id BIGINT,deleted BOOLEAN DEFAULT FALSE)");
@@ -118,10 +120,19 @@ class AdminPermissionTest {
     }
     @Test void noStoreAssignmentAndForeignStoreAreRejected(){role("OWNER");when(permissions.getUserRoleIdListByUserId(11L)).thenReturn(Set.of());when(roles.getRoleList(Set.of())).thenReturn(List.of());assertThrows(Exception.class,()->staff.grant(new StaffAccessService.Grant(11,"MANAGER",Set.of())));assertThrows(Exception.class,()->staff.grant(new StaffAccessService.Grant(11,"MANAGER",Set.of(3L))));assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM hm_staff_scope WHERE user_id=11",Integer.class));}
     @Test void allAdminMappingsDeclareSecurityAndNoBroadManageRemains(){
-        for(var controller:List.of(HomemakingAdminController.class,HomemakingStaffController.class))for(var method:controller.getDeclaredMethods()){
+        for(var controller:List.of(HomemakingAdminController.class,HomemakingStaffController.class,HomemakingPaymentController.class))for(var method:controller.getDeclaredMethods()){
             if(Arrays.stream(method.getAnnotations()).noneMatch(a->a.annotationType().getSimpleName().endsWith("Mapping")))continue;
             var annotation=method.getAnnotation(org.springframework.security.access.prepost.PreAuthorize.class);
             assertNotNull(annotation,method.getName());assertFalse(annotation.value().contains("homemaking:manage"));
         }
     }
+    @Test void onlyAuthorizedOperationsCanReceiveAndOnlyFinanceCanReverse(){
+        role("SUPPORT");var request=new PaymentLedgerService.Receipt("CASH",10000,LocalDateTime.now().withNano(0),"Cash checked","controller-receipt");
+        assertThrows(AccessDeniedException.class,()->payment.receive(orderId,request));
+        role("MANAGER");long entry=((Number)payment.receive(orderId,request).getData()).longValue();
+        var reversal=new PaymentLedgerService.Reversal(entry,LocalDateTime.now().withNano(0),"Mistaken entry","controller-reversal");
+        assertThrows(AccessDeniedException.class,()->payment.reverse(orderId,reversal));
+        role("FINANCE");assertDoesNotThrow(()->payment.reverse(orderId,reversal));
+    }
+    @Test void financeCannotChooseForeignTenantInLedgerQuery(){role("FINANCE");assertThrows(AccessDeniedException.class,()->payment.report(LocalDate.now(),LocalDate.now(),1,20,2L));assertEquals(1L,TenantContextHolder.getTenantId());}
 }

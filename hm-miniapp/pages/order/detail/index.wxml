@@ -12,6 +12,9 @@
     <view class="section-title">订单信息</view>
     <view class="fee-line"><text>订单编号</text><text>{{detail.orderNo}}</text></view>
     <view class="fee-line"><text>服务名称</text><text>{{detail.serviceName}}</text></view>
+    <view class="fee-line"><text>付款方式</text><text>{{detail.paymentMethodLabel}}</text></view>
+    <view class="fee-line" wx:if="{{detail.paidAmount > 0}}"><text>已确认收款</text><text>￥{{detail.paidAmount}}</text></view>
+    <view class="fee-line" wx:if="{{detail.refundedAmount > 0}}"><text>已退款</text><text>￥{{detail.refundedAmount}}</text></view>
     <view class="fee-line"><text>预约时间</text><text>{{detail.appointmentDate}} {{detail.appointmentTimeSlot}}</text></view>
     <view class="fee-line"><text>联系人</text><text>{{detail.contactName}} {{detail.contactMobile}}</text></view>
     <view class="fee-line"><text>服务地址</text><text class="detail-address">{{detail.serviceAddress}}</text></view>
@@ -47,7 +50,7 @@
   <view class="bottom-bar action-grid" wx:if="{{detail.orderStatus === '10' || detail.orderStatus === '30' || detail.orderStatus === '40' || (detail.orderStatus === '60' && !detail.review) || (detail.refundableAmount > 0 && detail.orderStatus === '60')}}">
     <button wx:if="{{detail.orderStatus === '10' || detail.orderStatus === '30' || detail.orderStatus === '40'}}" class="ghost-btn" bindtap="goReschedule">改期</button>
     <button wx:if="{{detail.orderStatus === '10'}}" class="ghost-btn" bindtap="handleCancel">取消预约</button>
-    <button wx:if="{{detail.orderStatus === '10'}}" class="primary-btn" bindtap="handlePay" loading="{{paying}}" disabled="{{paying}}">微信支付</button>
+    <button wx:if="{{detail.orderStatus === '10' && detail.paymentOptions.onlineAvailable}}" class="primary-btn" bindtap="handlePay" loading="{{paying}}" disabled="{{paying}}">微信支付</button>
     <button wx:if="{{detail.orderStatus === '60' && !detail.review}}" class="primary-btn" bindtap="goReview">评价服务</button>
     <button wx:if="{{detail.refundableAmount > 0 && (detail.orderStatus === '30' || detail.orderStatus === '40' || detail.orderStatus === '60')}}" class="secondary-btn" bindtap="goAftersale">申请售后</button>
   </view>

@@ -114,7 +114,9 @@
 | 租户品牌/域名 | 家政运营 → 品牌与通知 | 网站、Logo/favicon URL、主色、登录页、AppID；域名要通过 TXT 验证，DNS A/AAAA 和 HTTPS 证书另行配置 |
 | 微信统一身份 | `POST /admin-api/homemaking/wechat-apps`，仅总部可分配 | tenantId、appId、kind、真实开放平台归属 platformId、secretEnv、enabled；注册完成再绑定品牌 AppID |
 | 公众号管理 | 公众号管理 → 账号 | AppID、AppSecret、Token、EncodingAESKey 等实际账号设置，与租户身份注册对应 |
-| 支付应用与渠道 | 支付管理 → 应用/渠道；品牌页绑定 appKey | appKey、商户号、渠道 AppID、API 密钥/证书及回调配置；支付渠道 AppID 必须匹配小程序 |
+| 租户支付方式 | 品牌与通知 → 支付方式 | OFFLINE / ONLINE / BOTH，保存在 hm_tenant_profile.payment_mode，不是环境变量；总部默认 OFFLINE。线上不具备可用配置时回退线下入口 |
+| 线下收款与退款 | 运营工作台 → 订单/售后；财务 → 收支明细 | 渠道、整单金额、实际发生时间、凭证备注、操作人；不需要配置商户密钥，真实到账/退款须人工核实 |
+| 支付应用与渠道 | 支付管理 → 应用/渠道；品牌页绑定 appKey | 仅开启线上支付时需要 appKey、商户号、渠道 AppID、API 密钥/证书及回调配置；支付渠道 AppID 必须匹配本租户小程序 |
 | 短信 | 总部系统管理中的短信渠道、模板 | 服务商账号、签名、模板；与家政通知模板映射一致 |
 | 通知模板 | `PUT /admin-api/homemaking/notification-template` | event、channel、真实 templateId、fieldMapping、enabled；短信兜底还受平台/租户/客户三级允许条件限制 |
 | 排班与产能 | 家政运营 → 排班 | 人员所属门店、可服务项目、行政区、日期班次和请假；全区域需明确选择 *，未配置人员不会被自动派单 |

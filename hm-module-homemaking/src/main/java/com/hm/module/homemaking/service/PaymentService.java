@@ -19,15 +19,19 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 public class PaymentService {
     private final HmRepository repo;private final CustomerAccess customers;private final OrderService orders;
     private final PayOrderApi pay;private final PayRefundApi refunds;private final PayOrderService payOrderService;private final NotificationService notifications;private final SettlementService settlements;
+    @org.springframework.beans.factory.annotation.Autowired private PaymentPolicyService policy;
+    @org.springframework.beans.factory.annotation.Autowired private PaymentLedgerService ledger;
     public PaymentService(HmRepository repo,CustomerAccess customers,OrderService orders,PayOrderApi pay,PayRefundApi refunds,PayOrderService payOrderService,NotificationService notifications,SettlementService settlements){this.repo=repo;this.customers=customers;this.orders=orders;this.pay=pay;this.refunds=refunds;this.payOrderService=payOrderService;this.notifications=notifications;this.settlements=settlements;}
     private String appKey(){String key=repo.jdbc().queryForObject("SELECT pay_app_key FROM hm_tenant_profile WHERE tenant_id=?",String.class,repo.tenant());check(key!=null&&!key.isBlank(),"当前租户尚未配置支付");return key;}
     @Transactional
     public long create(long id,String ip){var order=customers.own("hm_order",id,true);check("UNPAID".equals(order.get("status")),"订单不在待付款状态");
+        check(policy.options().onlineAvailable(),"线上支付未开启或商户配置不可用，请联系门店线下付款");
         if(order.get("pay_order_id")!=null)return number(order,"pay_order_id");
         var request=new PayOrderCreateReqDTO();request.setAppKey(appKey());request.setUserIp(ip);request.setUserId(customers.current());request.setUserType(1);
-        LocalDateTime expiry=OrderService.time(order.get("created_at")).plusMinutes(30);check(expiry.isAfter(LocalDateTime.now()),"订单已超时，请重新预约");
+        LocalDateTime expiry=order.get("payment_expires_at")==null?LocalDateTime.now().plusMinutes(30):OrderService.time(order.get("payment_expires_at"));check(expiry.isAfter(LocalDateTime.now()),"订单已超时，请重新预约");
+        check(OrderService.time(repo.require("hm_booking",number(order,"booking_id"),false).get("ends_at")).isAfter(LocalDateTime.now()),"预约时段已结束，请先调整预约");
         request.setMerchantOrderId("HM-"+repo.tenant()+"-"+id);String name=(String)order.get("service_name");request.setSubject(name.substring(0,Math.min(32,name.length())));request.setPrice(cents(order,"price_cents"));request.setExpireTime(expiry);
-        long payId=pay.createOrder(request);repo.jdbc().update("UPDATE hm_order SET pay_order_id=?,version=version+1 WHERE tenant_id=? AND id=?",payId,repo.tenant(),id);return payId;
+        long payId=pay.createOrder(request);repo.jdbc().update("UPDATE hm_order SET pay_order_id=?,payment_method='ONLINE',payment_expires_at=?,version=version+1 WHERE tenant_id=? AND id=?",payId,expiry,repo.tenant(),id);return payId;
     }
     @Transactional
     public void syncOwned(long id){var order=customers.own("hm_order",id,false);if(order.get("pay_order_id")!=null)payOrderService.syncOrderQuietly(number(order,"pay_order_id"));sync(id);}
@@ -39,6 +43,7 @@ public class PaymentService {
                 &&Objects.equals(paid.getUserType(),1)&&Objects.equals(paid.getMerchantOrderId(),"HM-"+repo.tenant()+"-"+id)&&paid.getPrice()==cents(order,"price_cents"),"支付记录与订单不匹配");
         if(!PayOrderStatusEnum.isSuccess(paid.getStatus()))return;
         if(cents(order,"paid_cents")>0)return;
+        ledger.onlineReceipt(order,paid.getSuccessTime());
         repo.jdbc().update("UPDATE hm_order SET paid_cents=price_cents,paid_at=?,version=version+1 WHERE tenant_id=? AND id=?",paid.getSuccessTime(),repo.tenant(),id);
         if("UNPAID".equals(order.get("status"))){repo.jdbc().update("UPDATE hm_order SET status='PAID' WHERE tenant_id=? AND id=?",repo.tenant(),id);orders.log(id,"PAID","");}
         else if("CANCELLED".equals(order.get("status"))){
@@ -54,6 +59,7 @@ public class PaymentService {
     @org.springframework.beans.factory.annotation.Autowired private org.springframework.context.ApplicationContext context;
     private PaymentService transactionalSelf(){return context.getBean(PaymentService.class);}
     public com.hm.module.pay.controller.admin.order.vo.PayOrderSubmitRespVO miniPay(long id,String appId,String ip){
+        check(policy.options().onlineAvailable(),"线上支付不可用，请联系门店线下付款");
         context.getBean(WechatGateway.class).app(appId,"MINI");
         var identities=repo.jdbc().queryForList("SELECT open_id FROM hm_wechat_identity WHERE app_id=? AND customer_id=?",appId,customers.current());
         check(identities.size()==1,"请先通过当前小程序登录");
@@ -70,6 +76,7 @@ public class PaymentService {
     }
     @Transactional
     public void approveRefund(long aftersaleId,String ip){var a=repo.require("hm_aftersale",aftersaleId,true);var order=repo.require("hm_order",number(a,"order_id"),true);
+        check(!"OFFLINE".equals(order.get("payment_method")),"线下收款请在完成实际退款后登记线下退款凭证");
         if(a.get("pay_refund_id")!=null)return;check(order.get("pay_order_id")!=null,"历史支付需先人工对账，不可自动退款");check("REQUESTED".equals(a.get("status")),"售后单不在待审核状态");
         check(cents(a,"amount_cents")<=cents(order,"paid_cents")-cents(order,"refunded_cents"),"退款金额超出可退款金额");
         var r=new PayRefundCreateReqDTO();r.setAppKey(appKey());r.setUserIp(ip);r.setUserId(number(order,"customer_id"));r.setUserType(1);r.setMerchantOrderId("HM-"+repo.tenant()+"-"+order.get("id"));r.setMerchantRefundId("HM-R-"+repo.tenant()+"-"+aftersaleId);String reason=(String)a.get("reason");r.setReason(reason.substring(0,Math.min(128,reason.length())));r.setPrice(cents(a,"amount_cents"));
@@ -91,6 +98,7 @@ public class PaymentService {
         if(PayRefundStatusEnum.isFailure(r.getStatus())){repo.jdbc().update("UPDATE hm_aftersale SET status='FAILED' WHERE tenant_id=? AND id=? AND status='REFUNDING'",repo.tenant(),aftersaleId);repo.jdbc().update("UPDATE hm_order SET status=?,version=version+1 WHERE tenant_id=? AND id=? AND status='REFUNDING'",Objects.toString(a.get("previous_order_status"),"PAID"),repo.tenant(),a.get("order_id"));return;}
         if(!PayRefundStatusEnum.isSuccess(r.getStatus()))return;
         var order=repo.require("hm_order",number(a,"order_id"),true);int total=Math.addExact(cents(order,"refunded_cents"),r.getRefundPrice());check(total<=cents(order,"paid_cents"),"累计退款超过支付金额");
+        ledger.onlineRefund(order,aftersaleId,r.getRefundPrice(),r.getSuccessTime());
         String next=total==cents(order,"paid_cents")?"REFUNDED":Objects.toString(a.get("previous_order_status"),"PAID");
         repo.jdbc().update("UPDATE hm_order SET refunded_cents=?,status=?,version=version+1 WHERE tenant_id=? AND id=?",total,next,repo.tenant(),order.get("id"));repo.jdbc().update("UPDATE hm_aftersale SET status='REFUNDED' WHERE tenant_id=? AND id=?",repo.tenant(),aftersaleId);
         if(next.equals("REFUNDED"))orders.release(order,"CANCELLED");

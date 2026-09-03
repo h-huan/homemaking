@@ -67,7 +67,7 @@ public class HomemakingAdminController {
     @PreAuthorize("@hmAdmin.allowed('homemaking:schedule:write')")
     @PostMapping("/workers/{id}/apply-shift") public CommonResult<?> applyShift(@PathVariable long id,@Valid @RequestBody ScheduleService.ApplyShift request){schedules.apply(id,request);return success(true);}
     @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:read')")
-    @GetMapping("/aftersales") public CommonResult<?> aftersales(){return success(repo.jdbc().queryForList("SELECT * FROM hm_aftersale WHERE tenant_id=?"+repo.scope("hm_aftersale")+" ORDER BY id DESC LIMIT 100",repo.tenant()));}
+    @GetMapping("/aftersales") public CommonResult<?> aftersales(){return success(repo.jdbc().queryForList("SELECT a.*,o.payment_method FROM hm_aftersale a JOIN hm_order o ON o.id=a.order_id AND o.tenant_id=a.tenant_id WHERE a.tenant_id=?"+repo.scope("hm_aftersale","a")+" ORDER BY a.id DESC LIMIT 100",repo.tenant()));}
     @PreAuthorize("@hmAdmin.allowed('homemaking:reviews:read')")
     @GetMapping("/reviews") public CommonResult<?> reviews(){return success(repo.jdbc().queryForList("SELECT id,order_id,rating,content,visible,created_at FROM hm_review WHERE tenant_id=?"+repo.scope("hm_review")+" ORDER BY id DESC LIMIT 100",repo.tenant()));}
     public record Visibility(boolean visible){}

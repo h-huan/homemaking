@@ -8,7 +8,7 @@ require('../../../utils/page')({
     statusLabel: '',
     statusDesc: ''
   },
-  onLoad(options) {
+  async onLoad(options) {
     const statusMeta = getOrderStatusMeta(options.orderStatus)
     this.setData({
       orderId: options.orderId || '',

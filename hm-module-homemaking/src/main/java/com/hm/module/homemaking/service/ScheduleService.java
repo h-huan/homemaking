@@ -2,6 +2,8 @@ package com.hm.module.homemaking.service;
 
 import com.hm.module.homemaking.dal.HmRepository;
 import jakarta.validation.constraints.*;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.hm.module.homemaking.controller.BusinessTimeDeserializer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
@@ -10,7 +12,7 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 
 @Service("hmScheduleService")
 public class ScheduleService {
-    public record Interval(@NotNull LocalDateTime startsAt, @NotNull LocalDateTime endsAt,
+    public record Interval(@NotNull @JsonDeserialize(using=BusinessTimeDeserializer.class) LocalDateTime startsAt, @NotNull @JsonDeserialize(using=BusinessTimeDeserializer.class) LocalDateTime endsAt,
                            @Size(max=500) String reason) {}
     public record Skills(@NotNull @Size(max=200) List<Long> serviceIds,
                          @NotNull @Size(max=200) List<String> districts) {}

@@ -24,7 +24,7 @@ public class HomemakingJobs {
     }
     @Scheduled(initialDelay=120000,fixedDelay=60000)
     public void expireUnpaid(){
-        var rows=repo.jdbc().queryForList("SELECT tenant_id,id FROM hm_order WHERE status='UNPAID' AND created_at<? ORDER BY id LIMIT 200",LocalDateTime.now().minusMinutes(30));
+        var rows=repo.jdbc().queryForList("SELECT tenant_id,id FROM hm_order WHERE status='UNPAID' AND payment_method='ONLINE' AND payment_expires_at<? ORDER BY id LIMIT 200",LocalDateTime.now());
         for(var row:rows){try{TenantUtils.execute(number(row,"tenant_id"),()->context.getBean(OrderService.class).expire(number(row,"id")));}catch(Exception ignored){/* A payment callback may win; the next reconciliation pass rechecks state. */}}
     }
 }

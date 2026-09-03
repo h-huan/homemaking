@@ -13,6 +13,9 @@
       ></div
     >
     <el-tabs>
+      <el-tab-pane v-if="can('finance:read')" label="收支明细" lazy
+        ><PaymentLedger :tenant-id="tenantId"
+      /></el-tab-pane>
       <el-tab-pane v-if="can('quota:read')" label="功能与额度">
         <el-alert
           v-if="!isHeadquarters"
@@ -190,6 +193,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getTenantId } from '@/utils/auth'
 import * as api from '@/api/homemaking'
 import HmPage from './components/HmPage.vue'
+import PaymentLedger from './components/PaymentLedger.vue'
 import { useHmAccess } from './useAccess'
 const { can, loadAccess } = useHmAccess()
 

@@ -3,6 +3,8 @@ package com.hm.module.homemaking.service;
 import com.hm.module.homemaking.dal.HmRepository;
 import com.hm.framework.security.core.util.SecurityFrameworkUtils;
 import jakarta.validation.constraints.*;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.hm.module.homemaking.controller.BusinessTimeDeserializer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
@@ -12,7 +14,7 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 
 @Service("hmOrderService")
 public class OrderService {
-    public record Book(@NotNull Long serviceId, Long workerId, @NotNull @Future LocalDateTime startsAt,
+    public record Book(@NotNull Long serviceId, Long workerId, @NotNull @Future @JsonDeserialize(using=BusinessTimeDeserializer.class) LocalDateTime startsAt,
             @NotNull Long addressId, @NotBlank @Size(max=100) String requestKey,Long skuId,List<PricingService.Extra> extras,@Size(max=500) String customerRemark) {
         public Book(Long serviceId,Long workerId,LocalDateTime startsAt,Long addressId,String requestKey){this(serviceId,workerId,startsAt,addressId,requestKey,null,List.of(),"");}
     }
@@ -20,7 +22,7 @@ public class OrderService {
             @NotBlank @Size(max=500) String address,boolean isDefault) {}
     public record Review(@NotNull Long orderId,@Min(1) @Max(5) int rating,@NotBlank @Size(max=1000) String content) {}
     public record Aftersale(@NotNull Long orderId,@Min(1) int amountCents,@NotBlank @Size(max=1000) String reason) {}
-    public record Reschedule(@NotNull @Future LocalDateTime startsAt,Long workerId,@NotBlank @Size(max=500) String reason) {}
+    public record Reschedule(@NotNull @Future @JsonDeserialize(using=BusinessTimeDeserializer.class) LocalDateTime startsAt,Long workerId,@NotBlank @Size(max=500) String reason) {}
     private final HmRepository repo;
     private final CustomerAccess customers;
     private final NotificationService notifications;
@@ -28,6 +30,7 @@ public class OrderService {
     private final ScheduleService schedules;
     private final QuotaService quotas;
     private final SettlementService settlements;
+    @org.springframework.beans.factory.annotation.Autowired private PaymentPolicyService paymentPolicy;
     public OrderService(HmRepository repo,CustomerAccess customers,NotificationService notifications,PricingService pricing,ScheduleService schedules,QuotaService quotas,SettlementService settlements){this.repo=repo;this.customers=customers;this.notifications=notifications;this.pricing=pricing;this.schedules=schedules;this.quotas=quotas;this.settlements=settlements;}
     @Transactional
     public long saveAddress(Address a) {
@@ -59,6 +62,8 @@ public class OrderService {
         long order=repo.insert("INSERT INTO hm_order(tenant_id,customer_id,booking_id,service_id,service_name,store_id,worker_id,price_cents,contact_name,phone,address,request_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                 tenant,customer,booking,request.serviceId(),service.get("name"),service.get("store_id"),worker,quote.totalCents(),address.get("contact_name"),address.get("phone"),address.get("address"),request.requestKey());
         repo.jdbc().update("UPDATE hm_order SET customer_remark=?,district_code=? WHERE tenant_id=? AND id=?",CatalogService.s(request.customerRemark()),Objects.toString(address.get("district_code"),""),tenant,order);
+        boolean onlineOnly=!paymentPolicy.options().offlineAvailable();
+        repo.jdbc().update("UPDATE hm_order SET payment_method=?,payment_expires_at=? WHERE tenant_id=? AND id=?",onlineOnly?"ONLINE":"OFFLINE",onlineOnly?LocalDateTime.now().plusMinutes(30):null,tenant,order);
         for(var item:quote.items())repo.insert("INSERT INTO hm_order_item(tenant_id,order_id,name,price_cents,quantity,total_cents) VALUES(?,?,?,?,?,?)",tenant,order,item.name(),item.priceCents(),item.quantity(),item.totalCents());
         log(order,"CREATED","");return order;
     }
@@ -68,6 +73,10 @@ public class OrderService {
             repo.jdbc().update("INSERT INTO hm_worker_slot(tenant_id,worker_id,starts_at,booking_id) VALUES(?,?,?,?)",repo.tenant(),worker,at,booking);
     }
     public Map<String,Object> detail(long id,boolean admin){var order=admin?repo.require("hm_order",id,false):customers.own("hm_order",id,false);order.put("booking",repo.require("hm_booking",number(order,"booking_id"),false));
+        var paymentOptions=paymentPolicy.options();
+        boolean waiting="UNPAID".equals(order.get("status"));
+        boolean expired=order.get("payment_expires_at")!=null&&!time(order.get("payment_expires_at")).isAfter(LocalDateTime.now());
+        order.put("payment_options",Map.of("mode",paymentOptions.mode(),"onlineAvailable",waiting&&!expired&&paymentOptions.onlineAvailable(),"offlineAvailable",waiting&&order.get("pay_order_id")==null&&paymentOptions.offlineAvailable(),"message",order.get("pay_order_id")!=null&&waiting?"线上支付结果待核对，请勿重复线下付款":paymentOptions.message()));
         order.put("logs",repo.jdbc().queryForList("SELECT id,action,detail,created_at FROM hm_order_log WHERE tenant_id=? AND order_id=? ORDER BY id",repo.tenant(),id));
         order.put("aftersales",repo.jdbc().queryForList("SELECT id,amount_cents,reason,status,audit_remark,created_at FROM hm_aftersale WHERE tenant_id=? AND order_id=? ORDER BY id DESC",repo.tenant(),id));
         order.put("review",repo.jdbc().queryForList("SELECT id,rating,content FROM hm_review WHERE tenant_id=? AND order_id=?",repo.tenant(),id));return order;}
@@ -124,7 +133,7 @@ public class OrderService {
     }
     @Transactional public void expire(long id){
         var order=repo.require("hm_order",id,true);
-        if(!"UNPAID".equals(order.get("status"))||time(order.get("created_at")).plusMinutes(30).isAfter(LocalDateTime.now()))return;
+        if(!"UNPAID".equals(order.get("status"))||!"ONLINE".equals(order.get("payment_method"))||order.get("payment_expires_at")==null||time(order.get("payment_expires_at")).isAfter(LocalDateTime.now()))return;
         transition(order,"CANCELLED");release(order,"CANCELLED");log(id,"PAYMENT_EXPIRED","30 分钟未支付，释放预约");
     }
     @Transactional
