@@ -122,35 +122,17 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON `CHANGE_ME_DATABASE`.* TO 'CHANGE_ME_DB_
 
 `CHANGE_ME_APP_SOURCE_HOST` 是数据库看到的应用连接来源，不是网站域名。导入表结构使用单独的安装账号（需 DDL 权限）；上面的运行账号仅提供默认运行 DML 权限。代码生成/运维功能若需要更多权限，应单独评估。
 
-在**同一个新目标库**依次执行：
-
-1. `sql/mysql/hm-base.sql`
-2. `sql/mysql/hm-pay-mp.sql`
-3. `sql/mysql/hm-bootstrap.sql`
-4. `sql/mysql/hm-homemaking.sql`
-5. `sql/mysql/hm-menu.sql`
-6. `sql/mysql/upgrades/V002__operations_and_portal.sql`
-7. `sql/mysql/upgrades/V003__operations_menu.sql`
-8. `sql/mysql/upgrades/V004__admin_permissions.sql`
-9. `sql/mysql/upgrades/V005__payment_modes.sql`
+在**新建的空目标库**中，**只导入一次 [`sql/mysql/hm-init.sql`](../../sql/mysql/hm-init.sql)**。这份独立 SQL 已包含平台基础表、总部账号、家政菜单及截至 V005 的全部结构；无需依次导入其他初始化文件，也无需再执行 V002–V005。
 
 例如 Linux shell，在上传 SQL 的发布目录执行（命令中的主机/账号/库名全部替换）：
 
 ```bash
-mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-base.sql
-mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-pay-mp.sql
-mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-bootstrap.sql
-mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-homemaking.sql
-mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-menu.sql
-mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V002__operations_and_portal.sql
-mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V003__operations_menu.sql
-mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V004__admin_permissions.sql
-mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V005__payment_modes.sql
+mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-init.sql
 ```
 
-每条执行成功后再执行下一条，密码交互输入。Windows PowerShell 不支持上述 `<` 写法，可使用数据库客户端选择目标库逐份执行。无需机械替换表名前缀，也不要用旧 `ruoyi-vue-pro.sql` 替代这些 HM 脚本。
+密码交互输入，遇到 SQL 错误立即停止，不使用 `--force`。Windows PowerShell 不支持上述 `<` 写法，可在数据库客户端选中新空库，只执行 hm-init.sql 这一份文件。无需修改该文件中的库名或业务表前缀，也不要用旧 ruoyi-vue-pro.sql 替代。管理员密码仍按下一节在部署环境单独设置。
 
-**已有 502a15e 数据库依次执行 V002 至 V005；已完成 V003 的数据库仅执行 V004、V005；已完成 V004 的数据库仅执行 V005，不能重跑前五份初始化脚本。** 执行前停止写入、备份并确认恢复方案；V002、V004、V005 不可重复执行，部分 DDL 失败不能依靠事务整体回滚。详细步骤见[增量升级说明](../../sql/mysql/upgrades/README.md)。旧家政数据迁移另见[迁移操作说明](../migration/runbook.md#旧库迁移)。
+**已有数据库不能重新导入 hm-init.sql。** 已有 502a15e 数据库依次执行 V002 至 V005；已完成 V003 的数据库仅执行 V004、V005；已完成 V004 的数据库仅执行 V005。执行前停止写入、备份并确认恢复方案；V002、V004、V005 不可重复执行，部分 DDL 失败不能依靠事务整体回滚。详细步骤见[增量升级说明](../../sql/mysql/upgrades/README.md)。旧家政数据迁移另见[迁移操作说明](../migration/runbook.md#旧库迁移)。
 
 ## 6. 首次管理员与后端启动
 

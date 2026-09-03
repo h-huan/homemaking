@@ -23,7 +23,7 @@ pnpm build
 
 ## 配置与启动
 
-新建空的 MySQL 8.0.16+ 数据库，依次执行 sql/mysql/hm-base.sql、hm-pay-mp.sql、hm-bootstrap.sql、hm-homemaking.sql、hm-menu.sql，再执行 sql/mysql/upgrades/V002__operations_and_portal.sql、V003__operations_menu.sql、V004__admin_permissions.sql、V005__payment_modes.sql。已有 502a15e 版本数据库依次执行 V002 至 V005；已完成 V003 的数据库仅执行 V004、V005；已完成 V004 的数据库仅执行 V005；不要重跑初始化 SQL。详见[增量升级说明](sql/mysql/upgrades/README.md)。
+新建空的 MySQL 8.0.16+ 数据库，**只导入一次 [sql/mysql/hm-init.sql](sql/mysql/hm-init.sql)**，已包含基础表、总部账号、菜单和截至 V005 的全部结构，无需再逐份执行初始化及升级 SQL。已有数据库只执行尚未应用的增量脚本，不能重新导入 hm-init.sql。详见[数据库初始化与升级说明](sql/mysql/upgrades/README.md)。
 设置 HM_DB_URL、HM_DB_USER、HM_DB_PASSWORD、HM_DATA_ENCRYPTION_KEY（随机至少 16 字符）、HM_REDIS_HOST/PORT/PASSWORD。
 生产新增 `HM_EVIDENCE_ROOT=/var/lib/hm/evidence`，用于私有履约照片；目录须可写、随数据库备份，不能映射到 Nginx 静态目录。
 启动：`java -jar hm-server/target/hm-server.jar`。默认只监听 127.0.0.1:48080。

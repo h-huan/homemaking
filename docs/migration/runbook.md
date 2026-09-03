@@ -6,17 +6,9 @@
 
 使用 Java 17、MySQL **8.0.16 或更高版本**、Redis、Node 和项目锁定的 pnpm。迁移断言依赖 CHECK 约束，不支持将 MySQL 5.7 的执行结果当成验收。新库使用 utf8mb4，应用时区与数据库时区统一为 Asia/Shanghai。
 
-先备份并验证可恢复性。新数据库执行顺序：
+新建空数据库后，**只导入一次 `sql/mysql/hm-init.sql`**。文件已包含基础平台、支付公众号、总部与锁定管理员、家政领域、菜单，以及 V002–V005 的排班履约、官网、权限与支付模式结构；无需额外执行分段 SQL 或这些版本脚本。
 
-1. `sql/mysql/hm-base.sql`：system/infra 基础结构和字典菜单。
-2. `sql/mysql/hm-pay-mp.sql`：pay/mp 结构。
-3. `sql/mysql/hm-bootstrap.sql`：总部租户、锁定管理员、内部登录客户端；关闭可选模块菜单。
-4. `sql/mysql/hm-homemaking.sql`：家政领域与通知、身份、白标结构。
-5. `sql/mysql/hm-menu.sql`：家政运营菜单及总部权限。
-6. `sql/mysql/upgrades/V002__operations_and_portal.sql`：排班、履约、官网、配额和结算结构。
-7. `sql/mysql/upgrades/V003__operations_menu.sql`：运营新菜单与总部权限。
-
-前五份仅用于空库；已有 502a15e SaaS 数据库仅执行 V002、V003，详见[增量升级说明](../../sql/mysql/upgrades/README.md)。不要向旧库覆盖导入。默认总部租户编号 1、经营方式 DIRECT。FRANCHISE 为加盟模式；新增租户需在套餐里配置家政菜单权限，并分别建立其门店、服务、人员能力/排班和品牌配置。
+已有 SaaS 数据库先备份并验证可恢复性，只执行尚未应用的增量版本，详见[增量升级说明](../../sql/mysql/upgrades/README.md)。不要向旧库覆盖导入 hm-init.sql。默认总部租户编号 1、经营方式 DIRECT、支付方式 OFFLINE。FRANCHISE 为加盟模式；新增租户需在套餐里配置家政菜单权限，并分别建立其门店、服务、人员能力/排班和品牌配置。
 
 ## 私有配置与首次登录
 
@@ -57,7 +49,7 @@ pay 应用的 `refundNotifyUrl` 填写 `https://实际API域名/app-api/homemaki
 ## 旧库迁移
 
 1. 将旧库制作成受保护的只读快照，数据库名为 `hm_legacy_snapshot`；验证来源表与 `legacy/sql/homemaking_p0.sql` 一致。不要在运行中的旧库直接改表。
-2. 在隔离 MySQL 新库按上面初始化顺序建表。检查组织归属、重复分类名称、孤立客户/服务、预约时间格式、退款和重复评价。脚本默认旧组织转总部租户 1 下的门店，不自动把旧组织当成加盟商。
+2. 在隔离 MySQL 新空库导入 hm-init.sql 建表。检查组织归属、重复分类名称、孤立客户/服务、预约时间格式、退款和重复评价。脚本默认旧组织转总部租户 1 下的门店，不自动把旧组织当成加盟商。
 3. 从新库运行 `sql/mysql/hm-migrate-legacy.sql`，批处理遇错立即终止，**不要使用 mysql --force**。先执行空库与数据约束断言，再在事务中导入；冲突需回滚并清理该次隔离目的库后重新演练。
 4. 校验客户与租户关系、分类/门店/服务/SKU/加项/地址数量，订单和退款总额（元转整数分），预约及人员占位；抽查已付款、已取消、已完成、退款订单。归档表用于追溯，包含业务个人信息，应仅限数据库管理员访问。
 5. 原 AppID 与开放平台归属确认后，按 `hm-migrate-legacy-wechat.sql` 的变量说明迁入微信映射。未确认 AppID 时不要猜测。旧 session secret 不导入新认证体系。
