@@ -1,6 +1,6 @@
 const api = require('../../utils/api')
 
-Page({
+require('../../utils/page')({
   data: {
     loading: false,
     agreementChecked: true,

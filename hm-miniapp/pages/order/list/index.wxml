@@ -1,4 +1,4 @@
-<view class="page compact">
+<view class="page compact" style="{{themeStyle}}">
   <scroll-view class="tab-scroll" scroll-x>
     <view class="tab-list">
       <view class="tab-item {{activeStatus === item.value ? 'active' : ''}}" wx:for="{{tabs}}" wx:key="value" data-value="{{item.value}}" bindtap="switchTab">{{item.label}}</view>

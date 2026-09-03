@@ -1,6 +1,6 @@
 const api = require('../../../utils/api')
 
-Page({
+require('../../../utils/page')({
   data: {
     form: {
       addressId: null,

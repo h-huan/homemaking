@@ -1,17 +1,39 @@
 const api = require('../../../utils/api')
 const { getOrderStatusMeta } = require('../../../utils/order')
 
-Page({
-  data: { detail: {}, paying: false, subscriptionTemplates: [], reminderEnabled: true, allowSms: false, savingPreference: false },
+require('../../../utils/page')({
+  data: { detail: { statusMeta: {}, operateLogs: [], aftersales: [] }, evidence: [], paying: false, subscriptionTemplates: [], reminderEnabled: true, allowSms: false, savingPreference: false },
   async onLoad(options) {
-    const detail = await api.getOrder(options.id)
-    detail.statusMeta = getOrderStatusMeta(detail.orderStatus)
-    this.setData({ detail })
+    this.orderId = Number(options.id)
+    await this.loadDetail()
     api.getSubscriptionTemplates().then(subscriptionTemplates => this.setData({ subscriptionTemplates })).catch(() => {})
     api.getNotificationPreferences().then(preferences => {
       const reminder = preferences.find(item => item.event_type === 'SERVICE_REMINDER')
       if (reminder) this.setData({ reminderEnabled: !!reminder.enabled, allowSms: !!reminder.allow_sms })
     }).catch(() => {})
+  },
+  onShow() {
+    if (this.orderId && this.loadedOnce) this.loadDetail().catch(() => {})
+    this.loadedOnce = true
+  },
+  async loadDetail() {
+    const detail = await api.getOrder(this.orderId)
+    detail.statusMeta = getOrderStatusMeta(detail.orderStatus)
+    detail.operateLogs = detail.operateLogs || []
+    detail.aftersales = detail.aftersales || []
+    detail.fulfillmentLabel = ({ WAITING: '等待接单', ACCEPTED: '人员已接单', ARRIVED: '人员已到达', STARTED: '正在服务', COMPLETED: '服务已完成' })[detail.fulfillmentStatus] || '等待安排'
+    this.setData({ detail })
+    const evidence = await api.getEvidence(this.orderId)
+    this.setData({ evidence })
+  },
+  previewEvidence(e) {
+    const app = getApp()
+    wx.downloadFile({
+      url: app.globalData.baseUrl + '/homemaking/orders/' + this.orderId + '/evidence/' + e.currentTarget.dataset.id + '/content',
+      header: { 'tenant-id': String(app.globalData.tenantId), Authorization: 'Bearer ' + wx.getStorageSync('miniToken') },
+      success: result => { if (result.statusCode === 200) wx.previewImage({ urls: [result.tempFilePath] }); else wx.showToast({ title: '照片读取失败，请重新登录后重试', icon: 'none' }) },
+      fail: () => wx.showToast({ title: '照片读取失败', icon: 'none' })
+    })
   },
   handleSubscribe() {
     const ids = this.data.subscriptionTemplates
@@ -48,10 +70,8 @@ Page({
         }))
       }
       await api.syncPayment(this.data.detail.orderId)
-      const detail = await api.getOrder(this.data.detail.orderId)
-      detail.statusMeta = getOrderStatusMeta(detail.orderStatus)
-      this.setData({ detail })
-      wx.showToast({ title: detail.orderStatus === '10' ? '支付结果确认中' : '付款成功', icon: 'none' })
+      await this.loadDetail()
+      wx.showToast({ title: this.data.detail.orderStatus === '10' ? '支付结果确认中' : '付款成功', icon: 'none' })
     } catch (error) {
       wx.showToast({ title: error.errMsg && error.errMsg.includes('cancel') ? '已取消支付' : '支付未完成，请刷新订单', icon: 'none' })
     } finally { this.setData({ paying: false }) }
@@ -59,8 +79,9 @@ Page({
   async handleCancel() {
     await api.cancelOrder(this.data.detail.orderId, '用户取消预约')
     wx.showToast({ title: '已取消', icon: 'success' })
-    const detail = await api.getOrder(this.data.detail.orderId)
-    detail.statusMeta = getOrderStatusMeta(detail.orderStatus)
-    this.setData({ detail })
-  }
+    await this.loadDetail()
+  },
+  goReschedule() { wx.navigateTo({ url: `/pages/order/reschedule/index?id=${this.data.detail.orderId}` }) },
+  goReview() { wx.navigateTo({ url: `/pages/order/feedback/index?id=${this.data.detail.orderId}&mode=review` }) },
+  goAftersale() { wx.navigateTo({ url: `/pages/order/feedback/index?id=${this.data.detail.orderId}&mode=aftersale&amount=${this.data.detail.refundableAmount}` }) }
 })

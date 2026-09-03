@@ -1,6 +1,6 @@
 const { getOrderStatusMeta } = require('../../../utils/order')
 
-Page({
+require('../../../utils/page')({
   data: {
     orderId: '',
     orderNo: '',

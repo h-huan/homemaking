@@ -27,7 +27,7 @@
 }
 
 .action-link {
-  color: #8f7f74;
+  color: var(--hm-muted);
   font-size: 24rpx;
 }
 

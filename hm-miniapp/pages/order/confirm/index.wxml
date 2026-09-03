@@ -1,4 +1,4 @@
-<view class="page safe-bottom" wx:if="{{booking}}">
+<view class="page safe-bottom" wx:if="{{booking}}" style="{{themeStyle}}">
   <view class="card">
     <view class="section-title">预约确认</view>
     <view class="muted">请再次确认服务信息、地址与上门时间，提交后可在订单中查看处理进度。</view>
@@ -27,7 +27,7 @@
 
   <view class="card" wx:if="{{booking.selectedExtraIds.length}}">
     <view class="section-title">附加项</view>
-    <view class="confirm-line" wx:for="{{booking.detail.extraItemList}}" wx:key="extraItemId" wx:if="{{booking.selectedExtraIds.indexOf(item.extraItemId) >= 0}}">{{item.extraName}} +￥{{item.extraPrice}}</view>
+    <view class="confirm-line" wx:for="{{selectedExtras}}" wx:key="extraItemId">{{item.extraName}} +￥{{item.extraPrice}}</view>
   </view>
 
   <view class="card">

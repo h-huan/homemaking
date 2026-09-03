@@ -1,4 +1,4 @@
-<view class="page safe-bottom">
+<view class="page safe-bottom" style="{{themeStyle}}">
   <view class="hero-card">
     <view class="section-title">服务地址</view>
     <view class="muted">提前维护常用地址，预约时可以更快确认上门地点。</view>

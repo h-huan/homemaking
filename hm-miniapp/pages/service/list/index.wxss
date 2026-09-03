@@ -1,5 +1,5 @@
-﻿.service-list-page {
-  background: linear-gradient(180deg, #fff8f2 0%, #f6f8fc 100%);
+.service-list-page {
+  background: linear-gradient(180deg, var(--hm-paper) 0%, #f6f8fc 100%);
 }
 
 .search-box {
@@ -21,7 +21,7 @@
 .search-icon-circle {
   width: 18rpx;
   height: 18rpx;
-  border: 4rpx solid #ff7a33;
+  border: 4rpx solid var(--hm-primary);
   border-radius: 50%;
 }
 
@@ -32,7 +32,7 @@
   width: 12rpx;
   height: 4rpx;
   border-radius: 999rpx;
-  background: #ff7a33;
+  background: var(--hm-primary);
   transform: rotate(45deg);
   transform-origin: center;
 }
@@ -46,7 +46,7 @@
   min-width: 132rpx;
   height: 72rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #ff8c46 0%, #ff6c2f 100%);
+  background: linear-gradient(135deg, #236b5a 0%, var(--hm-primary) 100%);
   color: #fff;
   text-align: center;
   line-height: 72rpx;
@@ -127,7 +127,7 @@
 .service-price {
   font-size: 28rpx;
   font-weight: 700;
-  color: #ff7a33;
+  color: var(--hm-primary);
 }
 
 .service-duration {

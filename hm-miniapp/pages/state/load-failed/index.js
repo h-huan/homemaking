@@ -1,4 +1,4 @@
-﻿Page({
+﻿require('../../../utils/page')({
   data: {
     title: '页面加载失败',
     target: ''

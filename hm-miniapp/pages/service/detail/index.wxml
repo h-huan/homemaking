@@ -1,4 +1,4 @@
-<view class="page safe-bottom">
+<view class="page safe-bottom" style="{{themeStyle}}">
   <view class="hero-card">
     <view class="detail-cover">{{detail.shortName}}</view>
     <view class="detail-title">{{detail.serviceInfo.serviceName}}</view>

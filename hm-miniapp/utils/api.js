@@ -17,12 +17,18 @@ const api = {
   saveAddress: (data) => request({ url: '/mini/address', method: data.addressId ? 'PUT' : 'POST', data }),
   deleteAddress: (addressId) => request({ url: `/mini/address/${addressId}`, method: 'DELETE' }),
   calcOrder: (data) => request({ url: '/mini/order/calc', method: 'POST', data }),
+  getCapacity: (params) => request({ url: '/mini/service/capacity', params }),
   submitOrder: (data) => request({ url: '/mini/order/submit', method: 'POST', data }),
   listOrders: (params) => request({ url: '/mini/order/list', data: params }),
   getOrder: (orderId) => request({ url: `/mini/order/${orderId}` }),
   preparePayment: (orderId) => request({ url: `/homemaking/orders/${orderId}/mini-pay`, method: 'POST', data: { appId: wx.getAccountInfoSync().miniProgram.appId } }),
   syncPayment: (orderId) => request({ url: `/homemaking/orders/${orderId}/sync-pay`, method: 'POST' }),
-  cancelOrder: (orderId, cancelReason) => request({ url: `/mini/order/cancel/${orderId}`, method: 'POST', data: { cancelReason } })
+  cancelOrder: (orderId, cancelReason) => request({ url: `/mini/order/cancel/${orderId}`, method: 'POST', data: { cancelReason } }),
+  rescheduleOrder: (orderId, data) => request({ url: `/mini/order/${orderId}/reschedule`, method: 'POST', data }),
+  getOrderCapacity: (orderId, appointmentDate) => request({ url: `/mini/order/${orderId}/capacity`, params: { appointmentDate } }),
+  submitReview: (data) => request({ url: '/mini/order/review', method: 'POST', data }),
+  submitAftersale: (data) => request({ url: '/mini/order/aftersale', method: 'POST', data }),
+  getEvidence: (orderId) => request({ url: `/homemaking/orders/${orderId}/evidence` })
 }
 
 module.exports = api

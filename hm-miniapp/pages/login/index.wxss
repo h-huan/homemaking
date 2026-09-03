@@ -54,12 +54,12 @@
 }
 
 .agreement-check.checked {
-  background: #ef8a3b;
-  border-color: #ef8a3b;
+  background: var(--hm-accent);
+  border-color: var(--hm-accent);
   color: #fff;
 }
 
 .agreement-text {
   font-size: 24rpx;
-  color: #8f7f74;
+  color: var(--hm-muted);
 }

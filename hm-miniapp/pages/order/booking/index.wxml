@@ -1,4 +1,4 @@
-<view class="page safe-bottom">
+<view class="page safe-bottom" style="{{themeStyle}}">
   <view class="card">
     <view class="section-title">{{detail.serviceInfo.serviceName}}</view>
     <view class="muted">{{detail.serviceInfo.serviceSubTitle || detail.serviceInfo.serviceDesc}}</view>
@@ -26,6 +26,7 @@
 
   <view class="card">
     <view class="section-title">上门时间</view>
+    <view class="muted no-capacity" wx:if="{{!slotOptions.length}}">当天已约满，请切换其他日期</view>
     <view class="chip-wrap">
       <view class="chip {{form.appointmentTimeSlot === item ? 'active' : ''}}" wx:for="{{slotOptions}}" wx:key="index" data-value="{{item}}" bindtap="selectSlot">{{item}}</view>
     </view>
@@ -44,7 +45,7 @@
   <view class="card" wx:if="{{detail.extraItemList.length}}">
     <view class="section-title">附加项</view>
     <view class="option-list">
-      <view class="option-item {{selectedExtraIds.indexOf(item.extraItemId) >= 0 ? 'active' : ''}}" wx:for="{{detail.extraItemList}}" wx:key="extraItemId" data-id="{{item.extraItemId}}" bindtap="toggleExtra">
+      <view class="option-item {{selectedExtraMap[item.extraItemId] ? 'active' : ''}}" wx:for="{{detail.extraItemList}}" wx:key="extraItemId" data-id="{{item.extraItemId}}" bindtap="toggleExtra">
         <view>{{item.extraName}}</view>
         <view class="price-text">+￥{{item.extraPrice}}</view>
       </view>

@@ -1,4 +1,4 @@
-<view class="page schedule-page">
+<view class="page schedule-page" style="{{themeStyle}}">
   <view class="schedule-toolbar">
     <view class="schedule-address-pill">
       <text class="schedule-address-icon">•</text>
@@ -18,7 +18,7 @@
     </view>
 
     <view class="days-grid">
-      <view class="blank-day" wx:for="{{Array(calendar.firstWeekDay)}}" wx:key="index"></view>
+      <view class="blank-day" wx:for="{{calendar.leadingDays}}" wx:key="*this"></view>
       <view class="day-cell {{item.hasService ? 'active' : ''}} {{item.isToday ? 'today' : ''}}" wx:for="{{calendar.days}}" wx:key="date" data-id="{{item.orderId || ''}}" bindtap="openOrderDetail">
         <view class="day-number">{{item.day}}</view>
         <view class="day-mark {{item.statusTone}}" wx:if="{{item.hasService}}">{{item.statusText}}</view>

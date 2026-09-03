@@ -21,13 +21,13 @@
 
 .result-desc {
   margin-top: 14rpx;
-  color: #8f7f74;
+  color: var(--hm-muted);
 }
 
 .result-amount {
   margin-top: 22rpx;
   font-size: 34rpx;
-  color: #dd6b20;
+  color: var(--hm-accent);
   font-weight: 700;
 }
 

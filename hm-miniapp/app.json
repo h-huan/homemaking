@@ -15,19 +15,21 @@
     "pages/order/result/index",
     "pages/order/list/index",
     "pages/order/detail/index",
+    "pages/order/reschedule/index",
+    "pages/order/feedback/index",
     "pages/state/empty-orders/index",
     "pages/state/no-slots/index",
     "pages/state/load-failed/index"
   ],
   "window": {
     "navigationBarTitleText": "家政服务",
-    "navigationBarBackgroundColor": "#fffaf5",
+    "navigationBarBackgroundColor": "#fbfaf6",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#fff8f1"
+    "backgroundColor": "#f3f5f1"
   },
   "tabBar": {
     "color": "#7a6f66",
-    "selectedColor": "#e67a2e",
+    "selectedColor": "#174f43",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [

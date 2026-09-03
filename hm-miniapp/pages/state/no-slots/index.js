@@ -1,4 +1,4 @@
-Page({
+require('../../../utils/page')({
   goBack() {
     wx.navigateBack()
   },

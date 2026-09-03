@@ -1,7 +1,7 @@
 const api = require('../../../utils/api')
 const { requireLogin } = require('../../../utils/auth')
 
-Page({
+require('../../../utils/page')({
   data: { list: [], selectMode: false, selectedAddressId: null },
   onLoad(options) {
     this.setData({

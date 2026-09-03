@@ -1,4 +1,4 @@
-<view class="page category-page">
+<view class="page category-page" style="{{themeStyle}}">
   <view class="category-layout">
     <scroll-view class="category-side" scroll-y>
       <view class="category-side-item {{activeCategoryId == item.categoryId ? 'active' : ''}}" wx:for="{{categoryList}}" wx:key="categoryId" data-id="{{item.categoryId}}" bindtap="switchCategory">

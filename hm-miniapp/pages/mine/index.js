@@ -34,7 +34,7 @@ function splitMenuList(menuList) {
   return { serviceMenuList, contentMenuList }
 }
 
-Page({
+require('../../utils/page')({
   data: {
     loggedIn: false,
     profile: {},

@@ -47,7 +47,7 @@
 }
 
 .order-meta {
-  color: #8f7f74;
+  color: var(--hm-muted);
   line-height: 1.8;
 }
 

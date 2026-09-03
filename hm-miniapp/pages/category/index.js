@@ -72,7 +72,7 @@ function mapServiceList(list) {
   }))
 }
 
-Page({
+require('../../utils/page')({
   data: {
     home: {},
     categoryList: [],

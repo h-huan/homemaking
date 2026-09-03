@@ -13,7 +13,7 @@ function parseSlotText(detail) {
   }
 }
 
-Page({
+require('../../../utils/page')({
   data: { detail: {}, selectedSkuId: null },
   onLoad(options) {
     this.serviceItemId = options.id

@@ -1,7 +1,7 @@
 .schedule-page {
   background:
     radial-gradient(circle at top left, rgba(43, 109, 248, 0.08), transparent 260rpx),
-    #f7f8fa;
+    var(--hm-canvas);
 }
 
 .schedule-toolbar {
@@ -194,7 +194,7 @@
   margin: 0 auto 24rpx;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 35% 35%, #ffffff 0%, #dbe8ff 42%, #eef4ff 100%);
+    radial-gradient(circle at 35% 35%, #ffffff 0%, #dbe8ff 42%, var(--hm-primary-soft) 100%);
 }
 
 .schedule-login-title {
@@ -241,7 +241,7 @@
   justify-content: space-between;
   gap: 18rpx;
   padding: 24rpx 0;
-  border-bottom: 1rpx solid #eef2f7;
+  border-bottom: 1rpx solid #e9eeeb;
 }
 
 .schedule-order-item:last-child {

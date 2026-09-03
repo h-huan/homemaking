@@ -103,7 +103,7 @@ function mapAdvantageList(list) {
   })
 }
 
-Page({
+require('../../utils/page')({
   data: {
     home: { bannerList: [], categoryList: [], hotServiceList: [], advantageList: [], recommendWorkerList: [] },
     profile: {},

@@ -2,7 +2,7 @@ const api = require('../../../utils/api')
 const { getOrderStatusMeta } = require('../../../utils/order')
 const { requireLogin } = require('../../../utils/auth')
 
-Page({
+require('../../../utils/page')({
   data: {
     tabs: [
       { label: '全部', value: '' },

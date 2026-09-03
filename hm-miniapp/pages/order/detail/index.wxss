@@ -1,7 +1,7 @@
 .detail-amount {
   margin-top: 22rpx;
   font-size: 46rpx;
-  color: #dd6b20;
+  color: var(--hm-accent);
   font-weight: 700;
 }
 
@@ -21,7 +21,7 @@
   width: 18rpx;
   height: 18rpx;
   border-radius: 50%;
-  background: #ef8a3b;
+  background: var(--hm-accent);
   margin-top: 10rpx;
 }
 
@@ -29,3 +29,4 @@
   font-weight: 600;
   margin-bottom: 8rpx;
 }
+.fulfillment-line{display:flex;justify-content:space-between;gap:24rpx;color:var(--hm-muted);font-size:24rpx}.action-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14rpx}.action-grid button:only-child{grid-column:1/-1}

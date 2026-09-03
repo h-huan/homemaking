@@ -1,4 +1,4 @@
-<view class="page content-page">
+<view class="page content-page" style="{{themeStyle}}">
   <view class="card content-card" wx:if="{{content}}">
     <view class="content-header">
       <view class="content-eyebrow">{{content.contentType}}</view>

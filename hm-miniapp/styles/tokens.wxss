@@ -1,0 +1,10 @@
+page {
+  --hm-primary: #174f43;
+  --hm-primary-soft: #e5eee9;
+  --hm-accent: #d88b3f;
+  --hm-paper: #fbfaf6;
+  --hm-canvas: #f3f5f1;
+  --hm-text: #17322c;
+  --hm-muted: #6f7d78;
+  --hm-line: #dfe5e1;
+}

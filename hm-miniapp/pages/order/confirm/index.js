@@ -1,5 +1,5 @@
-Page({
-  data: { booking: null, submitting: false },
+require('../../../utils/page')({
+  data: { booking: null, selectedExtras: [], submitting: false },
   onShow() {
     const booking = wx.getStorageSync('pendingBooking')
     if (!booking || !booking.form) {
@@ -7,9 +7,10 @@ Page({
       setTimeout(() => wx.navigateBack(), 300)
       return
     }
-    this.setData({ booking })
+    this.setData({ booking, selectedExtras: (booking.detail.extraItemList || []).filter(item => (booking.selectedExtraIds || []).includes(item.extraItemId)) })
   },
   async submitOrder() {
+    if (this.data.submitting || !this.data.booking) return
     const api = require('../../../utils/api')
     this.setData({ submitting: true })
     try {

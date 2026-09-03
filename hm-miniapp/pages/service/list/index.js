@@ -12,7 +12,7 @@ function mapServiceList(rows) {
   }))
 }
 
-Page({
+require('../../../utils/page')({
   data: {
     categoryList: [],
     rows: [],

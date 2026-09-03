@@ -5,7 +5,7 @@ const WEEK_LIST = ['日', '一', '二', '三', '四', '五', '六']
 const STATUS_MAP = {
   '20': { text: '待确认', tone: 'orange' },
   '30': { text: '待上门', tone: 'orange' },
-  '40': { text: '服务中', tone: 'blue' },
+  '40': { text: '待上门', tone: 'orange' },
   '50': { text: '服务中', tone: 'blue' },
   '60': { text: '待评价', tone: 'green' },
   '70': { text: '已完成', tone: 'green' },
@@ -57,17 +57,18 @@ function buildCalendar(year, month, markedMap) {
   }
   return {
     firstWeekDay: firstDay.getDay(),
+    leadingDays: Array.from({ length: firstDay.getDay() }, (_, index) => index),
     days
   }
 }
 
-Page({
+require('../../utils/page')({
   data: {
     year: 0,
     month: 0,
     monthText: '',
     weekList: WEEK_LIST,
-    calendar: { firstWeekDay: 0, days: [] },
+    calendar: { firstWeekDay: 0, leadingDays: [], days: [] },
     addressText: '全部服务地址',
     loggedIn: false,
     orders: [],

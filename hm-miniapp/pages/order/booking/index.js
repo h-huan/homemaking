@@ -18,19 +18,7 @@ function buildDateOptions(rule) {
   return result
 }
 
-function parseSlots(rule) {
-  if (!rule || !rule.timeSlotsJson) {
-    return ['09:00-11:00', '13:00-15:00', '16:00-18:00']
-  }
-  try {
-    const slots = JSON.parse(rule.timeSlotsJson)
-    return Array.isArray(slots) && slots.length ? slots : ['09:00-11:00', '13:00-15:00', '16:00-18:00']
-  } catch (error) {
-    return ['09:00-11:00', '13:00-15:00', '16:00-18:00']
-  }
-}
-
-Page({
+require('../../../utils/page')({
   data: {
     detail: {},
     addresses: [],
@@ -39,6 +27,9 @@ Page({
     slotOptions: [],
     selectedSkuId: null,
     selectedExtraIds: [],
+    selectedExtraMap: {},
+    capacityLoading: false,
+    priceLoading: false,
     form: {
       serviceItemId: null,
       skuId: null,
@@ -69,7 +60,6 @@ Page({
         api.getServiceDetail(this.serviceItemId),
         api.listAddresses()
       ])
-      const slotOptions = parseSlots(detail.bookingRule)
       const dateOptions = buildDateOptions(detail.bookingRule)
       const defaultAddress = addresses.find(item => item.isDefault === '1') || addresses[0] || null
       const skuList = detail.skuList || []
@@ -79,20 +69,16 @@ Page({
         addresses,
         selectedAddress: defaultAddress,
         dateOptions,
-        slotOptions,
+        slotOptions: [],
         selectedSkuId: selectedSku ? selectedSku.skuId : null,
         'form.serviceItemId': this.serviceItemId,
         'form.skuId': selectedSku ? selectedSku.skuId : null,
         'form.addressId': defaultAddress ? defaultAddress.addressId : null,
         'form.appointmentDate': dateOptions[0] ? dateOptions[0].value : '',
-        'form.appointmentTimeSlot': slotOptions[0] || ''
+        'form.appointmentTimeSlot': ''
       })
-      if (!slotOptions.length) {
-        wx.navigateTo({ url: '/pages/state/no-slots/index' })
-        return
-      }
       if (defaultAddress) {
-        this.calcPrice()
+        await Promise.all([this.loadCapacity(), this.calcPrice()])
       }
     } catch (error) {
       const skuQuery = this.initSkuId ? `&skuId=${this.initSkuId}` : ''
@@ -108,8 +94,20 @@ Page({
       'form.addressId': selectedAddress ? selectedAddress.addressId : null
     })
     if (selectedAddress) {
-      this.calcPrice()
+      await Promise.all([this.loadCapacity(), this.calcPrice()])
     }
+  },
+  async loadCapacity() {
+    const version = this.capacityVersion = (this.capacityVersion || 0) + 1
+    const form = { ...this.data.form }
+    if (!form.addressId || !form.appointmentDate) return
+    this.setData({ capacityLoading: true, slotOptions: [], 'form.appointmentTimeSlot': '' })
+    try {
+      const rows = await api.getCapacity({ serviceItemId: form.serviceItemId, skuId: form.skuId || undefined, appointmentDate: form.appointmentDate, addressId: form.addressId })
+      if (version !== this.capacityVersion) return
+      const slotOptions = rows.filter(item => item.available).map(item => item.label)
+      this.setData({ slotOptions, 'form.appointmentTimeSlot': slotOptions.includes(form.appointmentTimeSlot) ? form.appointmentTimeSlot : (slotOptions[0] || '') })
+    } finally { if (version === this.capacityVersion) this.setData({ capacityLoading: false }) }
   },
   buildExtraItemList() {
     return this.data.selectedExtraIds.map(extraItemId => ({ extraItemId, quantity: 1 }))
@@ -118,30 +116,32 @@ Page({
     if (!this.data.form.addressId) {
       return
     }
-    const calc = await api.calcOrder({
-      ...this.data.form,
-      extraItemList: this.buildExtraItemList()
-    })
-    this.setData({ calc, 'form.extraItemList': this.buildExtraItemList() })
+    const version = this.priceVersion = (this.priceVersion || 0) + 1
+    const extraItemList = this.buildExtraItemList()
+    this.setData({ priceLoading: true, calc: null })
+    try {
+      const calc = await api.calcOrder({ ...this.data.form, extraItemList })
+      if (version === this.priceVersion) this.setData({ calc, 'form.extraItemList': extraItemList })
+    } finally { if (version === this.priceVersion) this.setData({ priceLoading: false }) }
   },
   chooseAddress() {
     wx.navigateTo({ url: '/pages/address/list/index?select=1' })
   },
-  selectDate(e) {
+  async selectDate(e) {
     this.setData({ 'form.appointmentDate': e.currentTarget.dataset.value })
-    this.calcPrice()
+    await this.loadCapacity()
   },
   selectSlot(e) {
     this.setData({ 'form.appointmentTimeSlot': e.currentTarget.dataset.value })
     this.calcPrice()
   },
-  selectSku(e) {
+  async selectSku(e) {
     const skuId = Number(e.currentTarget.dataset.id)
     this.setData({
       selectedSkuId: skuId,
       'form.skuId': skuId
     })
-    this.calcPrice()
+    await Promise.all([this.loadCapacity(), this.calcPrice()])
   },
   toggleExtra(e) {
     const extraId = Number(e.currentTarget.dataset.id)
@@ -152,15 +152,20 @@ Page({
     } else {
       selectedExtraIds.push(extraId)
     }
-    this.setData({ selectedExtraIds })
+    this.setData({ selectedExtraIds, selectedExtraMap: Object.fromEntries(selectedExtraIds.map(id => [id, true])) })
     this.calcPrice()
   },
   onRemark(e) {
     this.setData({ 'form.customerRemark': e.detail.value })
   },
   goConfirm() {
+    if (this.data.capacityLoading || this.data.priceLoading) return
     if (!this.data.form.addressId) {
       wx.showToast({ title: '请先选择服务地址', icon: 'none' })
+      return
+    }
+    if (!this.data.form.appointmentTimeSlot) {
+      wx.showToast({ title: '当天暂无可约时间，请选择其他日期', icon: 'none' })
       return
     }
     const pendingBooking = {

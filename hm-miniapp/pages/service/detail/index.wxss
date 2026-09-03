@@ -18,7 +18,7 @@
 }
 
 .detail-subtitle {
-  color: #8f7f74;
+  color: var(--hm-muted);
   line-height: 1.8;
 }
 
@@ -46,12 +46,12 @@
   align-items: center;
   padding: 22rpx;
   border-radius: 22rpx;
-  background: #fff8f1;
+  background: var(--hm-canvas);
   border: 1rpx solid transparent;
 }
 
 .sku-item.active {
-  border-color: #ef8a3b;
+  border-color: var(--hm-accent);
   background: #fff1e3;
 }
 

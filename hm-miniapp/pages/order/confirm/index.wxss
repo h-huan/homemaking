@@ -2,6 +2,6 @@
 .confirm-line {
   font-size: 30rpx;
   font-weight: 600;
-  color: #2f241e;
+  color: var(--hm-text);
   line-height: 1.8;
 }
