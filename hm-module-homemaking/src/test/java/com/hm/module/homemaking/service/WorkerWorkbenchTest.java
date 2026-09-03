@@ -23,6 +23,7 @@ class WorkerWorkbenchTest {
     @Autowired WorkerTimeOffService leave; @Autowired WorkerWorkbenchService workbench;
     @Autowired ScheduleService schedules; @Autowired OrderService orders;
     @Autowired PaymentLedgerService ledger; @Autowired SettlementService settlements;
+    @Autowired CompletionConfirmationService completionConfirmation;
     LocalDate date; LocalDateTime start;
     @BeforeEach void seed() {
         var fixture=new BusinessIsolationTest();fixture.jdbc=jdbc;fixture.dataSource=dataSource;fixture.seed();
@@ -107,7 +108,7 @@ class WorkerWorkbenchTest {
         login(1,1,1);long order=orders.book(new OrderService.Book(1L,1L,start,1L,"income-order"));admin();
         ledger.receive(order,new PaymentLedgerService.Receipt("CASH",10000,LocalDateTime.now().withNano(0),"Cash received","income-paid"));
         jdbc.update("UPDATE hm_order SET status='IN_SERVICE',fulfillment_status='STARTED' WHERE id=?",order);
-        jdbc.update("INSERT INTO hm_fulfillment_evidence(tenant_id,order_id,worker_id,storage_key,content_type,phase,note) VALUES(1,?,1,'test-photo','image/jpeg','AFTER','fixture')",order);orders.complete(order);
+        jdbc.update("INSERT INTO hm_fulfillment_evidence(tenant_id,order_id,worker_id,storage_key,content_type,phase,note) VALUES(1,?,1,'test-photo','image/jpeg','AFTER','fixture')",order);orders.complete(order);login(1,1,1);completionConfirmation.confirmByCustomer(order);admin();
         worker();assertEquals(6000L,number(summary(),"pending_cents"));assertEquals(6000L,number(summary(),"range_earned_cents"));
         admin();long statement=settlements.statement(new SettlementService.Statement(1,"WORKER",1,LocalDate.now(),LocalDate.now()));settlements.approve(statement);
         worker();assertEquals(6000L,number(summary(),"pending_cents"));admin();settlements.paid(statement,new SettlementService.Payout("worker-payout"));settlements.reconcile(statement);

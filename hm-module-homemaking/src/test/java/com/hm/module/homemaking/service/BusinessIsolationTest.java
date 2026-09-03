@@ -38,6 +38,7 @@ class BusinessIsolationTest {
         @Bean ScheduleService schedules(HmRepository r,PricingService p,CustomerAccess c,WorkerTimeOffService t){return new ScheduleService(r,p,c,t);}
         @Bean WorkerWorkbenchService workbench(HmRepository r,WorkerService w,ScheduleService s,WorkerTimeOffService t){return new WorkerWorkbenchService(r,w,s,t);}
         @Bean SettlementService settlements(HmRepository r,QuotaService q){return new SettlementService(r,q);}
+        @Bean CompletionConfirmationService completion(HmRepository r,CustomerAccess c,SettlementService s,NotificationService n){return new CompletionConfirmationService(r,c,s,n);}
         @Bean OrderService orders(HmRepository r,CustomerAccess c,NotificationService n,PricingService p,ScheduleService s,QuotaService q,SettlementService x){return new OrderService(r,c,n,p,s,q,x);}
         @Bean OrderChangeService changes(HmRepository r,PricingService p,ScheduleService s,CustomerAccess c,PaymentPolicyService policy,com.fasterxml.jackson.databind.ObjectMapper j){return new OrderChangeService(r,p,s,c,policy,j);}
         @Bean CatalogService catalog(HmRepository r){return new CatalogService(r);}

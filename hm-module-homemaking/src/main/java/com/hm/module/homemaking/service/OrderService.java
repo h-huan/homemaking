@@ -32,6 +32,7 @@ public class OrderService {
     private final SettlementService settlements;
     @org.springframework.beans.factory.annotation.Autowired private PaymentPolicyService paymentPolicy;
     @org.springframework.beans.factory.annotation.Autowired private OrderChangeService changes;
+    @org.springframework.beans.factory.annotation.Autowired private CompletionConfirmationService completionConfirmation;
     public OrderService(HmRepository repo,CustomerAccess customers,NotificationService notifications,PricingService pricing,ScheduleService schedules,QuotaService quotas,SettlementService settlements){this.repo=repo;this.customers=customers;this.notifications=notifications;this.pricing=pricing;this.schedules=schedules;this.quotas=quotas;this.settlements=settlements;}
     @Transactional
     public long saveAddress(Address a) {
@@ -143,14 +144,11 @@ public class OrderService {
         transition(order,"CANCELLED");release(order,"CANCELLED");log(id,"PAYMENT_EXPIRED","30 分钟未支付，释放预约");
     }
     @Transactional
-    public void complete(long id){var order=repo.require("hm_order",id,true);changes.requireSettled(order);check("STARTED".equals(order.get("fulfillment_status")),"服务尚未按履约流程开始");check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_fulfillment_evidence WHERE tenant_id=? AND order_id=? AND worker_id=? AND phase='AFTER'",Long.class,repo.tenant(),id,order.get("worker_id"))>0,"缺少服务后凭证");transition(order,"COMPLETED");repo.jdbc().update("UPDATE hm_order SET completed_at=CURRENT_TIMESTAMP,fulfillment_status='COMPLETED' WHERE tenant_id=? AND id=?",repo.tenant(),id);release(order,"COMPLETED");
-        settlements.completed(order);
-        log(id,"COMPLETED","");notifications.enqueue(number(order,"customer_id"),id,"SERVICE_COMPLETED","NORMAL","complete:"+id,Map.of("orderId",id));
-    }
+    public void complete(long id){changes.requireSettled(repo.require("hm_order",id,false));completionConfirmation.submit(id);}
     @Transactional
     public long review(Review r){var order=customers.own("hm_order",r.orderId(),true);check("COMPLETED".equals(order.get("status")),"完工后才能评价");return repo.insert("INSERT INTO hm_review(tenant_id,customer_id,order_id,rating,content) VALUES(?,?,?,?,?)",repo.tenant(),customers.current(),r.orderId(),r.rating(),r.content());}
     @Transactional
-    public long aftersale(Aftersale a){var order=customers.own("hm_order",a.orderId(),true);changes.requireSettled(order);check(Set.of("PAID","ASSIGNED","COMPLETED").contains(order.get("status")),"当前状态不可申请退款");
+    public long aftersale(Aftersale a){var order=customers.own("hm_order",a.orderId(),true);changes.requireSettled(order);check(Set.of("PAID","ASSIGNED","COMPLETED").contains(order.get("status"))||"IN_SERVICE".equals(order.get("status"))&&"AWAITING_CONFIRMATION".equals(order.get("fulfillment_status")),"当前状态不可申请退款");
         check(a.amountCents()<=cents(order,"paid_cents")-cents(order,"refunded_cents"),"退款金额超过可退金额");
         check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND status IN ('REQUESTED','REFUNDING')",Long.class,repo.tenant(),a.orderId())==0,"已有售后申请正在处理");
         return repo.insert("INSERT INTO hm_aftersale(tenant_id,customer_id,order_id,amount_cents,reason) VALUES(?,?,?,?,?)",repo.tenant(),customers.current(),a.orderId(),a.amountCents(),a.reason());

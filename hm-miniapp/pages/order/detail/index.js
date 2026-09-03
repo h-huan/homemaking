@@ -26,7 +26,7 @@ require('../../../utils/page')({
     detail.changes = (detail.changes || []).map(change => ({ ...change, stateLabel: states[change.status], oldAmount: (change.old_price_cents / 100).toFixed(2), newAmount: (change.new_price_cents / 100).toFixed(2) }))
     detail.canAmend = !detail.pendingChangeId && ['10', '30', '40'].includes(detail.orderStatus) && ['WAITING', 'ACCEPTED'].includes(detail.fulfillmentStatus)
     if (detail.pendingChange) detail.pendingChange.amount = (Math.abs(detail.pendingChange.difference_cents) / 100).toFixed(2)
-    detail.fulfillmentLabel = ({ WAITING: '等待接单', ACCEPTED: '人员已接单', ARRIVED: '人员已到达', STARTED: '正在服务', COMPLETED: '服务已完成' })[detail.fulfillmentStatus] || '等待安排'
+    detail.fulfillmentLabel = ({ WAITING: '等待接单', ACCEPTED: '人员已接单', ARRIVED: '人员已到达', STARTED: '正在服务', AWAITING_CONFIRMATION: '待您确认完工', COMPLETED: '服务已完成' })[detail.fulfillmentStatus] || '等待安排'
     this.setData({ detail })
     const evidence = await api.getEvidence(this.orderId)
     this.setData({ evidence })
@@ -95,6 +95,15 @@ require('../../../utils/page')({
       if (!result.confirm) return
       await api.cancelOrderChange(this.orderId, change.id, '客户撤销尚未生效的地址变更')
       await this.loadDetail()
+    } })
+  },
+  confirmCompletion() {
+    if (this.confirming || this.data.detail.fulfillmentStatus !== 'AWAITING_CONFIRMATION') return
+    wx.showModal({ title: '确认服务完成', content: '请确认服务已按约完成。若有异常，可先申请售后。', success: async result => {
+      if (!result.confirm || this.confirming) return
+      this.confirming = true
+      try { await api.confirmCompletion(this.orderId); await this.loadDetail(); wx.showToast({ title: '已确认完成', icon: 'success' }) }
+      finally { this.confirming = false }
     } })
   },
   goReview() { wx.navigateTo({ url: `/pages/order/feedback/index?id=${this.data.detail.orderId}&mode=review` }) },

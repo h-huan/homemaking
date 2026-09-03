@@ -36,6 +36,7 @@ class PaymentFlowTest {
     @Autowired JdbcTemplate jdbc;@Autowired DataSource dataSource;@Autowired OrderService orders;@Autowired PaymentService payments;
     @Autowired PaymentLedgerService ledger;@Autowired PaymentPolicyService policy;@Autowired HmRepository repo;
     @Autowired OrderChangeService changes;
+    @Autowired CompletionConfirmationService completionConfirmation;
     @Autowired WorkerService workerService;
     @Autowired PayAppService apps;@Autowired PayChannelService channels;@Autowired PayOrderApi payApi;@Autowired PayOrderService payOrders;@Autowired PayRefundApi refunds;
     long id;
@@ -77,7 +78,7 @@ class PaymentFlowTest {
     }
     void complete(){
         jdbc.update("UPDATE hm_order SET status='IN_SERVICE',fulfillment_status='STARTED' WHERE id=?",id);
-        jdbc.update("INSERT INTO hm_fulfillment_evidence(tenant_id,order_id,worker_id,storage_key,content_type,phase,note) VALUES(1,?,1,'test-only-photo','image/jpeg','AFTER','fixture')",id);orders.complete(id);
+        jdbc.update("INSERT INTO hm_fulfillment_evidence(tenant_id,order_id,worker_id,storage_key,content_type,phase,note) VALUES(1,?,1,'test-only-photo','image/jpeg','AFTER','fixture')",id);orders.complete(id);customer();completionConfirmation.confirmByCustomer(id);admin();
     }
     @Test void defaultOfflineKeepsPriceAndDoesNotExpireAtThirtyMinutes(){
         assertFalse(policy.options().onlineAvailable());assertTrue(policy.options().offlineAvailable());assertEquals(10000,HmRepository.cents(order(),"price_cents"));assertEquals(0,HmRepository.cents(order(),"paid_cents"));

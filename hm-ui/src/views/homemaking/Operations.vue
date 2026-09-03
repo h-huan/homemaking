@@ -324,6 +324,14 @@
           ><el-descriptions-item label="支付方式">{{
             paymentMethods[detail.payment_method]
           }}</el-descriptions-item>
+          <el-descriptions-item label="履约状态">{{
+            labels[detail.fulfillment_status] || detail.fulfillment_status
+          }}</el-descriptions-item>
+          <el-descriptions-item
+            v-if="detail.fulfillment_status === 'AWAITING_CONFIRMATION'"
+            label="客户确认期限"
+            >{{ formatDate(detail.confirmation_deadline) }}；存在进行中售后时暂停自动确认</el-descriptions-item
+          >
           <el-descriptions-item label="应收 / 已收 / 已退"
             >￥{{ money(detail.price_cents) }} / ￥{{ money(detail.paid_cents) }} / ￥{{
               money(detail.refunded_cents)
@@ -468,6 +476,7 @@ const labels: Record<string, string> = {
   PAID: '待派单',
   ASSIGNED: '待服务',
   IN_SERVICE: '服务中',
+  AWAITING_CONFIRMATION: '待客户确认完工',
   COMPLETED: '已完工',
   CANCELLED: '已取消',
   REFUNDING: '退款中',

@@ -129,6 +129,7 @@ const stateNames: Record<string, string> = {
   ACCEPTED: '已接单',
   ARRIVED: '已到达',
   STARTED: '服务中',
+  AWAITING_CONFIRMATION: '待客户确认',
   COMPLETED: '已完成'
 }
 async function load() {

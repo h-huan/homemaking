@@ -17,6 +17,7 @@ import static com.hm.module.homemaking.dal.HmRepository.check;
 @RestController @RequestMapping("/homemaking") @Validated
 public class HomemakingAppController {
     private final CatalogService catalog;private final OrderService orders;private final PaymentService payments;private final CustomerAccess access;private final IdentityService identity;private final HmRepository repo;private final ScheduleService schedules;private final WorkerService workers;
+    @org.springframework.beans.factory.annotation.Autowired private CompletionConfirmationService completionConfirmation;
     public HomemakingAppController(CatalogService catalog,OrderService orders,PaymentService payments,CustomerAccess access,IdentityService identity,HmRepository repo,ScheduleService schedules,WorkerService workers){this.catalog=catalog;this.orders=orders;this.payments=payments;this.access=access;this.identity=identity;this.repo=repo;this.schedules=schedules;this.workers=workers;}
     @PermitAll @GetMapping("/catalog/{kind}") public CommonResult<?> catalog(@PathVariable String kind,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size){return success(catalog.list(kind,page,size,true));}
     @GetMapping("/me") public CommonResult<?> me(){return success(repo.jdbc().queryForMap("SELECT id,nickname,avatar,mobile FROM hm_customer WHERE id=?",access.current()));}
@@ -32,6 +33,7 @@ public class HomemakingAppController {
     @GetMapping("/orders") public CommonResult<?> orders(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size){return success(orders.list(page,size,false));}
     @GetMapping("/orders/{id}") public CommonResult<?> order(@PathVariable long id){return success(orders.detail(id,false));}
     @PostMapping("/orders/{id}/cancel") public CommonResult<?> cancel(@PathVariable long id){orders.cancel(id,false);return success(true);}
+    @PostMapping("/orders/{id}/confirm-completion") public CommonResult<?> confirmCompletion(@PathVariable long id){completionConfirmation.confirmByCustomer(id);return success(true);}
     @PostMapping("/orders/{id}/reschedule") public CommonResult<?> reschedule(@PathVariable long id,@Valid @RequestBody OrderService.Reschedule request){orders.reschedule(id,request,false);return success(true);}
     @GetMapping("/orders/{id}/evidence") public CommonResult<?> evidence(@PathVariable long id){return success(workers.evidence(id,true));}
     @GetMapping("/orders/{id}/evidence/{evidenceId}/content") public org.springframework.http.ResponseEntity<byte[]> evidenceContent(@PathVariable long id,@PathVariable long evidenceId){return workers.content(id,evidenceId,true,false);}
@@ -48,7 +50,7 @@ public class HomemakingAppController {
     public record Consent(@NotBlank String appId,@NotBlank String templateId,boolean accepted){}
     @GetMapping("/wechat/subscription-templates") public CommonResult<?> templates(@RequestParam String appId){long customer=access.current();
         check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_wechat_app a JOIN hm_wechat_identity i ON i.app_id=a.app_id WHERE a.tenant_id=? AND a.app_id=? AND a.kind='MINI' AND a.enabled=TRUE AND i.customer_id=?",Long.class,repo.tenant(),appId,customer)==1,"微信身份未关联");
-        return success(repo.jdbc().queryForList("SELECT DISTINCT template_id FROM hm_notification_template WHERE tenant_id=? AND channel='MINI' AND enabled=TRUE AND event_type IN ('SERVICE_REMINDER','WORKER_CHANGED','REFUND_RESULT') ORDER BY template_id LIMIT 3",String.class,repo.tenant()));}
+        return success(repo.jdbc().queryForList("SELECT DISTINCT template_id FROM hm_notification_template WHERE tenant_id=? AND channel='MINI' AND enabled=TRUE AND event_type IN ('SERVICE_REMINDER','SERVICE_COMPLETION_CONFIRM','WORKER_CHANGED','REFUND_RESULT') ORDER BY template_id LIMIT 3",String.class,repo.tenant()));}
     @PostMapping("/wechat/subscription") public CommonResult<?> consent(@Valid @RequestBody Consent consent){long customer=access.current();check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_wechat_app a JOIN hm_wechat_identity i ON i.app_id=a.app_id WHERE a.tenant_id=? AND a.app_id=? AND a.kind='MINI' AND i.customer_id=?",Long.class,repo.tenant(),consent.appId(),customer)==1,"微信身份未关联");
         // One reported consent permits at most one attempt; the provider remains the authority on subscription acceptance.
         repo.jdbc().update("INSERT INTO hm_notification_consent(tenant_id,customer_id,app_id,template_id,remaining) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE remaining=VALUES(remaining)",repo.tenant(),customer,consent.appId(),consent.templateId(),consent.accepted()?1:0);return success(true);}

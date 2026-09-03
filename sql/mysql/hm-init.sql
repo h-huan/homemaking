@@ -1,4 +1,4 @@
--- HM fresh installation, including all upgrades through V008.
+-- HM fresh installation, including all upgrades through V009.
 -- Import this file ONCE into an EMPTY MySQL 8.0.16+ database; stop on the first error.
 -- Do not import the component SQL files or included upgrades again afterward.
 -- Existing installations must use only their pending upgrades, never this file.
@@ -5989,3 +5989,15 @@ WHERE deleted=FALSE AND menu_ids REGEXP '(^|[^0-9])900006([^0-9]|$)';
 UPDATE system_tenant_package SET menu_ids=CONCAT(LEFT(RTRIM(menu_ids),CHAR_LENGTH(RTRIM(menu_ids))-1),',901122]')
 WHERE deleted=FALSE AND menu_ids REGEXP '(^|[^0-9])900004([^0-9]|$)';
 INSERT INTO hm_schema_upgrade(version) VALUES('V008');
+
+-- ===== sql/mysql/upgrades/V009__customer_completion_confirmation.sql =====
+ALTER TABLE hm_tenant_profile ADD COLUMN completion_confirm_hours INT NOT NULL DEFAULT 48;
+ALTER TABLE hm_order MODIFY COLUMN fulfillment_status VARCHAR(32) NOT NULL DEFAULT 'WAITING';
+ALTER TABLE hm_booking MODIFY COLUMN status VARCHAR(32) NOT NULL DEFAULT 'RESERVED';
+ALTER TABLE hm_order ADD COLUMN worker_completed_at DATETIME NULL;
+ALTER TABLE hm_order ADD COLUMN confirmation_deadline DATETIME NULL;
+ALTER TABLE hm_order ADD COLUMN completion_confirmed_at DATETIME NULL;
+ALTER TABLE hm_order ADD COLUMN completion_method VARCHAR(20) NULL;
+ALTER TABLE hm_order ADD COLUMN completion_confirmed_by BIGINT NULL;
+CREATE INDEX idx_order_confirmation ON hm_order(tenant_id,fulfillment_status,confirmation_deadline);
+INSERT INTO hm_schema_upgrade(version) VALUES('V009');

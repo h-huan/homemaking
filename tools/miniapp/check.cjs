@@ -66,6 +66,13 @@ async function run() {
   const template = fs.readFileSync(path.join(root, 'pages/order/detail/index.wxml'), 'utf8')
   assert.match(template, /wx:if="\{\{detail.orderStatus === '10' && detail.paymentOptions.onlineAvailable\}\}"[^>]+bindtap="handlePay"/)
   console.log('PASS: unavailable online payment is hidden and cannot be invoked; enabled WeChat payment still submits and reconciles.')
+  let confirmed = 0, detailLoads = 0
+  const completion = page('pages/order/detail/index.js', { confirmCompletion: async () => { confirmed++ } }, { showModal: options => options.success({ confirm: true }), showToast() {} })
+  completion.orderId = 8; completion.data.detail = { fulfillmentStatus: 'AWAITING_CONFIRMATION' }; completion.loadDetail = async () => { detailLoads++ }
+  completion.confirmCompletion(); await new Promise(resolve => setImmediate(resolve)); assert.equal(confirmed, 1); assert.equal(detailLoads, 1)
+  const completionTemplate = fs.readFileSync(path.join(root, 'pages/order/detail/index.wxml'), 'utf8')
+  assert.match(completionTemplate, /fulfillmentStatus === 'AWAITING_CONFIRMATION'/); assert.match(completionTemplate, /bindtap="confirmCompletion"/); assert.match(completionTemplate, /bindtap="goAftersale"/)
+  console.log('PASS: pending completion offers customer confirmation and an aftersale path without double submission.')
   const lateQuote = pending(); let changes = 0
   const amendment = page('pages/order/address-change/index.js', {
     previewAddressChange: () => lateQuote.promise,

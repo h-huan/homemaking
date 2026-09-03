@@ -45,7 +45,7 @@ public class WorkerService {
             case "REJECT"->{check(status.equals("WAITING")&&Set.of("PAID","ASSIGNED").contains(order.get("status"))&&start.isAfter(now),"当前订单不可拒绝");repo.jdbc().update("DELETE FROM hm_worker_slot WHERE tenant_id=? AND booking_id=?",repo.tenant(),booking.get("id"));repo.jdbc().update("UPDATE hm_booking SET worker_id=NULL WHERE tenant_id=? AND id=?",repo.tenant(),booking.get("id"));repo.jdbc().update("UPDATE hm_order SET worker_id=NULL,status='PAID',fulfillment_status='WAITING',version=version+1 WHERE tenant_id=? AND id=?",repo.tenant(),id);}
             case "ARRIVE"->{check(status.equals("ACCEPTED")&&now.isAfter(start.minusHours(4))&&now.isBefore(end),"请在预约前四小时至结束时间内到达打卡");update(id,"ARRIVED");}
             case "START"->{check(status.equals("ARRIVED"),"请先到达打卡");check(evidence(id,"BEFORE")>0,"开始服务前至少上传一张服务前照片");orders.start(id);update(id,"STARTED");}
-            case "COMPLETE"->{check(status.equals("STARTED"),"服务尚未开始");check(evidence(id,"AFTER")>0,"完工前至少上传一张服务后照片");orders.complete(id);update(id,"COMPLETED");}
+            case "COMPLETE"->{check(status.equals("STARTED"),"服务尚未开始");check(evidence(id,"AFTER")>0,"完工前至少上传一张服务后照片");orders.complete(id);}
             case "EXCEPTION"->{check(Set.of("PAID","ASSIGNED","IN_SERVICE").contains(order.get("status"))&&Set.of("WAITING","ACCEPTED","ARRIVED","STARTED").contains(status)&&!CatalogService.s(request.note()).isBlank(),"请填写异常说明");}
             default->throw new IllegalArgumentException("未知履约动作");
         }

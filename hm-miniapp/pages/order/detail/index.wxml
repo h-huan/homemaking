@@ -50,6 +50,12 @@
   <view class="card" wx:if="{{detail.changes.length}}"><view class="section-title">约定变更记录</view><view class="log-item" wx:for="{{detail.changes}}" wx:key="id"><view class="log-content"><view class="log-title">{{item.stateLabel}} · ￥{{item.oldAmount}} → ￥{{item.newAmount}}</view><view class="muted">原地址：{{item.before.address}}</view><view class="muted">新地址：{{item.after.address}}</view><view class="muted">原预约：{{item.before.starts_at}}</view><view class="muted">新预约：{{item.after.starts_at}}</view><view>{{item.reason}}</view><view wx:if="{{item.cancel_reason}}">撤销原因：{{item.cancel_reason}}</view></view></view></view>
   <view class="card" wx:if="{{detail.fulfillmentStatus}}"><view class="section-title">履约状态</view><view class="fulfillment-line"><text>{{detail.fulfillmentLabel}}</text><text>服务过程凭证仅限本订单相关人员查看</text></view><button wx:for="{{evidence}}" wx:key="id" class="evidence-link" data-id="{{item.id}}" bindtap="previewEvidence">查看{{item.phase === 'BEFORE' ? '服务前' : '服务后'}}照片 · {{item.note || item.created_at}}</button></view>
   <view class="card" wx:if="{{detail.aftersales.length}}"><view class="section-title">售后进度</view><view class="fee-line" wx:for="{{detail.aftersales}}" wx:key="id"><text>{{item.reason}}</text><text>{{item.status}}</text></view></view>
+  <view class="card confirmation-card" wx:if="{{detail.fulfillmentStatus === 'AWAITING_CONFIRMATION'}}">
+    <view class="section-title">请确认本次服务</view>
+    <view class="muted">服务人员已提交完工。请检查服务结果；如有异常可先申请售后，超过 {{detail.confirmationDeadline}} 系统将自动确认。</view>
+    <button class="primary-btn" bindtap="confirmCompletion">确认服务完成</button>
+    <button wx:if="{{detail.refundableAmount > 0}}" class="secondary-btn" bindtap="goAftersale">服务有异常</button>
+  </view>
   <view class="bottom-bar action-grid" wx:if="{{detail.orderStatus === '10' || detail.orderStatus === '30' || detail.orderStatus === '40' || (detail.orderStatus === '60' && !detail.review) || (detail.refundableAmount > 0 && detail.orderStatus === '60')}}">
     <button wx:if="{{detail.canAmend}}" class="ghost-btn" bindtap="goReschedule">改期</button>
     <button wx:if="{{detail.canAmend}}" class="ghost-btn" bindtap="goAddressChange">变更地址</button>

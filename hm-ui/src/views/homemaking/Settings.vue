@@ -41,6 +41,12 @@
             ><el-form-item label="公众号 AppID"><el-input v-model="brand.mpAppId" /></el-form-item
           ></div>
           <el-form-item label="支付应用标识"><el-input v-model="brand.payAppKey" /></el-form-item>
+          <el-form-item label="客户完工确认期限（小时）">
+            <el-input-number v-model="brand.completionConfirmHours" :min="1" :max="168" />
+            <p
+              >服务人员提交完工后，客户可主动确认或先申请售后；无售后且超过该期限时自动确认并进入结算。</p
+            >
+          </el-form-item>
           <el-button
             type="primary"
             :loading="saving"
@@ -228,6 +234,7 @@ const events = [
   { value: 'ORDER_CANCELLED', label: '订单取消' },
   { value: 'REFUND_RESULT', label: '退款结果' },
   { value: 'SERVICE_COMPLETED', label: '服务完工' },
+  { value: 'SERVICE_COMPLETION_CONFIRM', label: '请客户确认完工' },
   { value: 'MARKETING', label: '优惠活动' }
 ]
 async function loadBrand() {

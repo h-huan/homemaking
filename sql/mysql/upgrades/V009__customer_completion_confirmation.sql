@@ -1,0 +1,10 @@
+ALTER TABLE hm_tenant_profile ADD COLUMN completion_confirm_hours INT NOT NULL DEFAULT 48;
+ALTER TABLE hm_order MODIFY COLUMN fulfillment_status VARCHAR(32) NOT NULL DEFAULT 'WAITING';
+ALTER TABLE hm_booking MODIFY COLUMN status VARCHAR(32) NOT NULL DEFAULT 'RESERVED';
+ALTER TABLE hm_order ADD COLUMN worker_completed_at DATETIME NULL;
+ALTER TABLE hm_order ADD COLUMN confirmation_deadline DATETIME NULL;
+ALTER TABLE hm_order ADD COLUMN completion_confirmed_at DATETIME NULL;
+ALTER TABLE hm_order ADD COLUMN completion_method VARCHAR(20) NULL;
+ALTER TABLE hm_order ADD COLUMN completion_confirmed_by BIGINT NULL;
+CREATE INDEX idx_order_confirmation ON hm_order(tenant_id,fulfillment_status,confirmation_deadline);
+INSERT INTO hm_schema_upgrade(version) VALUES('V009');

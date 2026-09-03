@@ -21,6 +21,7 @@ const api = {
   submitOrder: (data) => request({ url: '/mini/order/submit', method: 'POST', data }),
   listOrders: (params) => request({ url: '/mini/order/list', data: params }),
   getOrder: (orderId) => request({ url: `/mini/order/${orderId}` }),
+  confirmCompletion: (orderId) => request({ url: `/mini/order/${orderId}/confirm-completion`, method: 'POST' }),
   previewAddressChange: (id, data) => request({ url: `/homemaking/orders/${id}/address-change/preview`, method: 'POST', data }),
   changeOrderAddress: (id, data) => request({ url: `/homemaking/orders/${id}/address-change`, method: 'POST', data }),
   cancelOrderChange: (id, changeId, reason) => request({ url: `/homemaking/orders/${id}/changes/${changeId}/cancel`, method: 'POST', data: { reason } }),
