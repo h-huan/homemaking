@@ -1,6 +1,6 @@
 # 当前 SaaS 版本部署说明
 
-更新日期：2026-09-02。适用于 `saas-platform`，默认启用 system、infra、pay、mp、homemaking。
+更新日期：2026-09-03。适用于 `saas-platform`，默认启用 system、infra、pay、mp、homemaking。此次新增独立官网、排班履约、私有照片、套餐与结算及 V002/V003 增量升级。
 
 本说明按“单台 Linux 主机运行 Java + Nginx，连接 MySQL/Redis”的方式提供模板；Windows 可负责打包和本地初始化。服务器地址、实际域名和账号尚未提供，下面的目录是部署约定示例，**不是已经替你部署好的地址**。当前副本、原仓库目录、未来 Git 克隆目录都可以作为打包目录，不需要把 `.codex` 隐藏目录上传到服务器。
 
@@ -8,7 +8,7 @@
 
 ## 1. 先准备什么
 
-- 构建机：JDK 17、Maven、Node、pnpm。当前本地验证版本为 Java 17.0.14、Node 24.14.0、pnpm 11.19.0；前端 packageManager 锁定 pnpm 11.19.0。前端检查脚本允许最高 8 GiB Node 堆，打包机需有相应可用内存。
+- 构建机：JDK 17、Maven、Node、pnpm。管理端 packageManager 锁定 pnpm 11.19.0，独立官网锁定 pnpm 10.30.3；分别进入对应目录使用锁定版本。当前 Node 为 24.14.0。管理端检查脚本允许最高 8 GiB Node 堆，打包机需有相应可用内存。
 - 服务器：Java 17、Nginx、可访问的 MySQL **8.0.16+** 和 Redis。MySQL 5.7 不满足迁移断言的 CHECK 约束要求。
 - 实际配置：数据库主机/端口/库名/账号/密码，Redis 主机/端口/编号/密码，API 与网站 HTTPS 域名，证书及持久目录。
 - 开通微信/支付时另外准备真实 AppID、AppSecret、开放平台归属、商户配置、通知模板。它们不会在打包时自动生成。
@@ -48,10 +48,10 @@ node --version
 pnpm --version
 ```
 
-后端打包并运行本次选定的 34 项回归：
+后端打包并运行选定的业务、安全回归：
 
 ```powershell
-mvn -s .mvn/settings.xml "-Dtest=BusinessIsolationTest,IdentityMappingTest,NotificationPolicyTest,PayOwnershipTest,DesensitizeTest" "-Dsurefire.failIfNoSpecifiedTests=false" package
+mvn -s .mvn/settings.xml "-Dtest=BusinessIsolationTest,EvidenceStorageTest,IdentityMappingTest,NotificationPolicyTest,PayOwnershipTest,DesensitizeTest" "-Dsurefire.failIfNoSpecifiedTests=false" package
 ```
 
 这一步不连接生产数据库。结果应为 `BUILD SUCCESS`，产物为 `hm-server/target/hm-server.jar`。仅需重打包且该版本已完成测试时，可用 `mvn -s .mvn/settings.xml -DskipTests package`；不要把跳过测试的结果当成新的验收。
@@ -76,6 +76,20 @@ try {
 
 产物是 **`hm-ui/dist-prod`**，不是 `dist`，也不是旧项目的 `hm-ui-admin`。打包使用 `--mode prod`，不会自动使用你另建的 `.env.production`。前端改了域名/构建变量必须重新执行这一步。
 
+官网单独打包（回到仓库根目录后执行）：
+
+```powershell
+Push-Location hm-portal
+try {
+  pnpm install --frozen-lockfile
+  if ($LASTEXITCODE -ne 0) { throw '官网依赖安装失败' }
+  pnpm build
+  if ($LASTEXITCODE -ne 0) { throw '官网类型检查或打包失败' }
+} finally { Pop-Location }
+```
+
+官网产物为 **`hm-portal/dist`**，接口固定使用同源 `/app-api`，无需填写 `.env.prod.local` 或任何秘密。租户内容由访问域名识别，同一份官网静态产物可服务多个已验证租户域名；后台保存并发布内容后不需要重新打包。
+
 ## 4. 上传什么，放在哪里
 
 示例发布目录为 `/opt/hm/releases/release-001`，`/opt/hm/current` 指向当前发布目录。发布编号按实际版本填写。
@@ -83,16 +97,18 @@ try {
 | 本地文件 | 示例服务器位置 |
 | --- | --- |
 | `hm-server/target/hm-server.jar` | `/opt/hm/releases/release-001/hm-server.jar` |
-| `hm-ui/dist-prod/` **里面全部文件和目录** | `/opt/hm/releases/release-001/web/`；确保这里直接有 index.html |
-| `sql/mysql/hm-base.sql`、`hm-pay-mp.sql`、`hm-bootstrap.sql`、`hm-homemaking.sql`、`hm-menu.sql` | 同次发布的 `sql/mysql/`，仅初始化/演练时使用 |
+| `hm-ui/dist-prod/` **里面全部文件和目录** | `/opt/hm/releases/release-001/admin/`；确保这里直接有 index.html |
+| `hm-portal/dist/` **里面全部文件和目录** | `/opt/hm/releases/release-001/portal/`；确保这里直接有 index.html |
+| `sql/mysql/` 中 HM 初始化、迁移及 upgrades/ 文件 | 同次发布的 `sql/mysql/`；按数据库状态选择脚本 |
 | `tools/bootstrap/SetAdminPassword.java` | 同次发布的 `tools/bootstrap/`，首次初始化管理员使用 |
 | 填好的后端环境文件 | `/etc/hm/backend.env`，**不在 web 目录中** |
 | 日志 | `/var/log/hm/`，与版本目录分离 |
 | 本地上传文件（如采用本地存储） | `/var/lib/hm/uploads/`，在后台文件配置中填写此持久目录 |
+| 私有履约照片 | `/var/lib/hm/evidence/`，由 `HM_EVIDENCE_ROOT` 指定，后端账号可读写，禁止 Nginx alias/root 公开 |
 
 服务器上先创建专用运行账号 `hm` 和上述目录；JAR/静态资源可读，日志和上传目录由 `hm` 可写。`backend.env` 只允许运维/服务管理器读取，例如 root 所有、权限 600。模板路径可改，但 Nginx、systemd 和文件存储配置必须同步。
 
-不要上传 `node_modules`、`.git`、本机 `.runtime` 测试库或测试配置。前端服务器只需要 `dist-prod` 产物，不需要运行 pnpm 开发服务器。
+不要上传 `node_modules`、`.git`、本机 `.runtime` 测试库或测试配置。网站服务器只需要两个静态构建产物，不需要运行 pnpm 开发服务器。私有照片目录随数据库一起备份，更新发布目录时不能删除。
 
 ## 5. 初始化数据库：只用于新空库
 
@@ -113,6 +129,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON `CHANGE_ME_DATABASE`.* TO 'CHANGE_ME_DB_
 3. `sql/mysql/hm-bootstrap.sql`
 4. `sql/mysql/hm-homemaking.sql`
 5. `sql/mysql/hm-menu.sql`
+6. `sql/mysql/upgrades/V002__operations_and_portal.sql`
+7. `sql/mysql/upgrades/V003__operations_menu.sql`
 
 例如 Linux shell，在上传 SQL 的发布目录执行（命令中的主机/账号/库名全部替换）：
 
@@ -122,17 +140,19 @@ mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --passw
 mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-bootstrap.sql
 mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-homemaking.sql
 mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-menu.sql
+mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V002__operations_and_portal.sql
+mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V003__operations_menu.sql
 ```
 
-每条执行成功后再执行下一条，密码交互输入。Windows PowerShell 不支持上述 `<` 写法，可使用数据库客户端选择目标库逐份执行。无需机械替换表名前缀，也不要用旧 `ruoyi-vue-pro.sql` 替代当前五份 SQL。
+每条执行成功后再执行下一条，密码交互输入。Windows PowerShell 不支持上述 `<` 写法，可使用数据库客户端选择目标库逐份执行。无需机械替换表名前缀，也不要用旧 `ruoyi-vue-pro.sql` 替代这些 HM 脚本。
 
-**已有数据库不能重跑初始化脚本。** 旧家政数据迁移另见[迁移操作说明](../migration/runbook.md#旧库迁移)：先备份到 `hm_legacy_snapshot`，在隔离目标库演练，再核对数据与回滚方案。当前没有自动增量数据库升级工具；以后更新版本要按该版本专门的升级 SQL 执行，不能重新初始化。
+**已有 502a15e 数据库仅执行 V002、V003，不能重跑前五份初始化脚本。** 执行前停止写入、备份并确认恢复方案；V002 不可重复执行，部分 DDL 失败不能依靠事务整体回滚。详细步骤见[增量升级说明](../../sql/mysql/upgrades/README.md)。旧家政数据迁移另见[迁移操作说明](../migration/runbook.md#旧库迁移)。
 
 ## 6. 首次管理员与后端启动
 
 确认 `/etc/hm/backend.env` 的全部必填项已替换。Java 默认不会读取这个文件，下面二选一方式才能把它加载进进程。
 
-**Linux 的首次管理员初始化（交互终端）**：已完成五份建库脚本，且 `/opt/hm/current` 指向上传好的发布目录后，用运维账号运行：
+**Linux 的首次管理员初始化（交互终端）**：已完成前述七份初始化/升级脚本，且 `/opt/hm/current` 指向上传好的发布目录后，用运维账号运行：
 
 ```bash
 install -d -m 700 /opt/hm/bootstrap-tmp
@@ -161,7 +181,7 @@ journalctl -u hm-server -n 100 --no-pager
 
 ## 7. Nginx、网站与小程序
 
-Nginx 模板需替换 `hm.example.invalid`、两处证书路径、`/opt/hm/current/web`；后端端口变动时也要替换 `48080`。它包含 HTTP 跳 HTTPS、未知 Host 拒绝、两个 API 前缀、WebSocket 和 SPA 路由回退。若服务器已有其他站点，先合并 `default_server` 配置，避免重复声明。
+Nginx 模板使用两个域名：`admin.hm.example.invalid` 提供后台及支付渠道回调，`service.hm.example.invalid` 提供租户官网。替换所有域名、对应证书路径及 `/opt/hm/current/admin`、`/opt/hm/current/portal`。后端端口变动时同步替换 `48080`。模板拒绝未知 Host，后台代理两个 API 前缀，官网仅代理 `/app-api`；若已有其他站点，先合并 default_server 配置。
 
 保留 `proxy_pass http://127.0.0.1:48080;` 不附加 URI 末尾斜杠，避免丢失 `/admin-api`、`/app-api` 前缀；WebSocket 需要对应 Upgrade/Connection 头。[Nginx 代理说明](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass)、[WebSocket 说明](https://nginx.org/en/docs/http/websocket.html)可用于核对代理行为。
 
@@ -177,6 +197,9 @@ systemctl reload nginx
 - 用总部租户和初始化的 admin 密码登录，能看到家政、system/infra/pay/mp 对应导航。
 - 在文件配置中创建并设置主存储，验证合法图片上传；空库没有可直接使用的存储账号。
 - 品牌页登记域名并完成 `_hm-verification.域名` TXT 验证；DNS A/AAAA、Nginx 与证书也需匹配。
+- 官网页保存并发布草稿，再访问官网域名；`/app-api/homemaking/public/portal` 应返回当前租户的已发布内容，未验证或未发布的域名返回 404。
+- 排班页先设置人员技能、行政区和日期班次；未配置时客户看到无可约时段，这是产能保护。人员账号需绑定到同租户后台用户，并授予 `homemaking:worker` 权限。
+- 工作台上传服务前后照片，客户仅能查看自己订单的凭证；确认私有照片落在 `HM_EVIDENCE_ROOT`，不在网页包或公共对象桶。
 
 小程序修改 `hm-miniapp/app.js` 的 HTTPS baseUrl 和 tenantId、`project.config.json` 的 AppID，核对开发者工具当前 AppID及合法域名后重新上传。完整清单见[小程序替换位置](environment-variables.md#小程序这三处必须逐项确认)。
 
@@ -187,12 +210,14 @@ systemctl reload nginx
 - 微信应用先由总部注册 tenantId/appId/kind/platformId/secretEnv，再在品牌页绑定 AppID；secretEnv 指向 Java 进程里真实存在的秘密变量。
 - mp 模块的公众号账号、Token/EncodingAESKey、微信后台配置需要分别完成。
 - 支付渠道需真实商户证书/密钥，应用 appKey 与租户绑定；`HM_PUBLIC_API_URL` 生成渠道 `/admin-api/pay/notify/*` 回调前缀。家政支付应用的 `orderNotifyUrl` 使用 `https://实际域名/app-api/homemaking/public/payment-callback`。
-- **当前家政没有独立退款业务通知接口**：退款状态同步依赖定时对账及人工同步；上游支付应用配置的 `refundNotifyUrl` 又是必填。不能随意填一个不存在的 URL 或把支付回调当退款回调。正式启用退款前须补齐受控退款回执处理并完成真实渠道验收，这是代码缺口，不是再加一个环境变量就能解决。
+- 家政支付应用 `refundNotifyUrl` 使用 `https://实际API域名/app-api/homemaking/public/refund-callback`。这是 pay 模块发出的业务退款通知（含 payRefundId），不是微信原始通知地址；真实渠道仍先进入 `/admin-api/pay/notify/refund/*` 验签。家政根据持久化退款记录取得租户、订单、金额和状态，重复通知不会重复记账。正式开通前必须验证真实付款/退款和重试场景。
 - 通知需真实模板映射、用户订阅/偏好和短信渠道配置。先保持 `HM_HOMEMAKING_NOTIFICATION_DELIVERY_ENABLED=false`，验收后才开启。
 
 ## 9. 后续升级与常见定位
 
 每次发布记录 Git commit、JAR、前端整包及数据库升级脚本。上传到新的版本目录，停止旧服务后切换 `/opt/hm/current`，再启动并检查；不要只替换单个前端 JS 文件。保留前一版本产物。涉及数据库变化时，回滚必须同时考虑数据兼容性，不能仅换回旧 JAR。
+
+本轮新增变量只有私有照片目录 `HM_EVIDENCE_ROOT`；数据库、Redis、微信和支付凭据继续使用原有私有配置。官网、套餐、分佣、排班在后台/数据库维护，不应写成前端秘密。结算“登记打款”只记录已经发生的人工打款，不会调用银行或微信转账接口。
 
 | 现象 | 优先检查 |
 | --- | --- |
@@ -208,3 +233,7 @@ systemctl reload nginx
 | 上传失败提示主配置缺失 | 后台文件配置是否已创建并设为主配置 |
 
 旧的 `script/shell/deploy.sh`、`script/docker/docker-compose.yml` 及其环境文件保留为上游参考，尚未适配当前 SaaS 配置与目录。**此次按本说明和 `deploy/*.example` 操作，不直接运行旧脚本。**
+
+日常开业配置、规格/加项/区域、排班与人员角色、官网发布和财务操作见[运营手册](operations.md)。
+
+本地小程序合约检查：在仓库根目录运行 `node tools/miniapp/check.cjs`，覆盖页面资源、请求乱序与重复提交；不替代微信开发者工具和真机验收。

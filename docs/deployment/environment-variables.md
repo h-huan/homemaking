@@ -1,6 +1,6 @@
 # 部署变量与替换位置
 
-适用于当前 `saas-platform` 的默认五个模块，核对日期 2026-09-02。变量名直接核对 `hm-server/src/main/resources/application.yaml`、`application-prod.yaml`、家政模块和 `hm-ui` 配置；不是旧 RuoYi 的配置名。
+适用于当前 `saas-platform` 的默认五个模块，核对日期 2026-09-03。变量名直接核对 `hm-server/src/main/resources/application.yaml`、`application-prod.yaml`、家政模块、`hm-ui` 和 `hm-portal` 配置；不是旧 RuoYi 的配置名。
 
 ## 先分清什么时候替换
 
@@ -55,6 +55,12 @@
 
 多租户的 `secretEnv` 只接受 `HM_WECHAT_MINI..._SECRET` 或 `HM_WECHAT_MP..._SECRET` 形式，例如 `HM_WECHAT_MINI_TENANT2_SECRET`。每个应用使用自己的真实密钥，环境变量名必须与数据库注册值完全一致。微信密钥不写进小程序源码、浏览器变量或 Git。
 
+## 本轮新增：私有履约照片目录
+
+`HM_EVIDENCE_ROOT` 在后端启动时读取，生产模板为 `/var/lib/hm/evidence`，开发默认 `./data/homemaking-evidence`。生产必须使用发布目录之外的绝对路径，提前创建并赋予后端账号读写权限；Nginx 不得将它设置为 root/alias。数据库只保存照片元数据，备份和恢复时必须同时处理数据库与此目录。单张照片仅支持 JPEG/PNG，最大 5 MB，最多 20 张/订单；服务端校验尺寸并重新编码去除 EXIF，查看接口核对客户/人员/管理员权限。
+
+目录变动后重启后端；已有照片必须按原租户相对目录一起迁入新目录，不能仅修改变量。本轮无新增第三方密钥。
+
 ## 前端：打包前修改
 
 当前 `package.json` 的 `build:prod` 实际执行 `vite build --mode prod`，应使用 `.env.prod.local`，不是 `.env.production`。[Vite 官方说明](https://vite.dev/guide/env-and-mode)说明了模式文件优先级和构建时替换行为；已经存在于打包进程中的环境变量优先级更高，构建前也应检查终端是否残留旧值。
@@ -92,6 +98,14 @@
 
 同时在微信后台配置 HTTPS request 合法域名。公众号还要配置业务域名/OAuth 回调域名；应用归属、订阅消息模板和微信开放平台绑定要使用真实账号，不能从示例复制。
 
+履约照片通过受权限保护的接口下载，小程序还需把同一个 HTTPS API 主机配置为 downloadFile 合法域名。不要把客户 token 放到图片 URL 查询参数中。
+
+## 官网：无需填写秘密环境变量
+
+`hm-portal` 使用同源 `/app-api/homemaking/public/portal`，由 Nginx 保留真实 Host 并转发到后端。构建产物为 `hm-portal/dist`，与 `hm-ui/dist-prod` 分别部署；两个项目按各自 packageManager 锁定的 pnpm 版本安装。官网没有 `VITE_*` 必填项，不复制后台的 `.env.prod.local`。
+
+官网域名、Logo/favicon/主色在品牌页维护并验证；导航、图片、SEO、模块顺序和联系方式在“官网内容”页保存并发布。修改这些数据无需重打包；修改官网源码才重建静态包。若需要线上预约，主按钮填写真实预约页面 HTTPS 地址，或在联系模块填写门店电话/小程序码；不要将未配置的示例地址当成正式入口。
+
 ## 不在环境变量里的配置，也必须填写
 
 | 功能 | 维护位置 | 要准备的值 |
@@ -103,5 +117,12 @@
 | 支付应用与渠道 | 支付管理 → 应用/渠道；品牌页绑定 appKey | appKey、商户号、渠道 AppID、API 密钥/证书及回调配置；支付渠道 AppID 必须匹配小程序 |
 | 短信 | 总部系统管理中的短信渠道、模板 | 服务商账号、签名、模板；与家政通知模板映射一致 |
 | 通知模板 | `PUT /admin-api/homemaking/notification-template` | event、channel、真实 templateId、fieldMapping、enabled；短信兜底还受平台/租户/客户三级允许条件限制 |
+| 排班与产能 | 家政运营 → 排班 | 人员所属门店、可服务项目、行政区、日期班次和请假；全区域需明确选择 *，未配置人员不会被自动派单 |
+| 人员工作台 | 排班页绑定账号；系统角色授予 homemaking:worker | 同租户有效后台用户；客户微信账号不能作为人员后台账号使用 |
+| 官网内容 | 家政运营 → 官网内容 | 导航、主视觉、SEO、首页模块/顺序、推荐内容与联系信息；先保存，再发布 |
+| 配额与分佣 | 家政运营 → SaaS 与财务，仅总部修改 | 资源数、月订单/月短信上限、功能、分佣比例；-1 表示不限。保存套餐分配后在服务端生效 |
+| 结算单 | SaaS 与财务 → 结算单 | 租户、门店/人员、账期；审核后登记真实打款凭证，再对账，不会自动打款 |
 
 文件存储路径和日志目录必须在发布目录之外持久保存，不能随替换 JAR/网页包一起删除。付款、退款和真实消息的当前上线缺口见[部署步骤](README.md#8-接入真实渠道之前)。
+
+规格/加项/区域费用与取消/改期规则在「家政运营 → 服务 → 价格与预约规则」维护，不需要新增环境变量。具体首次配置顺序见[运营手册](operations.md)。

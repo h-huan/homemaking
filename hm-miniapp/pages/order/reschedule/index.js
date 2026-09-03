@@ -34,4 +34,3 @@ require('../../../utils/page')({
     } finally { this.setData({ submitting: false }) }
   }
 })
-

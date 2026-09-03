@@ -13,8 +13,10 @@
 3. `sql/mysql/hm-bootstrap.sql`：总部租户、锁定管理员、内部登录客户端；关闭可选模块菜单。
 4. `sql/mysql/hm-homemaking.sql`：家政领域与通知、身份、白标结构。
 5. `sql/mysql/hm-menu.sql`：家政运营菜单及总部权限。
+6. `sql/mysql/upgrades/V002__operations_and_portal.sql`：排班、履约、官网、配额和结算结构。
+7. `sql/mysql/upgrades/V003__operations_menu.sql`：运营新菜单与总部权限。
 
-上述文件仅用于空库，一次执行；不要向旧库覆盖导入。默认总部租户编号 1、经营方式 DIRECT。FRANCHISE 为加盟模式；新增租户需在套餐里配置家政菜单权限，并分别建立其门店、服务和品牌配置。
+前五份仅用于空库；已有 502a15e SaaS 数据库仅执行 V002、V003，详见[增量升级说明](../../sql/mysql/upgrades/README.md)。不要向旧库覆盖导入。默认总部租户编号 1、经营方式 DIRECT。FRANCHISE 为加盟模式；新增租户需在套餐里配置家政菜单权限，并分别建立其门店、服务、人员能力/排班和品牌配置。
 
 ## 私有配置与首次登录
 
@@ -28,7 +30,9 @@
 
 工具读取两次隐藏输入，生成 BCrypt，且只能修改总部首次锁定账号。不会打印或保存明文密码，不会重设已初始化账号。Linux 可在临时目录从服务器 JAR 提取 `BOOT-INF/lib`，再以这些 JAR 为 classpath 运行 `tools/bootstrap/SetAdminPassword.java`。
 
-后端：`java -jar hm-server/target/hm-server.jar`。默认仅监听 127.0.0.1:48080。生产模式前端构建后将 `hm-ui/dist-prod` 配置为静态站点，反向代理 `/admin-api` 和 `/app-api` 到后端；SPA 路由包括 `/wechat/callback` 必须回退到 index.html。可信代理需正确转发已验证 Host 并拒绝未知域名，外部必须使用 HTTPS。
+后端：`java -jar hm-server/target/hm-server.jar`。默认仅监听 127.0.0.1:48080。后台产物 `hm-ui/dist-prod` 与官网产物 `hm-portal/dist` 分别部署到后台、官网域名。后台代理 `/admin-api` 和 `/app-api`，官网代理 `/app-api`；后台 SPA 路由包括 `/wechat/callback` 必须回退到后台 index.html。可信代理需正确转发已验证 Host 并拒绝未知域名，外部必须使用 HTTPS。
+
+设置 `HM_EVIDENCE_ROOT=/var/lib/hm/evidence` 保存私有履约照片，目录在发布目录与所有网站静态目录之外。数据库与此目录一起备份；更新 JAR 或静态包时不能删除照片。生产模板与目录权限见部署说明。
 
 小程序 `hm-miniapp/app.js` 中设置各租户的正式 HTTPS baseUrl 和 tenantId，使用对应 AppID 构建发布；旧登录 token 不兼容，升级后重新微信登录。微信后台配置 request 合法域名。
 
@@ -42,7 +46,7 @@
 
 ## 通知中心
 
-退款接入限制：家政目前没有独立退款业务回执接口，而 pay 应用的 `refundNotifyUrl` 必填。不能填写不存在的地址或复用支付成功回调；先补齐退款回执并验收，详见[真实渠道接入条件](../deployment/README.md#8-接入真实渠道之前)。
+pay 应用的 `refundNotifyUrl` 填写 `https://实际API域名/app-api/homemaking/public/refund-callback`。该接口接收 pay 模块验签并落库后的业务通知，不能用作微信原始回调。家政根据 payRefundId 查询实际租户和退款记录，校验订单、商户退款号及金额后幂等更新，退款对已分佣订单产生反向明细。上线前完成[真实渠道验收](../deployment/README.md#8-接入真实渠道之前)。
 
 默认不发送真实通知；配置完成并验收后设置 `HM_HOMEMAKING_NOTIFICATION_DELIVERY_ENABLED=true`。通知统一经过平台全局/事件上限、租户全局/事件规则、客户事件偏好。默认每日 5 条、间隔 30 分钟、22:00–08:00 静默；营销默认关闭。紧急消息可越过静默时段，仍受频控及客户选择限制。
 
@@ -57,17 +61,20 @@
 3. 从新库运行 `sql/mysql/hm-migrate-legacy.sql`，批处理遇错立即终止，**不要使用 mysql --force**。先执行空库与数据约束断言，再在事务中导入；冲突需回滚并清理该次隔离目的库后重新演练。
 4. 校验客户与租户关系、分类/门店/服务/SKU/加项/地址数量，订单和退款总额（元转整数分），预约及人员占位；抽查已付款、已取消、已完成、退款订单。归档表用于追溯，包含业务个人信息，应仅限数据库管理员访问。
 5. 原 AppID 与开放平台归属确认后，按 `hm-migrate-legacy-wechat.sql` 的变量说明迁入微信映射。未确认 AppID 时不要猜测。旧 session secret 不导入新认证体系。
-6. 历史支付未与新 pay 模块自动关联，禁止直接自动退款。历史异常订单进入 MIGRATION_REVIEW；先人工核对原支付流水。旧服务人员可服务项目/区域/独立排班、线索等目前保存在 `hm_legacy_archive`，尚未接入新业务规则和管理页面，正式切换前应完成对应规则迁入与验收。
+6. 历史支付未与新 pay 模块自动关联，禁止直接自动退款。历史异常订单进入 MIGRATION_REVIEW；先人工核对原支付流水。旧人员配置和线索保存在 `hm_legacy_archive`；新技能/区域/排班模型与管理页已提供，但不会自动猜测旧归属关系。正式切换前按归档核对并在排班页录入，确认产能与现有预约一致。
 7. 原生演练通过、差额为零且回滚恢复验证完成后，安排停写窗口、最终备份和正式导入。DNS/小程序正式流量切换属于后续部署操作，本次未执行。
 
 ## 验证命令
 
 ```sh
-mvn -s .mvn/settings.xml -Dtest=BusinessIsolationTest,IdentityMappingTest,NotificationPolicyTest,PayOwnershipTest,DesensitizeTest -Dsurefire.failIfNoSpecifiedTests=false package
+mvn -s .mvn/settings.xml -Dtest=BusinessIsolationTest,EvidenceStorageTest,IdentityMappingTest,NotificationPolicyTest,PayOwnershipTest,DesensitizeTest -Dsurefire.failIfNoSpecifiedTests=false package
 cd hm-ui
 pnpm install --frozen-lockfile
 pnpm build:prod
 pnpm ts:check
+cd ../hm-portal
+pnpm install --frozen-lockfile
+pnpm build
 ```
 
-完整 upstream 单元/集成套件需要其独立配置与依赖，不应将上面的 34 项选定回归当成全仓所有测试。可复现 H2 迁移映射检查见 `tools/migration/README.md`。
+完整 upstream 单元/集成套件需要其独立配置与依赖，不应将上面的选定回归当成全仓所有测试。可复现 H2 迁移映射检查见 `tools/migration/README.md`。
