@@ -18,6 +18,7 @@ interface UserInfoVO {
   permissions: Set<string>
   roles: string[]
   isSetUser: boolean
+  platform: boolean
   user: UserVO
 }
 
@@ -26,6 +27,7 @@ export const useUserStore = defineStore('admin-user', {
     permissions: new Set<string>(),
     roles: [],
     isSetUser: false,
+    platform: false,
     user: {
       id: 0,
       avatar: '',
@@ -63,6 +65,7 @@ export const useUserStore = defineStore('admin-user', {
         } catch (error) {}
       }
       this.permissions = new Set(userInfo.permissions || []) // 兜底为 [] https://t.zsxq.com/xCJew
+      this.platform = userInfo.platform === true
       this.roles = userInfo.roles
       this.user = userInfo.user
       this.isSetUser = true
@@ -93,6 +96,7 @@ export const useUserStore = defineStore('admin-user', {
       this.permissions = new Set<string>()
       this.roles = []
       this.isSetUser = false
+      this.platform = false
       this.user = {
         id: 0,
         avatar: '',

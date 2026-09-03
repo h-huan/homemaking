@@ -9,7 +9,11 @@
       <el-table-column prop="nickname" label="姓名" />
       <el-table-column label="家政角色"
         ><template #default="{ row }">{{
-          row.super_admin ? '超级管理员（保留）' : roleName(row.template_code)
+          row.platform_operator
+            ? '平台管理员（独立授权）'
+            : row.super_admin
+              ? '租户管理员'
+              : roleName(row.template_code)
         }}</template></el-table-column
       >
       <el-table-column label="操作"
@@ -80,7 +84,7 @@ const rangeLabel = computed(() =>
     ? '只可查看和操作所选门店的数据。'
     : template.value?.range === 'SELF'
       ? '只可处理本人任务；保存后需在排班中心绑定对应服务人员。'
-      : '覆盖本租户全部门店；平台管理员可经授权租户访问进入其他租户。'
+      : '覆盖当前业务租户全部门店；不包含平台授权。'
 )
 const roleName = (code: string) => templates.value.find((t) => t.code === code)?.name || '未分配'
 const groups: Record<string, string> = {

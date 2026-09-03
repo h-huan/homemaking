@@ -15,6 +15,7 @@ import static com.hm.module.homemaking.dal.HmRepository.check;
 @Service
 public class StaffAccessService {
     public record Grant(@Min(1) long userId, @NotBlank String templateCode, @NotNull @Size(max=200) Set<@Min(1) Long> storeIds) {}
+    @jakarta.annotation.Resource private PlatformAccessService platform;
     private final HmRepository repo;
     private final HomemakingAdminAccess access;
     private final RoleService roles;
@@ -22,11 +23,11 @@ public class StaffAccessService {
     public StaffAccessService(HmRepository repo, HomemakingAdminAccess access, RoleService roles, PermissionService permissions) {
         this.repo=repo; this.access=access; this.roles=roles; this.permissions=permissions;
     }
-    public Object templates() { return RoleTemplates.ALL_TEMPLATES.stream().filter(t -> !t.code().equals("PLATFORM") || access.platform() && repo.tenant()==1).toList(); }
+    public Object templates() { return RoleTemplates.ALL_TEMPLATES.stream().filter(t -> !t.code().equals("PLATFORM")).toList(); }
     public Object users() {
-        var rows=repo.jdbc().queryForList("SELECT u.id,u.username,u.nickname,u.status,s.template_code,(SELECT COUNT(*) FROM system_user_role ur JOIN system_role r ON r.id=ur.role_id AND r.tenant_id=ur.tenant_id WHERE ur.user_id=u.id AND ur.tenant_id=u.tenant_id AND ur.deleted=FALSE AND r.deleted=FALSE AND r.code='super_admin') AS super_admin FROM system_users u LEFT JOIN hm_staff_scope s ON s.tenant_id=u.tenant_id AND s.user_id=u.id WHERE u.tenant_id=? AND u.deleted=FALSE ORDER BY u.id LIMIT 1000", repo.tenant());
+        var rows=repo.jdbc().queryForList("SELECT u.id,u.username,u.nickname,u.status,s.template_code,EXISTS(SELECT 1 FROM system_platform_operator p WHERE p.user_id=u.id AND p.account_tenant_id=u.tenant_id AND p.enabled=TRUE) AS platform_operator,(SELECT COUNT(*) FROM system_user_role ur JOIN system_role r ON r.id=ur.role_id AND r.tenant_id=ur.tenant_id WHERE ur.user_id=u.id AND ur.tenant_id=u.tenant_id AND ur.deleted=FALSE AND r.deleted=FALSE AND r.code='super_admin') AS super_admin FROM system_users u LEFT JOIN hm_staff_scope s ON s.tenant_id=u.tenant_id AND s.user_id=u.id WHERE u.tenant_id=? AND u.deleted=FALSE ORDER BY u.id LIMIT 1000", repo.tenant());
         boolean write=access.allowed("homemaking:staff:write"),platform=access.platform();
-        for(var row:rows)row.put("editable",write && HmRepository.number(row,"id")!=SecurityFrameworkUtils.getLoginUserId() && HmRepository.number(row,"super_admin")==0 && (platform || !"PLATFORM".equals(row.get("template_code"))));
+        for(var row:rows)row.put("editable",write && !Boolean.TRUE.equals(row.get("platform_operator")) && HmRepository.number(row,"id")!=SecurityFrameworkUtils.getLoginUserId() && HmRepository.number(row,"super_admin")==0 && (platform || !"PLATFORM".equals(row.get("template_code"))));
         return rows;
     }
     public Object binding(long user) {
@@ -38,7 +39,8 @@ public class StaffAccessService {
     public void grant(Grant g) {
         denyUnless(access.allowed("homemaking:staff:write"));
         var t = RoleTemplates.get(g.templateCode());
-        denyUnless(!t.code().equals("PLATFORM") || access.platform() && repo.tenant()==1);
+        platform.guardUserMutation(g.userId());
+        denyUnless(!t.code().equals("PLATFORM"));
         denyUnless(g.userId()!=SecurityFrameworkUtils.getLoginUserId());
         check(repo.jdbc().queryForList("SELECT id FROM system_users WHERE tenant_id=? AND id=? AND deleted=FALSE AND status=0 FOR UPDATE", repo.tenant(), g.userId()).size()==1, "请选择本租户有效后台账号");
         var previous = permissions.getUserRoleIdListByUserId(g.userId());

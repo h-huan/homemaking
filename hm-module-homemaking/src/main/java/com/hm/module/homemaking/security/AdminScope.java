@@ -12,9 +12,9 @@ public record AdminScope(long tenant, boolean platform, String range, Set<Long> 
     public static void denyUnless(boolean allowed) { if (!allowed) throw new AccessDeniedException("无此操作权限或数据范围"); }
     public static void tenant(long target) {
         var scope = current();
-        if (scope != null) denyUnless(target == scope.tenant || scope.platform);
+        denyUnless(scope != null ? target == scope.tenant || scope.platform : Objects.equals(com.hm.framework.tenant.core.context.TenantContextHolder.getTenantId(),target));
     }
-    public static void platformOnly() { if (current() != null) denyUnless(current().platform); }
+    public static void platformOnly() { denyUnless(current() != null && current().platform); }
     public static void tenantWide() { if (current() != null) denyUnless(current().range.equals("TENANT")); }
     public static String sql(String table, String alias, long tenant) {
         var scope = current();

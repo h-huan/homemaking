@@ -8,6 +8,10 @@ import com.hm.framework.common.biz.system.permission.dto.DeptDataPermissionRespD
  * @author 芋道源码
  */
 public interface PermissionCommonApi {
+    default boolean isPlatformUser(Long userId, Long accountTenantId) { return false; }
+    default boolean canVisitTenant(Long userId, Long accountTenantId, Long targetTenantId) { return false; }
+    default void recordPlatformVisit(long target, String method, String path, String ip, int status) {}
+
 
     /**
      * 判断是否有权限，任一一个即可

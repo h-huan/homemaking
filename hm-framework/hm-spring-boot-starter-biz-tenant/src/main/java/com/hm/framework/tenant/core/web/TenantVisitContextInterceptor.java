@@ -43,11 +43,12 @@ public class TenantVisitContextInterceptor implements HandlerInterceptor {
         }
 
         // 校验用户是否可切换租户
-        if (!securityFrameworkService.hasAnyPermissions(PERMISSION)) {
+        if (!securityFrameworkService.canVisitTenant(visitTenantId)) {
             throw exception0(GlobalErrorCodeConstants.FORBIDDEN.getCode(), "您无权切换租户");
         }
 
         // 【重点】切换租户编号
+        request.setAttribute("hm.platformVisit", visitTenantId);
         loginUser.setVisitTenantId(visitTenantId);
         TenantContextHolder.setTenantId(visitTenantId);
         return true;
@@ -55,11 +56,16 @@ public class TenantVisitContextInterceptor implements HandlerInterceptor {
 
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        try {
+            Object target=request.getAttribute("hm.platformVisit");
+            if(target instanceof Long id) securityFrameworkService.recordPlatformVisit(id,request.getMethod(),request.getRequestURI(),request.getRemoteAddr(),ex==null?response.getStatus():500);
+        } finally {
         // 【重点】清理切换，换回原租户编号
         LoginUser loginUser = SecurityFrameworkUtils.getLoginUser();
         if (loginUser != null && loginUser.getTenantId() != null) {
             TenantContextHolder.setTenantId(loginUser.getTenantId());
+            loginUser.setVisitTenantId(null);
+        }
         }
     }
-
 }

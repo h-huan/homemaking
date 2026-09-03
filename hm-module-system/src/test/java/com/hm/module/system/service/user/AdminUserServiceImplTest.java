@@ -78,6 +78,8 @@ public class AdminUserServiceImplTest extends BaseDbUnitTest {
     @MockitoBean
     private PermissionService permissionService;
     @MockitoBean
+    private com.hm.module.system.service.permission.PlatformAccessService platformAccess;
+    @MockitoBean
     private PasswordEncoder passwordEncoder;
     @MockitoBean
     private TenantService tenantService;

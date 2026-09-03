@@ -15,6 +15,7 @@ import java.util.Set;
 @AllArgsConstructor
 @Builder
 public class AuthPermissionInfoRespVO {
+    private boolean platform;
 
     @Schema(description = "用户信息", requiredMode = Schema.RequiredMode.REQUIRED)
     private UserVO user;

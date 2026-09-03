@@ -40,7 +40,7 @@ public class DictDataController {
 
     @PostMapping("/create")
     @Operation(summary = "新增字典数据")
-    @PreAuthorize("(@ss.hasPermission('system:dict:create')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:dict:create')) and @ss.isPlatform()")
     public CommonResult<Long> createDictData(@Valid @RequestBody DictDataSaveReqVO createReqVO) {
         Long dictDataId = dictDataService.createDictData(createReqVO);
         return success(dictDataId);
@@ -48,7 +48,7 @@ public class DictDataController {
 
     @PutMapping("/update")
     @Operation(summary = "修改字典数据")
-    @PreAuthorize("(@ss.hasPermission('system:dict:update')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:dict:update')) and @ss.isPlatform()")
     public CommonResult<Boolean> updateDictData(@Valid @RequestBody DictDataSaveReqVO updateReqVO) {
         dictDataService.updateDictData(updateReqVO);
         return success(true);
@@ -57,7 +57,7 @@ public class DictDataController {
     @DeleteMapping("/delete")
     @Operation(summary = "删除字典数据")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("(@ss.hasPermission('system:dict:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:dict:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteDictData(@RequestParam("id") Long id) {
         dictDataService.deleteDictData(id);
         return success(true);
@@ -66,7 +66,7 @@ public class DictDataController {
     @DeleteMapping("/delete-list")
     @Operation(summary = "批量删除字典数据")
     @Parameter(name = "ids", description = "编号列表", required = true)
-    @PreAuthorize("(@ss.hasPermission('system:dict:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:dict:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteDictDataList(@RequestParam("ids") List<Long> ids) {
         dictDataService.deleteDictDataList(ids);
         return success(true);

@@ -60,6 +60,7 @@ import static com.hm.module.system.enums.LogRecordConstants.*;
 @Service("adminUserService")
 @Slf4j
 public class AdminUserServiceImpl implements AdminUserService {
+    @Resource private com.hm.module.system.service.permission.PlatformAccessService platformAccess;
 
     static final String USER_INIT_PASSWORD_KEY = "system.user.init-password";
 
@@ -152,6 +153,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @LogRecord(type = SYSTEM_USER_TYPE, subType = SYSTEM_USER_UPDATE_SUB_TYPE, bizNo = "{{#updateReqVO.id}}",
             success = SYSTEM_USER_UPDATE_SUCCESS)
     public void updateUser(UserSaveReqVO updateReqVO) {
+        platformAccess.guardUserMutation(updateReqVO.getId());
         updateReqVO.setPassword(null); // 特殊：此处不更新密码
         // 1. 校验正确性
         AdminUserDO oldUser = validateUserForCreateOrUpdate(updateReqVO.getId(), updateReqVO.getUsername(),
@@ -233,7 +235,9 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @LogRecord(type = SYSTEM_USER_TYPE, subType = SYSTEM_USER_UPDATE_PASSWORD_SUB_TYPE, bizNo = "{{#id}}",
             success = SYSTEM_USER_UPDATE_PASSWORD_SUCCESS)
+    @Transactional(rollbackFor = Exception.class)
     public void updateUserPassword(Long id, String password) {
+        platformAccess.guardUserMutation(id);
         // 1. 校验用户存在
         AdminUserDO user = validateUserExists(id);
 
@@ -249,7 +253,9 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateUserStatus(Long id, Integer status) {
+        platformAccess.guardUserRemoval(id);
         // 校验用户存在
         validateUserExists(id);
         // 更新状态
@@ -269,6 +275,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @LogRecord(type = SYSTEM_USER_TYPE, subType = SYSTEM_USER_DELETE_SUB_TYPE, bizNo = "{{#id}}",
             success = SYSTEM_USER_DELETE_SUCCESS)
     public void deleteUser(Long id) {
+        platformAccess.guardUserRemoval(id);
         // 1. 校验用户存在
         AdminUserDO user = validateUserExists(id);
 
@@ -286,6 +293,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteUserList(List<Long> ids) {
+        ids.forEach(platformAccess::guardUserRemoval);
         // 1. 批量删除用户
         userMapper.deleteByIds(ids);
 
@@ -550,6 +558,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 respVO.getFailureUsernames().put(importUser.getUsername(), USER_USERNAME_EXISTS.getMsg());
                 return;
             }
+            platformAccess.guardUserMutation(existUser.getId());
             AdminUserDO updateUser = BeanUtils.toBean(importUser, AdminUserDO.class);
             updateUser.setId(existUser.getId());
             userMapper.updateById(updateUser);

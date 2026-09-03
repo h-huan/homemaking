@@ -18,6 +18,10 @@ public class PermissionApiImpl implements PermissionApi {
 
     @Resource
     private PermissionService permissionService;
+    @Resource private com.hm.module.system.service.permission.PlatformAccessService platform;
+    @Override public boolean isPlatformUser(Long user,Long tenant) { return platform.isOperator(user,tenant); }
+    @Override public boolean canVisitTenant(Long user,Long tenant,Long target) { return platform.canVisit(user,tenant,target); }
+    @Override public void recordPlatformVisit(long target,String method,String path,String ip,int status) { platform.visitLog(target,method,path,ip,status); }
 
     @Override
     public Set<Long> getUserRoleIdListByRoleIds(Collection<Long> roleIds) {

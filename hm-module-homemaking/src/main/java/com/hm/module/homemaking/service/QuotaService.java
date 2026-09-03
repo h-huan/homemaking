@@ -40,7 +40,6 @@ public class QuotaService {
     }
     public Map<String,Object> current(){return describe(repo.tenant());}
     public Map<String,Object> describe(long tenant){com.hm.module.homemaking.security.AdminScope.tenant(tenant);
-        check(tenant==repo.tenant()||repo.tenant()==1,"无权查看其他租户配额");
         var r=row(tenant,false);var used=new LinkedHashMap<String,Long>();for(String resource:RESOURCES)used.put(resource,usage(tenant,resource));
         var result=new LinkedHashMap<String,Object>();result.put("tenantId",tenant);result.put("planId",r.get("plan_id"));result.put("version",r.get("version"));result.put("limits",limits(r.get("limits_json")));result.put("features",features(r.get("features_json")));result.put("usage",used);return result;
     }
@@ -52,7 +51,7 @@ public class QuotaService {
     public void feature(String feature){
         feature(repo.tenant(),feature);
     }
-    public void feature(long tenant,String feature){check(repo.tenant()==tenant||repo.tenant()==1,"无权检查其他租户功能");var r=row(tenant,false);effectiveLimit(r,"orders");check(features(r.get("features_json")).contains(feature),"当前套餐未开通此功能："+feature);}
+    public void feature(long tenant,String feature){com.hm.module.homemaking.security.AdminScope.tenant(tenant);var r=row(tenant,false);effectiveLimit(r,"orders");check(features(r.get("features_json")).contains(feature),"当前套餐未开通此功能："+feature);}
     public boolean reserveSms(long tenant){
         var r=row(tenant,true);long limit=effectiveLimit(r,"sms");
         if(!features(r.get("features_json")).contains("sms")||(limit>=0&&usage(tenant,"sms")>=limit))return false;
@@ -65,16 +64,16 @@ public class QuotaService {
         return repo.jdbc().queryForObject("SELECT COUNT(*) FROM "+table+" WHERE tenant_id=?",Long.class,tenant);
     }
     @Transactional public void save(long tenant,Entitlement e){
-        check(repo.tenant()==1,"仅总部可分配套餐和配额");validate(e.limits(),e.features());
+        com.hm.module.homemaking.security.AdminScope.platformOnly();validate(e.limits(),e.features());
         check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM system_tenant WHERE id=? AND deleted=FALSE",Long.class,tenant)==1,"租户不存在");
         var current=row(tenant,true);check(number(current,"version")==e.version(),"配额已更新，请刷新");
         Map<String,Long> limits=e.limits();Set<String> features=e.features();
         if(e.planId()!=null){var plans=repo.jdbc().queryForList("SELECT * FROM hm_saas_plan WHERE id=? AND enabled=TRUE",e.planId());check(plans.size()==1,"套餐不存在或已停用");limits=limits(plans.get(0).get("limits_json"));features=features(plans.get(0).get("features_json"));}
         repo.jdbc().update("UPDATE hm_tenant_entitlement SET plan_id=?,limits_json=?,features_json=?,version=version+1 WHERE tenant_id=?",e.planId(),encode(limits),encode(features),tenant);
     }
-    public List<Map<String,Object>> plans(){check(repo.tenant()==1,"仅总部可查看套餐目录");return repo.jdbc().queryForList("SELECT * FROM hm_saas_plan ORDER BY id");}
+    public List<Map<String,Object>> plans(){com.hm.module.homemaking.security.AdminScope.platformOnly();return repo.jdbc().queryForList("SELECT * FROM hm_saas_plan ORDER BY id");}
     @Transactional public long plan(Plan p){
-        check(repo.tenant()==1,"仅总部可管理套餐");validate(p.limits(),p.features());
+        com.hm.module.homemaking.security.AdminScope.platformOnly();validate(p.limits(),p.features());
         if(p.id()==null)return repo.insert("INSERT INTO hm_saas_plan(name,limits_json,features_json,enabled) VALUES(?,?,?,?)",p.name(),encode(p.limits()),encode(p.features()),p.enabled());
         check(repo.jdbc().update("UPDATE hm_saas_plan SET name=?,limits_json=?,features_json=?,enabled=?,version=version+1 WHERE id=? AND version=?",p.name(),encode(p.limits()),encode(p.features()),p.enabled(),p.id(),p.version())==1,"套餐已更新，请刷新");
         // Existing subscriptions retain their accepted quota snapshot until explicitly reassigned.

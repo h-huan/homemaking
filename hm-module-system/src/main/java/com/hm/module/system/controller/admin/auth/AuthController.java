@@ -62,6 +62,7 @@ public class AuthController {
 
     @Resource
     private SecurityProperties securityProperties;
+    @Resource private com.hm.module.system.service.permission.PlatformAccessService platformAccess;
 
     @PostMapping("/login")
     @PermitAll
@@ -94,6 +95,10 @@ public class AuthController {
     @Operation(summary = "获取登录用户的权限信息")
     @DataPermission(enable = false) // 忽略数据权限，避免因为过滤，导致无法查询用户。类似：https://t.zsxq.com/LHnrp
     public CommonResult<AuthPermissionInfoRespVO> getPermissionInfo() {
+        return com.hm.framework.tenant.core.util.TenantUtils.execute(SecurityFrameworkUtils.getLoginUser().getTenantId(),this::permissionInfo);
+    }
+    private CommonResult<AuthPermissionInfoRespVO> permissionInfo() {
+        boolean platform=platformAccess.current();
         // 1.1 获得用户信息
         AdminUserDO user = userService.getUser(getLoginUserId());
         if (user == null) {
@@ -102,7 +107,7 @@ public class AuthController {
 
         // 1.2 获得角色列表
         Set<Long> roleIds = permissionService.getUserRoleIdListByUserId(getLoginUserId());
-        if (CollUtil.isEmpty(roleIds)) {
+        if (CollUtil.isEmpty(roleIds) && !platform) {
             return success(AuthConvert.INSTANCE.convert(user, Collections.emptyList(), Collections.emptyList()));
         }
         List<RoleDO> roles = roleService.getRoleList(roleIds);
@@ -110,11 +115,19 @@ public class AuthController {
 
         // 1.3 获得菜单列表
         Set<Long> menuIds = permissionService.getRoleMenuListByRoleId(convertSet(roles, RoleDO::getId));
-        List<MenuDO> menuList = menuService.getMenuList(menuIds);
+        List<MenuDO> menuList = platform ? menuService.getMenuList() : menuService.getMenuList(menuIds);
         menuList = menuService.filterDisableMenus(menuList);
 
-        // 2. 拼接结果返回
-        return success(AuthConvert.INSTANCE.convert(user, roles, menuList));
+        if(!platform) {
+            var excluded=new java.util.HashSet<Long>();
+            for(var menu:menuList) if(com.hm.framework.common.biz.system.permission.PlatformPermissions.reserved(menu.getPermission())) excluded.add(menu.getId());
+            boolean changed;
+            do { changed=false; for(var menu:menuList) if(excluded.contains(menu.getParentId())) changed|=excluded.add(menu.getId()); } while(changed);
+            menuList.removeIf(m -> excluded.contains(m.getId()));
+        }
+        var result=AuthConvert.INSTANCE.convert(user, roles, menuList);
+        result.setPlatform(platform);
+        return success(result);
     }
 
     @PostMapping("/register")

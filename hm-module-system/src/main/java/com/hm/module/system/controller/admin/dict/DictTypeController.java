@@ -39,7 +39,7 @@ public class DictTypeController {
 
     @PostMapping("/create")
     @Operation(summary = "创建字典类型")
-    @PreAuthorize("(@ss.hasPermission('system:dict:create')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:dict:create')) and @ss.isPlatform()")
     public CommonResult<Long> createDictType(@Valid @RequestBody DictTypeSaveReqVO createReqVO) {
         Long dictTypeId = dictTypeService.createDictType(createReqVO);
         return success(dictTypeId);
@@ -47,7 +47,7 @@ public class DictTypeController {
 
     @PutMapping("/update")
     @Operation(summary = "修改字典类型")
-    @PreAuthorize("(@ss.hasPermission('system:dict:update')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:dict:update')) and @ss.isPlatform()")
     public CommonResult<Boolean> updateDictType(@Valid @RequestBody DictTypeSaveReqVO updateReqVO) {
         dictTypeService.updateDictType(updateReqVO);
         return success(true);
@@ -56,7 +56,7 @@ public class DictTypeController {
     @DeleteMapping("/delete")
     @Operation(summary = "删除字典类型")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("(@ss.hasPermission('system:dict:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:dict:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteDictType(@RequestParam("id") Long id) {
         dictTypeService.deleteDictType(id);
         return success(true);
@@ -65,7 +65,7 @@ public class DictTypeController {
     @DeleteMapping("/delete-list")
     @Operation(summary = "批量删除字典类型")
     @Parameter(name = "ids", description = "编号列表", required = true)
-    @PreAuthorize("(@ss.hasPermission('system:dict:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:dict:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteDictTypeList(@RequestParam("ids") List<Long> ids) {
         dictTypeService.deleteDictTypeList(ids);
         return success(true);

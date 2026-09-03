@@ -44,6 +44,7 @@ import static com.hm.framework.common.util.json.JsonUtils.toJsonString;
 @Service
 @Slf4j
 public class PermissionServiceImpl implements PermissionService {
+    @Resource private PlatformAccessService platformAccess;
 
     @Resource
     private RoleMenuMapper roleMenuMapper;
@@ -61,7 +62,9 @@ public class PermissionServiceImpl implements PermissionService {
 
     @Override
     public boolean hasAnyPermissions(Long userId, String... permissions) {
-        // 如果为空，说明已经有权限
+        permissions=java.util.Arrays.stream(permissions).filter(p -> !com.hm.framework.common.biz.system.permission.PlatformPermissions.reserved(p)).toArray(String[]::new);
+        if (permissions.length==0) return false;
+        // Tenant roles never provide platform authority.
         if (ArrayUtil.isEmpty(permissions)) {
             return true;
         }
@@ -206,6 +209,7 @@ public class PermissionServiceImpl implements PermissionService {
     @DSTransactional // 多数据源，使用 @DSTransactional 保证本地事务，以及数据源的切换
     @CacheEvict(value = RedisKeyConstants.USER_ROLE_ID_LIST, key = "#userId")
     public void assignUserRole(Long userId, Set<Long> roleIds) {
+        platformAccess.guardUserMutation(userId);
         // 获得角色拥有角色编号
         Set<Long> dbRoleIds = convertSet(userRoleMapper.selectListByUserId(userId),
                 UserRoleDO::getRoleId);

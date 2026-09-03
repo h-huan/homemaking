@@ -23,7 +23,7 @@ pnpm build
 
 ## 配置与启动
 
-新建空的 MySQL 8.0.16+ 数据库，**只导入一次 [sql/mysql/hm-init.sql](sql/mysql/hm-init.sql)**，已包含基础表、总部账号、菜单和截至 V006 的全部结构，无需再逐份执行初始化及升级 SQL。已有数据库只执行尚未应用的增量脚本，不能重新导入 hm-init.sql。详见[数据库初始化与升级说明](sql/mysql/upgrades/README.md)。
+新建空的 MySQL 8.0.16+ 数据库，**只导入一次 [sql/mysql/hm-init.sql](sql/mysql/hm-init.sql)**，已包含基础表、初始平台管理员、直营业务租户、菜单和当前全部结构，无需再逐份执行初始化及升级 SQL。已有数据库只执行尚未应用的增量脚本，不能重新导入 hm-init.sql。详见[数据库初始化与升级说明](sql/mysql/upgrades/README.md)。
 设置 HM_DB_URL、HM_DB_USER、HM_DB_PASSWORD、HM_DATA_ENCRYPTION_KEY（随机至少 16 字符）、HM_REDIS_HOST/PORT/PASSWORD。
 生产新增 `HM_EVIDENCE_ROOT=/var/lib/hm/evidence`，用于私有履约照片；目录须可写、随数据库备份，不能映射到 Nginx 静态目录。
 启动：`java -jar hm-server/target/hm-server.jar`。默认只监听 127.0.0.1:48080。
@@ -31,7 +31,7 @@ pnpm build
 微信公众号、小程序和支付凭据按租户配置，未配置时不发送真实消息或发起支付。
 默认不提供通用初始账号密码。
 
-总部默认直营，加盟租户沿用独立租户边界。客户身份属于平台，订单、地址、人员、服务和账目属于租户。
+总部默认直营，直营与加盟都是普通业务租户。平台身份由独立授权决定，任何租户编号或角色名称都不能自动取得平台权限。客户身份属于平台，订单、地址、人员、服务和账目属于租户。
 
 运营台：`/homemaking/operations`；白标与通知：`/homemaking/settings`；官网编辑：`/homemaking/portal`；排班：`/homemaking/scheduling`；人员工作台：`/homemaking/worker`；额度与结算：`/homemaking/finance`。小程序源码位于 `hm-miniapp`，发布前需设置真实 API 域名、租户编号和 AppID。
 

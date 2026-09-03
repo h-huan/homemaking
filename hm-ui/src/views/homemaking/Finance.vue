@@ -4,7 +4,7 @@
     title="租户额度和加盟结算"
     description="查看资源使用情况，设置租户功能，并逐步完成结算审核、打款登记与对账。"
   >
-    <div v-if="isHeadquarters" class="tenant-picker"
+    <div v-if="isPlatform" class="tenant-picker"
       ><el-input-number v-model="tenantId" :min="1" /><el-button
         type="primary"
         :loading="loading"
@@ -18,13 +18,13 @@
       /></el-tab-pane>
       <el-tab-pane v-if="can('quota:read')" label="功能与额度">
         <el-alert
-          v-if="!isHeadquarters"
-          title="额度与功能由总部统一配置。如需调整，请联系总部。"
+          v-if="!isPlatform"
+          title="额度与功能由平台统一配置。如需调整，请联系平台。"
           type="info"
           :closable="false"
         />
         <el-form label-position="top" class="form">
-          <el-form-item v-if="isHeadquarters" label="使用套餐">
+          <el-form-item v-if="isPlatform" label="使用套餐">
             <el-select v-model="planId" clearable placeholder="单独配置此租户" @change="selectPlan">
               <el-option
                 v-for="plan in plans"
@@ -49,12 +49,12 @@
                 v-model="limits[resource.key]"
                 :min="-1"
                 :max="100000000"
-                :disabled="!isHeadquarters || !!planId"
+                :disabled="!isPlatform || !!planId"
               />
             </el-form-item>
           </div>
           <el-form-item label="开通功能"
-            ><el-checkbox-group v-model="features" :disabled="!isHeadquarters || !!planId"
+            ><el-checkbox-group v-model="features" :disabled="!isPlatform || !!planId"
               ><el-checkbox
                 v-for="feature in featureOptions"
                 :key="feature.key"
@@ -63,7 +63,7 @@
               ></el-checkbox-group
             ></el-form-item
           >
-          <el-space v-if="isHeadquarters"
+          <el-space v-if="isPlatform"
             ><el-button type="primary" @click="saveQuota">保存租户额度</el-button
             ><el-button @click="createPlan">将当前配置另存为套餐</el-button></el-space
           >
@@ -83,7 +83,7 @@
                 :min="0"
                 :max="100"
                 :precision="2"
-                :disabled="!isHeadquarters"
+                :disabled="!isPlatform"
             /></el-form-item>
             <el-form-item label="服务人员分成（%）"
               ><el-input-number
@@ -91,20 +91,16 @@
                 :min="0"
                 :max="100"
                 :precision="2"
-                :disabled="!isHeadquarters"
+                :disabled="!isPlatform"
             /></el-form-item>
             <el-form-item label="建议结算周期（天）"
-              ><el-input-number
-                v-model="rule.cycleDays"
-                :min="1"
-                :max="90"
-                :disabled="!isHeadquarters"
+              ><el-input-number v-model="rule.cycleDays" :min="1" :max="90" :disabled="!isPlatform"
             /></el-form-item>
           </div>
           <el-form-item label="启用分佣"
-            ><el-switch v-model="rule.enabled" :disabled="!isHeadquarters"
+            ><el-switch v-model="rule.enabled" :disabled="!isPlatform"
           /></el-form-item>
-          <el-button v-if="isHeadquarters" type="primary" @click="saveRule">保存分佣规则</el-button>
+          <el-button v-if="isPlatform" type="primary" @click="saveRule">保存分佣规则</el-button>
         </el-form>
       </el-tab-pane>
       <el-tab-pane v-if="can('finance:read')" label="结算单">
@@ -190,7 +186,7 @@
 import dayjs from 'dayjs'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getTenantId } from '@/utils/auth'
+import { getTenantId, getVisitTenantId } from '@/utils/auth'
 import * as api from '@/api/homemaking'
 import HmPage from './components/HmPage.vue'
 import PaymentLedger from './components/PaymentLedger.vue'
@@ -198,8 +194,8 @@ import { useHmAccess } from './useAccess'
 const { can, loadAccess } = useHmAccess()
 
 defineOptions({ name: 'HomemakingFinance' })
-const isHeadquarters = computed(() => can('platform:manage'))
-const tenantId = ref(Number(getTenantId()) || 1),
+const isPlatform = computed(() => can('platform:manage'))
+const tenantId = ref(Number(getVisitTenantId() || getTenantId())),
   loading = ref(false),
   quotaVersion = ref(0),
   planId = ref<number>()
@@ -265,7 +261,7 @@ async function load() {
       enabled: !!r.enabled,
       version: Number(r.version)
     }
-    if (isHeadquarters.value) {
+    if (isPlatform.value) {
       plans.value = await api.listPlans()
       await loadStatements()
     }

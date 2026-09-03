@@ -93,7 +93,7 @@
 | 位置 | 当前仓库状态 | 发布前处理 |
 | --- | --- | --- |
 | `hm-miniapp/app.js` → `globalData.baseUrl` | `http://127.0.0.1:48080/app-api` | 改成 `https://你的域名/app-api`，必须保留一次 `/app-api` |
-| 同文件 → `globalData.tenantId` | `1` | 总部为 1；加盟租户填实际编号，和该 AppID 的注册租户一致 |
+| 同文件 → `globalData.tenantId` | `1` | 填写实际业务租户编号，与该 AppID 的注册租户一致；默认种子直营租户编号是 1，不代表平台身份 |
 | `hm-miniapp/project.config.json` → `appid` | 保留了旧项目 AppID | 替换为本次租户的真实 AppID，并核对开发者工具里的生效 AppID；不要默认沿用仓库旧值 |
 
 同时在微信后台配置 HTTPS request 合法域名。公众号还要配置业务域名/OAuth 回调域名；应用归属、订阅消息模板和微信开放平台绑定要使用真实账号，不能从示例复制。
@@ -110,23 +110,25 @@
 
 | 功能 | 维护位置 | 要准备的值 |
 | --- | --- | --- |
-| 文件存储 | 总部 → 基础设施 → 文件配置 | 本地存储需持久 `basePath` 与访问 `domain`；S3 需 endpoint、bucket、accessKey、accessSecret、region/访问方式。空库没有默认存储，必须设置主配置才能上传 |
+| 文件存储 | 平台管理员 → 基础设施 → 文件配置 | 本地存储需持久 `basePath` 与访问 `domain`；S3 需 endpoint、bucket、accessKey、accessSecret、region/访问方式。空库没有默认存储，必须设置主配置才能上传 |
 | 租户品牌/域名 | 家政运营 → 品牌与通知 | 网站、Logo/favicon URL、主色、登录页、AppID；域名要通过 TXT 验证，DNS A/AAAA 和 HTTPS 证书另行配置 |
-| 微信统一身份 | `POST /admin-api/homemaking/wechat-apps`，仅总部可分配 | tenantId、appId、kind、真实开放平台归属 platformId、secretEnv、enabled；注册完成再绑定品牌 AppID |
+| 微信统一身份 | `POST /admin-api/homemaking/wechat-apps`，仅平台管理员可分配 | tenantId、appId、kind、真实开放平台归属 platformId、secretEnv、enabled；注册完成再绑定品牌 AppID |
 | 公众号管理 | 公众号管理 → 账号 | AppID、AppSecret、Token、EncodingAESKey 等实际账号设置，与租户身份注册对应 |
 | 租户支付方式 | 品牌与通知 → 支付方式 | OFFLINE / ONLINE / BOTH，保存在 hm_tenant_profile.payment_mode，不是环境变量；总部默认 OFFLINE。线上不具备可用配置时回退线下入口 |
 | 线下收款与退款 | 运营工作台 → 订单/售后；财务 → 收支明细 | 渠道、整单金额或已确认变更差额、实际发生时间、凭证备注、操作人；不需要配置商户密钥，真实到账/退款须人工核实 |
 | 订单地址与价格变更 | 订单 → 变更地址/价格；小程序订单 → 变更地址 | V006 数据库结构保存前后快照与差额，不需要新环境变量；首次部署只导入最新 hm-init.sql |
 | 支付应用与渠道 | 支付管理 → 应用/渠道；品牌页绑定 appKey | 仅开启线上支付时需要 appKey、商户号、渠道 AppID、API 密钥/证书及回调配置；支付渠道 AppID 必须匹配本租户小程序 |
-| 短信 | 总部系统管理中的短信渠道、模板 | 服务商账号、签名、模板；与家政通知模板映射一致 |
+| 短信 | 平台系统管理中的短信渠道、模板 | 服务商账号、签名、模板；与家政通知模板映射一致 |
 | 通知模板 | `PUT /admin-api/homemaking/notification-template` | event、channel、真实 templateId、fieldMapping、enabled；短信兜底还受平台/租户/客户三级允许条件限制 |
 | 排班与产能 | 家政运营 → 排班 | 人员所属门店、可服务项目、行政区、日期班次和请假；全区域需明确选择 *，未配置人员不会被自动派单 |
 | 人员权限 | 家政运营 → 人员权限 | 给已有账号分配七类模板及门店范围；V004 升级后旧通用管理权限不会自动转换，需逐人分配 |
 | 人员工作台 | 人员权限授予「服务人员」模板，再在排班页绑定账号 | 同租户有效后台用户；权限为 homemaking:worker:read / homemaking:worker:fulfill；客户微信账号不能作为人员后台账号使用 |
 | 官网内容 | 家政运营 → 官网内容 | 导航、主视觉、SEO、首页模块/顺序、推荐内容与联系信息；先保存，再发布 |
-| 配额与分佣 | 家政运营 → SaaS 与财务，仅总部修改 | 资源数、月订单/月短信上限、功能、分佣比例；-1 表示不限。保存套餐分配后在服务端生效 |
+| 配额与分佣 | 家政运营 → SaaS 与财务，仅平台管理员修改 | 资源数、月订单/月短信上限、功能、分佣比例；-1 表示不限。保存套餐分配后在服务端生效 |
 | 结算单 | SaaS 与财务 → 结算单 | 租户、门店/人员、账期；审核后登记真实打款凭证，再对账，不会自动打款 |
 
 文件存储路径和日志目录必须在发布目录之外持久保存，不能随替换 JAR/网页包一起删除。付款、退款和真实消息的当前上线缺口见[部署步骤](README.md#8-接入真实渠道之前)。
 
 规格/加项/区域费用与取消/改期规则在「家政运营 → 服务 → 价格与预约规则」维护，不需要新增环境变量。具体首次配置顺序见[运营手册](operations.md)。
+
+平台身份没有新增环境变量，也不能通过客户端 tenantId 或环境变量提升权限。后端使用 system_platform_operator 的独立授权；维护入口为「家政运营 → 平台身份」。首次安装账号仍先按部署步骤设置自己的密码。

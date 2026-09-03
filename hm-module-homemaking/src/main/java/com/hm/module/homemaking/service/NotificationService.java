@@ -75,7 +75,7 @@ public class NotificationService {
     private void mark(long id,String status,String reason,LocalDateTime next){repo.jdbc().update("UPDATE hm_notification_outbox SET status=?,last_error=?,next_attempt_at=? WHERE id=?",status,reason,next,id);}
     public void savePolicy(String event,NotificationPolicy policy,boolean platform){
         check(event.matches("[A-Z_]{1,60}|\\*"),"事件名无效");check(policy.dailyLimit()>=0&&policy.dailyLimit()<=100&&policy.minIntervalMinutes()>=0&&policy.minIntervalMinutes()<=1440&&policy.quietStart()>=0&&policy.quietStart()<24&&policy.quietEnd()>=0&&policy.quietEnd()<24,"策略数值无效");
-        check(policy.channels()!=null&&Set.of("MP","MINI","SMS").containsAll(policy.channels()),"通知渠道无效");long tenant=platform?0:repo.tenant();if(platform)check(repo.tenant()==1,"仅总部可设置平台上限");
+        check(policy.channels()!=null&&Set.of("MP","MINI","SMS").containsAll(policy.channels()),"通知渠道无效");long tenant=platform?0:repo.tenant();if(platform)com.hm.module.homemaking.security.AdminScope.platformOnly();
         repo.jdbc().update("INSERT INTO hm_notification_policy(tenant_id,event_type,enabled,daily_limit,min_interval_minutes,quiet_start,quiet_end,allow_sms,channels) VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),daily_limit=VALUES(daily_limit),min_interval_minutes=VALUES(min_interval_minutes),quiet_start=VALUES(quiet_start),quiet_end=VALUES(quiet_end),allow_sms=VALUES(allow_sms),channels=VALUES(channels)",tenant,event,policy.enabled(),policy.dailyLimit(),policy.minIntervalMinutes(),policy.quietStart(),policy.quietEnd(),policy.allowSms(),String.join(",",policy.channels()));
     }
 }

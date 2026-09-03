@@ -21,6 +21,20 @@ public class SecurityFrameworkServiceImpl implements SecurityFrameworkService {
 
     private final PermissionCommonApi permissionApi;
 
+    @Override public boolean isPlatform() {
+        var user=SecurityFrameworkUtils.getLoginUser();
+        return user!=null && java.util.Objects.equals(user.getUserType(),2)
+            && permissionApi.isPlatformUser(user.getId(),user.getTenantId());
+    }
+    @Override public boolean canVisitTenant(Long tenantId) {
+        var user=SecurityFrameworkUtils.getLoginUser();
+        return user!=null && java.util.Objects.equals(user.getUserType(),2)
+            && permissionApi.canVisitTenant(user.getId(),user.getTenantId(),tenantId);
+    }
+    @Override public void recordPlatformVisit(long target,String method,String path,String ip,int status) {
+        permissionApi.recordPlatformVisit(target,method,path,ip,status);
+    }
+
     @Override
     public boolean hasPermission(String permission) {
         return hasAnyPermissions(permission);
@@ -29,7 +43,7 @@ public class SecurityFrameworkServiceImpl implements SecurityFrameworkService {
     @Override
     public boolean hasAnyPermissions(String... permissions) {
         // 特殊：跨租户访问
-        if (skipPermissionCheck()) {
+        if (isPlatform()) {
             return true;
         }
 
@@ -38,7 +52,9 @@ public class SecurityFrameworkServiceImpl implements SecurityFrameworkService {
         if (userId == null) {
             return false;
         }
-        return permissionApi.hasAnyPermissions(userId, permissions);
+        String[] tenantPermissions=Arrays.stream(permissions)
+            .filter(p -> !com.hm.framework.common.biz.system.permission.PlatformPermissions.reserved(p)).toArray(String[]::new);
+        return tenantPermissions.length>0 && permissionApi.hasAnyPermissions(userId, tenantPermissions);
     }
 
     @Override
@@ -49,7 +65,7 @@ public class SecurityFrameworkServiceImpl implements SecurityFrameworkService {
     @Override
     public boolean hasAnyRoles(String... roles) {
         // 特殊：跨租户访问
-        if (skipPermissionCheck()) {
+        if (isPlatform()) {
             return true;
         }
 
@@ -69,7 +85,7 @@ public class SecurityFrameworkServiceImpl implements SecurityFrameworkService {
     @Override
     public boolean hasAnyScopes(String... scope) {
         // 特殊：跨租户访问
-        if (skipPermissionCheck()) {
+        if (isPlatform()) {
             return true;
         }
 

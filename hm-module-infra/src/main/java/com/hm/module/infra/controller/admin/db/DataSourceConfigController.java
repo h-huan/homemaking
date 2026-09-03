@@ -30,14 +30,14 @@ public class DataSourceConfigController {
 
     @PostMapping("/create")
     @Operation(summary = "创建数据源配置")
-    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:create')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:create')) and @ss.isPlatform()")
     public CommonResult<Long> createDataSourceConfig(@Valid @RequestBody DataSourceConfigSaveReqVO createReqVO) {
         return success(dataSourceConfigService.createDataSourceConfig(createReqVO));
     }
 
     @PutMapping("/update")
     @Operation(summary = "更新数据源配置")
-    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:update')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:update')) and @ss.isPlatform()")
     public CommonResult<Boolean> updateDataSourceConfig(@Valid @RequestBody DataSourceConfigSaveReqVO updateReqVO) {
         dataSourceConfigService.updateDataSourceConfig(updateReqVO);
         return success(true);
@@ -46,7 +46,7 @@ public class DataSourceConfigController {
     @DeleteMapping("/delete")
     @Operation(summary = "删除数据源配置")
     @Parameter(name = "id", description = "编号", required = true)
-    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteDataSourceConfig(@RequestParam("id") Long id) {
         dataSourceConfigService.deleteDataSourceConfig(id);
         return success(true);
@@ -55,7 +55,7 @@ public class DataSourceConfigController {
     @DeleteMapping("/delete-list")
     @Operation(summary = "批量删除数据源配置")
     @Parameter(name = "ids", description = "编号列表", required = true)
-    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteDataSourceConfigList(@RequestParam("ids") List<Long> ids) {
         dataSourceConfigService.deleteDataSourceConfigList(ids);
         return success(true);
@@ -64,7 +64,7 @@ public class DataSourceConfigController {
     @GetMapping("/get")
     @Operation(summary = "获得数据源配置")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:query')) and @ss.isPlatform()")
     public CommonResult<DataSourceConfigRespVO> getDataSourceConfig(@RequestParam("id") Long id) {
         DataSourceConfigDO config = dataSourceConfigService.getDataSourceConfig(id);
         return success(BeanUtils.toBean(config, DataSourceConfigRespVO.class));
@@ -72,7 +72,7 @@ public class DataSourceConfigController {
 
     @GetMapping("/list")
     @Operation(summary = "获得数据源配置列表")
-    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('infra:data-source-config:query')) and @ss.isPlatform()")
     public CommonResult<List<DataSourceConfigRespVO>> getDataSourceConfigList() {
         List<DataSourceConfigDO> list = dataSourceConfigService.getDataSourceConfigList();
         return success(BeanUtils.toBean(list, DataSourceConfigRespVO.class));

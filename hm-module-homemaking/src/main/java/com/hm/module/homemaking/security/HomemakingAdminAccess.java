@@ -15,15 +15,15 @@ public class HomemakingAdminAccess {
     public HomemakingAdminAccess(HmRepository repo, PermissionApi permissions) { this.repo = repo; this.permissions = permissions; }
     public boolean platform() {
         var u = SecurityFrameworkUtils.getLoginUser();
-        return u != null && Objects.equals(u.getUserType(), 2) && Objects.equals(u.getTenantId(), 1L)
-            && TenantUtils.execute(1L, () -> permissions.hasAnyRoles(u.getId(), "super_admin", "hm_platform"));
+        return u != null && Objects.equals(u.getUserType(), 2)
+            && permissions.isPlatformUser(u.getId(),u.getTenantId());
     }
     public RoleTemplates.Template template() {
         var u = SecurityFrameworkUtils.getLoginUser();
         denyUnless(u != null && Objects.equals(u.getUserType(), 2));
         if (platform()) return RoleTemplates.get("PLATFORM");
         denyUnless(Objects.equals(u.getTenantId(), repo.tenant()));
-        if (permissions.hasAnyRoles(u.getId(), "super_admin")) return RoleTemplates.get("OWNER");
+        if (permissions.hasAnyRoles(u.getId(), "super_admin", "tenant_admin")) return RoleTemplates.get("OWNER");
         var rows = repo.jdbc().queryForList("SELECT template_code FROM hm_staff_scope WHERE tenant_id=? AND user_id=?", repo.tenant(), u.getId());
         denyUnless(rows.size() == 1);
         String code = rows.get(0).get("template_code").toString();
@@ -34,7 +34,7 @@ public class HomemakingAdminAccess {
         try {
             var t = template();
             var user = SecurityFrameworkUtils.getLoginUser();
-            return t.permissions().contains(permission) && TenantUtils.execute(user.getTenantId(), () -> permissions.hasAnyPermissions(user.getId(), permission));
+            return t.permissions().contains(permission) && (t.code().equals("PLATFORM") || TenantUtils.execute(user.getTenantId(), () -> permissions.hasAnyPermissions(user.getId(), permission)));
         } catch (org.springframework.security.access.AccessDeniedException e) { return false; }
     }
     public boolean catalog(String kind, String action) {
@@ -49,6 +49,6 @@ public class HomemakingAdminAccess {
     }
     public Map<String, Object> current() {
         var t = template();
-        return Map.of("template", t.code(), "range", t.range(), "permissions", t.permissions().stream().filter(this::allowed).sorted().toList(), "storeIds", scope().stores());
+        return Map.of("template", t.code(), "range", t.range(), "permissions", t.permissions().stream().filter(this::allowed).sorted().toList(), "storeIds", scope().stores(), "platform", platform(), "businessTenantId", repo.tenant(), "accountTenantId", SecurityFrameworkUtils.getLoginUser().getTenantId());
     }
 }

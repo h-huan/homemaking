@@ -6,6 +6,10 @@ package com.hm.framework.security.core.service;
  * @author 芋道源码
  */
 public interface SecurityFrameworkService {
+    boolean isPlatform();
+    boolean canVisitTenant(Long tenantId);
+    void recordPlatformVisit(long target, String method, String path, String ip, int status);
+
 
     /**
      * 判断是否有权限

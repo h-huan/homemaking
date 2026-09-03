@@ -6,7 +6,7 @@
 
 使用 Java 17、MySQL **8.0.16 或更高版本**、Redis、Node 和项目锁定的 pnpm。迁移断言依赖 CHECK 约束，不支持将 MySQL 5.7 的执行结果当成验收。新库使用 utf8mb4，应用时区与数据库时区统一为 Asia/Shanghai。
 
-新建空数据库后，**只导入一次 `sql/mysql/hm-init.sql`**。文件已包含基础平台、支付公众号、总部与锁定管理员、家政领域、菜单，以及 V002–V006 的排班履约、官网、权限与支付模式结构；无需额外执行分段 SQL 或这些版本脚本。
+新建空数据库后，**只导入一次 `sql/mysql/hm-init.sql`**。文件已包含基础平台、支付公众号、普通直营租户与锁定平台管理员、家政领域、菜单，以及当前全部业务结构；无需额外执行分段 SQL 或这些版本脚本。
 
 已有 SaaS 数据库先备份并验证可恢复性，只执行尚未应用的增量版本，详见[增量升级说明](../../sql/mysql/upgrades/README.md)。不要向旧库覆盖导入 hm-init.sql。默认总部租户编号 1、经营方式 DIRECT、支付方式 OFFLINE。FRANCHISE 为加盟模式；新增租户需在套餐里配置家政菜单权限，并分别建立其门店、服务、人员能力/排班和品牌配置。
 
@@ -32,7 +32,7 @@
 
 品牌页面可设置官网、Logo、favicon、颜色、登录页标题/背景、首页模块、经营方式和应用标识。小程序首页消费 services/stores/workers/reviews/contact/banners 开关；轮播素材读取迁移后的首页内容。域名先申请验证 token，再在 `_hm-verification.域名` 配置 TXT 记录，验证后才用于识别租户。
 
-总部使用 `POST /admin-api/homemaking/wechat-apps` 注册应用：tenantId、appId、kind（MINI/MP）、platformId（微信开放平台真实归属）、secretEnv、enabled。secretEnv 只能使用 `HM_WECHAT_MINI..._SECRET` / `HM_WECHAT_MP..._SECRET` 形式，值在部署环境保存。然后在租户品牌中绑定 AppID。相同开放平台下的已验证 UnionID 才能跨应用关联同一 Customer；客户端提交的 OpenID 不能建立身份。公众号 OAuth 回调域名必须为已验证的租户域名。
+平台管理员使用 `POST /admin-api/homemaking/wechat-apps` 注册应用：tenantId、appId、kind（MINI/MP）、platformId（微信开放平台真实归属）、secretEnv、enabled。secretEnv 只能使用 `HM_WECHAT_MINI..._SECRET` / `HM_WECHAT_MP..._SECRET` 形式，值在部署环境保存。然后在租户品牌中绑定 AppID。相同开放平台下的已验证 UnionID 才能跨应用关联同一 Customer；客户端提交的 OpenID 不能建立身份。公众号 OAuth 回调域名必须为已验证的租户域名。
 
 公众号菜单/素材等使用 mp 模块账户；家政身份注册和通知模板也需配置对应应用。支付模块创建该租户的支付应用与 wx_lite 渠道，渠道 AppID 必须与小程序一致，品牌中填写支付应用 appKey。支付应用的业务订单通知地址指向 `https://实际域名/app-api/homemaking/public/payment-callback`；渠道通知使用环境配置的 `/admin-api/pay/notify/*` 地址。使用真实商户回调验签后，再验收支付/退款到账及金额核对。
 
@@ -42,7 +42,7 @@ pay 应用的 `refundNotifyUrl` 填写 `https://实际API域名/app-api/homemaki
 
 默认不发送真实通知；配置完成并验收后设置 `HM_HOMEMAKING_NOTIFICATION_DELIVERY_ENABLED=true`。通知统一经过平台全局/事件上限、租户全局/事件规则、客户事件偏好。默认每日 5 条、间隔 30 分钟、22:00–08:00 静默；营销默认关闭。紧急消息可越过静默时段，仍受频控及客户选择限制。
 
-租户页面设置通知规则；总部可通过 `PUT /admin-api/homemaking/notification-policy?event=*&platform=true` 管理平台上限。`PUT /admin-api/homemaking/notification-template` 配置 event、channel（MP/MINI/SMS）、templateId、fieldMapping、enabled。模板字段必须对应微信审核模板或已有短信模板，不能通用复制某个账号的模板 ID。小程序订阅需用户授权并登记 consent；短信兜底仅对重要/紧急消息、且平台/租户/客户三方均允许时生效。
+租户页面设置通知规则；平台管理员可通过 `PUT /admin-api/homemaking/notification-policy?event=*&platform=true` 管理平台上限。`PUT /admin-api/homemaking/notification-template` 配置 event、channel（MP/MINI/SMS）、templateId、fieldMapping、enabled。模板字段必须对应微信审核模板或已有短信模板，不能通用复制某个账号的模板 ID。小程序订阅需用户授权并登记 consent；短信兜底仅对重要/紧急消息、且平台/租户/客户三方均允许时生效。
 
 明确拒绝后才尝试下一允许渠道；超时或崩溃后结果不确定标为 UNKNOWN，需运营人员先查服务商记录，不能自动重发。SMS ACCEPTED 仅表示请求接受，不保证终端送达。通知记录页面提供状态和错误摘要。
 

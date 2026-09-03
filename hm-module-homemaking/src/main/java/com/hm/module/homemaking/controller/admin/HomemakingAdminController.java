@@ -121,7 +121,7 @@ public class HomemakingAdminController {
     }
     public record WechatApp(@Min(1) long tenantId,@Pattern(regexp="wx[A-Za-z0-9]{10,32}") String appId,@Pattern(regexp="MINI|MP") String kind,@NotBlank @Size(max=100) String platformId,@Pattern(regexp="HM_WECHAT_(MINI|MP)(_[A-Z0-9]+)*_SECRET") String secretEnv,boolean enabled){}
     @PreAuthorize("@hmAdmin.allowed('homemaking:platform:manage')")
-    @PostMapping("/wechat-apps") public CommonResult<?> app(@Valid @RequestBody WechatApp app){check(repo.tenant()==1,"仅总部可分配微信应用及开放平台归属");quotas.feature(app.tenantId(),app.kind().equals("MINI")?"mini":"mp");check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM system_tenant WHERE id=? AND deleted=FALSE",Long.class,app.tenantId())==1,"租户不存在");
+    @PostMapping("/wechat-apps") public CommonResult<?> app(@Valid @RequestBody WechatApp app){com.hm.module.homemaking.security.AdminScope.platformOnly();quotas.feature(app.tenantId(),app.kind().equals("MINI")?"mini":"mp");check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM system_tenant WHERE id=? AND deleted=FALSE",Long.class,app.tenantId())==1,"租户不存在");
         repo.jdbc().update("INSERT INTO hm_wechat_app(tenant_id,app_id,kind,platform_id,secret_env,enabled) VALUES(?,?,?,?,?,?)",app.tenantId(),app.appId(),app.kind(),app.platformId(),app.secretEnv(),app.enabled());return success(true);}
     @PreAuthorize("@hmAdmin.allowed('homemaking:quota:read') and (#tenantId == null or @hmAdmin.tenant(#tenantId))")
     @GetMapping("/quota") public CommonResult<?> quota(@RequestParam(required=false) Long tenantId){return success(tenantId==null?quotas.current():quotas.describe(tenantId));}

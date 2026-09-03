@@ -42,14 +42,14 @@ public class SmsTemplateController {
 
     @PostMapping("/create")
     @Operation(summary = "创建短信模板")
-    @PreAuthorize("(@ss.hasPermission('system:sms-template:create')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:sms-template:create')) and @ss.isPlatform()")
     public CommonResult<Long> createSmsTemplate(@Valid @RequestBody SmsTemplateSaveReqVO createReqVO) {
         return success(smsTemplateService.createSmsTemplate(createReqVO));
     }
 
     @PutMapping("/update")
     @Operation(summary = "更新短信模板")
-    @PreAuthorize("(@ss.hasPermission('system:sms-template:update')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:sms-template:update')) and @ss.isPlatform()")
     public CommonResult<Boolean> updateSmsTemplate(@Valid @RequestBody SmsTemplateSaveReqVO updateReqVO) {
         smsTemplateService.updateSmsTemplate(updateReqVO);
         return success(true);
@@ -58,7 +58,7 @@ public class SmsTemplateController {
     @DeleteMapping("/delete")
     @Operation(summary = "删除短信模板")
     @Parameter(name = "id", description = "编号", required = true)
-    @PreAuthorize("(@ss.hasPermission('system:sms-template:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:sms-template:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteSmsTemplate(@RequestParam("id") Long id) {
         smsTemplateService.deleteSmsTemplate(id);
         return success(true);
@@ -67,7 +67,7 @@ public class SmsTemplateController {
     @DeleteMapping("/delete-list")
     @Parameter(name = "ids", description = "编号列表", required = true)
     @Operation(summary = "批量删除短信模板")
-    @PreAuthorize("(@ss.hasPermission('system:sms-template:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:sms-template:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteSmsTemplateList(@RequestParam("ids") List<Long> ids) {
         smsTemplateService.deleteSmsTemplateList(ids);
         return success(true);
@@ -76,7 +76,7 @@ public class SmsTemplateController {
     @GetMapping("/get")
     @Operation(summary = "获得短信模板")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("(@ss.hasPermission('system:sms-template:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:sms-template:query')) and @ss.isPlatform()")
     public CommonResult<SmsTemplateRespVO> getSmsTemplate(@RequestParam("id") Long id) {
         SmsTemplateDO template = smsTemplateService.getSmsTemplate(id);
         return success(BeanUtils.toBean(template, SmsTemplateRespVO.class));
@@ -84,7 +84,7 @@ public class SmsTemplateController {
 
     @GetMapping("/page")
     @Operation(summary = "获得短信模板分页")
-    @PreAuthorize("(@ss.hasPermission('system:sms-template:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:sms-template:query')) and @ss.isPlatform()")
     public CommonResult<PageResult<SmsTemplateRespVO>> getSmsTemplatePage(@Valid SmsTemplatePageReqVO pageVO) {
         PageResult<SmsTemplateDO> pageResult = smsTemplateService.getSmsTemplatePage(pageVO);
         return success(BeanUtils.toBean(pageResult, SmsTemplateRespVO.class));
@@ -100,7 +100,7 @@ public class SmsTemplateController {
 
     @GetMapping("/export-excel")
     @Operation(summary = "导出短信模板 Excel")
-    @PreAuthorize("(@ss.hasPermission('system:sms-template:export')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:sms-template:export')) and @ss.isPlatform()")
     @ApiAccessLog(operateType = EXPORT)
     public void exportSmsTemplateExcel(@Valid SmsTemplatePageReqVO exportReqVO,
                                        HttpServletResponse response) throws IOException {
@@ -113,7 +113,7 @@ public class SmsTemplateController {
 
     @PostMapping("/send-sms")
     @Operation(summary = "发送短信")
-    @PreAuthorize("(@ss.hasPermission('system:sms-template:send-sms')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:sms-template:send-sms')) and @ss.isPlatform()")
     public CommonResult<Long> sendSms(@Valid @RequestBody SmsTemplateSendReqVO sendReqVO) {
         return success(smsSendService.sendSingleSmsToAdmin(sendReqVO.getMobile(), null,
                 sendReqVO.getTemplateCode(), sendReqVO.getTemplateParams()));

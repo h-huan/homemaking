@@ -154,7 +154,8 @@ public class SecurityFrameworkUtils {
             return false;
         }
         // 重点：跨租户访问时，无法进行权限校验
-        return ObjUtil.notEqual(loginUser.getVisitTenantId(), loginUser.getTenantId());
+        return ObjUtil.notEqual(loginUser.getVisitTenantId(), loginUser.getTenantId())
+            && cn.hutool.extra.spring.SpringUtil.getBean(com.hm.framework.security.core.service.SecurityFrameworkService.class).isPlatform();
     }
 
 }

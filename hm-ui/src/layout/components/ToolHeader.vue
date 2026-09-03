@@ -15,7 +15,7 @@ import { useSetting } from '@/layout/components/Setting'
 import { useAppStore } from '@/store/modules/app'
 import { useDesign } from '@/hooks/web/useDesign'
 import { Icon } from '@/components/Icon'
-import { checkPermi } from '@/utils/permission'
+
 import { isHorizontalMenuLayout, isMixedNavLayout, isTwoColumnLayout } from '@/utils/layout'
 
 const { getPrefixCls, variables } = useDesign()
@@ -52,9 +52,7 @@ const message = computed(() => appStore.getMessage)
 const im = computed(() => appStore.getIm)
 
 // 租户切换权限
-const hasTenantVisitPermission = computed(
-  () => import.meta.env.VITE_APP_TENANT_ENABLE === 'true' && checkPermi(['system:tenant:visit'])
-)
+const hasTenantVisitPermission = computed(() => import.meta.env.VITE_APP_TENANT_ENABLE === 'true')
 
 // 顶部聊天入口：用路由 name resolve 出完整 URL，在新标签页打开 IM 主页
 // 场景考虑：IM 是全屏沉浸式壳，如果在当前页 push 会把原来在用的后台管理界面挤掉；开新 Tab 更符合用户预期

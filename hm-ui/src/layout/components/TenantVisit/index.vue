@@ -1,46 +1,47 @@
 <template>
-  <div>
+  <div class="flex items-center gap-8px">
+    <el-tag :type="me.platform ? 'warning' : 'info'">{{
+      me.platform ? '平台管理' : '业务租户'
+    }}</el-tag>
     <el-select
+      v-if="me.platform"
+      :model-value="value"
       filterable
-      placeholder="请选择租户"
+      aria-label="当前业务租户"
+      placeholder="当前业务租户"
       class="!w-180px"
-      v-model="value"
       @change="handleChange"
-      clearable
     >
       <el-option v-for="item in tenants" :key="item.id" :label="item.name" :value="item.id" />
     </el-select>
+    <span v-else class="max-w-180px truncate" :title="me.businessTenantName">{{
+      me.businessTenantName
+    }}</span>
   </div>
 </template>
-
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
 import * as TenantApi from '@/api/system/tenant'
-import { getVisitTenantId, setVisitTenantId } from '@/utils/auth'
-import { useMessage } from '@/hooks/web/useMessage'
-import { useTagsView } from '@/hooks/web/useTagsView'
-
-const message = useMessage() // 消息弹窗
-const tagsView = useTagsView() // 标签页操作
-
-const value = ref(getVisitTenantId()) // 当前选中的租户 ID
-const tenants = ref<any[]>([]) // 租户列表
-
-const handleChange = (id: number) => {
-  // 设置访问租户 ID
-  setVisitTenantId(id)
-  // 关闭其他标签页，只保留当前页
-  tagsView.closeOther()
-  // 刷新当前页面
-  tagsView.refreshPage()
-  // 提示切换成功
-  const tenant = tenants.value.find((item) => item.id === id)
-  if (tenant) {
-    message.success(`切换当前租户为: ${tenant.name}`)
-  }
+import request from '@/config/axios'
+import { setVisitTenantId } from '@/utils/auth'
+import { ElMessageBox } from 'element-plus'
+const value = ref<number>(),
+  tenants = ref<any[]>([]),
+  me = ref<any>({ platform: false, businessTenantName: '' })
+async function handleChange(id: number) {
+  if (id === value.value) return
+  const tenant = tenants.value.find((t) => t.id === id)
+  await ElMessageBox.confirm(
+    `切换后，业务查询与操作将使用「${tenant?.name}」的数据范围。未保存的内容将丢失。`,
+    '切换业务租户'
+  )
+  setVisitTenantId(id === me.value.accountTenantId ? 0 : id)
+  // Recreate page state so prior-tenant forms cannot be submitted after switching.
+  window.location.reload()
 }
-
 onMounted(async () => {
-  tenants.value = await TenantApi.getTenantList()
+  me.value = await request.get({ url: '/system/platform-access/me' })
+  value.value = me.value.businessTenantId
+  if (me.value.platform) tenants.value = await TenantApi.getTenantList()
 })
 </script>

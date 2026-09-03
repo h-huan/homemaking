@@ -33,14 +33,14 @@ public class MailTemplateController {
 
     @PostMapping("/create")
     @Operation(summary = "创建邮件模版")
-    @PreAuthorize("(@ss.hasPermission('system:mail-template:create')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-template:create')) and @ss.isPlatform()")
     public CommonResult<Long> createMailTemplate(@Valid @RequestBody MailTemplateSaveReqVO createReqVO){
         return success(mailTempleService.createMailTemplate(createReqVO));
     }
 
     @PutMapping("/update")
     @Operation(summary = "修改邮件模版")
-    @PreAuthorize("(@ss.hasPermission('system:mail-template:update')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-template:update')) and @ss.isPlatform()")
     public CommonResult<Boolean> updateMailTemplate(@Valid @RequestBody MailTemplateSaveReqVO updateReqVO){
         mailTempleService.updateMailTemplate(updateReqVO);
         return success(true);
@@ -49,7 +49,7 @@ public class MailTemplateController {
     @DeleteMapping("/delete")
     @Operation(summary = "删除邮件模版")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("(@ss.hasPermission('system:mail-template:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-template:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteMailTemplate(@RequestParam("id") Long id) {
         mailTempleService.deleteMailTemplate(id);
         return success(true);
@@ -58,7 +58,7 @@ public class MailTemplateController {
     @DeleteMapping("/delete-list")
     @Operation(summary = "批量删除邮件模版")
     @Parameter(name = "ids", description = "编号列表", required = true)
-    @PreAuthorize("(@ss.hasPermission('system:mail-template:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-template:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteMailTemplateList(@RequestParam("ids") List<Long> ids) {
         mailTempleService.deleteMailTemplateList(ids);
         return success(true);
@@ -67,7 +67,7 @@ public class MailTemplateController {
     @GetMapping("/get")
     @Operation(summary = "获得邮件模版")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("(@ss.hasPermission('system:mail-template:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-template:query')) and @ss.isPlatform()")
     public CommonResult<MailTemplateRespVO> getMailTemplate(@RequestParam("id") Long id) {
         MailTemplateDO template = mailTempleService.getMailTemplate(id);
         return success(BeanUtils.toBean(template, MailTemplateRespVO.class));
@@ -75,7 +75,7 @@ public class MailTemplateController {
 
     @GetMapping("/page")
     @Operation(summary = "获得邮件模版分页")
-    @PreAuthorize("(@ss.hasPermission('system:mail-template:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-template:query')) and @ss.isPlatform()")
     public CommonResult<PageResult<MailTemplateRespVO>> getMailTemplatePage(@Valid MailTemplatePageReqVO pageReqVO) {
         PageResult<MailTemplateDO> pageResult = mailTempleService.getMailTemplatePage(pageReqVO);
         return success(BeanUtils.toBean(pageResult, MailTemplateRespVO.class));
@@ -91,7 +91,7 @@ public class MailTemplateController {
 
     @PostMapping("/send-mail")
     @Operation(summary = "发送短信")
-    @PreAuthorize("(@ss.hasPermission('system:mail-template:send-mail')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-template:send-mail')) and @ss.isPlatform()")
     public CommonResult<Long> sendMail(@Valid @RequestBody MailTemplateSendReqVO sendReqVO) {
         return success(mailSendService.sendSingleMailToAdmin(getLoginUserId(),
                 sendReqVO.getToMails(), sendReqVO.getCcMails(), sendReqVO.getBccMails(),

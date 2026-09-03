@@ -40,14 +40,14 @@ public class NotifyTemplateController {
 
     @PostMapping("/create")
     @Operation(summary = "创建站内信模版")
-    @PreAuthorize("(@ss.hasPermission('system:notify-template:create')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:notify-template:create')) and @ss.isPlatform()")
     public CommonResult<Long> createNotifyTemplate(@Valid @RequestBody NotifyTemplateSaveReqVO createReqVO) {
         return success(notifyTemplateService.createNotifyTemplate(createReqVO));
     }
 
     @PutMapping("/update")
     @Operation(summary = "更新站内信模版")
-    @PreAuthorize("(@ss.hasPermission('system:notify-template:update')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:notify-template:update')) and @ss.isPlatform()")
     public CommonResult<Boolean> updateNotifyTemplate(@Valid @RequestBody NotifyTemplateSaveReqVO updateReqVO) {
         notifyTemplateService.updateNotifyTemplate(updateReqVO);
         return success(true);
@@ -56,7 +56,7 @@ public class NotifyTemplateController {
     @DeleteMapping("/delete")
     @Operation(summary = "删除站内信模版")
     @Parameter(name = "id", description = "编号", required = true)
-    @PreAuthorize("(@ss.hasPermission('system:notify-template:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:notify-template:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteNotifyTemplate(@RequestParam("id") Long id) {
         notifyTemplateService.deleteNotifyTemplate(id);
         return success(true);
@@ -65,7 +65,7 @@ public class NotifyTemplateController {
     @DeleteMapping("/delete-list")
     @Operation(summary = "批量删除站内信模版")
     @Parameter(name = "ids", description = "编号列表", required = true)
-    @PreAuthorize("(@ss.hasPermission('system:notify-template:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:notify-template:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteNotifyTemplateList(@RequestParam("ids") List<Long> ids) {
         notifyTemplateService.deleteNotifyTemplateList(ids);
         return success(true);
@@ -74,7 +74,7 @@ public class NotifyTemplateController {
     @GetMapping("/get")
     @Operation(summary = "获得站内信模版")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("(@ss.hasPermission('system:notify-template:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:notify-template:query')) and @ss.isPlatform()")
     public CommonResult<NotifyTemplateRespVO> getNotifyTemplate(@RequestParam("id") Long id) {
         NotifyTemplateDO template = notifyTemplateService.getNotifyTemplate(id);
         return success(BeanUtils.toBean(template, NotifyTemplateRespVO.class));
@@ -82,7 +82,7 @@ public class NotifyTemplateController {
 
     @GetMapping("/page")
     @Operation(summary = "获得站内信模版分页")
-    @PreAuthorize("(@ss.hasPermission('system:notify-template:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:notify-template:query')) and @ss.isPlatform()")
     public CommonResult<PageResult<NotifyTemplateRespVO>> getNotifyTemplatePage(@Valid NotifyTemplatePageReqVO pageVO) {
         PageResult<NotifyTemplateDO> pageResult = notifyTemplateService.getNotifyTemplatePage(pageVO);
         return success(BeanUtils.toBean(pageResult, NotifyTemplateRespVO.class));
@@ -98,7 +98,7 @@ public class NotifyTemplateController {
 
     @PostMapping("/send-notify")
     @Operation(summary = "发送站内信")
-    @PreAuthorize("(@ss.hasPermission('system:notify-template:send-notify')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:notify-template:send-notify')) and @ss.isPlatform()")
     public CommonResult<Long> sendNotify(@Valid @RequestBody NotifyTemplateSendReqVO sendReqVO) {
         if (UserTypeEnum.MEMBER.getValue().equals(sendReqVO.getUserType())) {
             return success(notifySendService.sendSingleNotifyToMember(sendReqVO.getUserId(),

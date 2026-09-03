@@ -32,14 +32,14 @@ public class MailAccountController {
 
     @PostMapping("/create")
     @Operation(summary = "创建邮箱账号")
-    @PreAuthorize("(@ss.hasPermission('system:mail-account:create')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-account:create')) and @ss.isPlatform()")
     public CommonResult<Long> createMailAccount(@Valid @RequestBody MailAccountSaveReqVO createReqVO) {
         return success(mailAccountService.createMailAccount(createReqVO));
     }
 
     @PutMapping("/update")
     @Operation(summary = "修改邮箱账号")
-    @PreAuthorize("(@ss.hasPermission('system:mail-account:update')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-account:update')) and @ss.isPlatform()")
     public CommonResult<Boolean> updateMailAccount(@Valid @RequestBody MailAccountSaveReqVO updateReqVO) {
         mailAccountService.updateMailAccount(updateReqVO);
         return success(true);
@@ -48,7 +48,7 @@ public class MailAccountController {
     @DeleteMapping("/delete")
     @Operation(summary = "删除邮箱账号")
     @Parameter(name = "id", description = "编号", required = true)
-    @PreAuthorize("(@ss.hasPermission('system:mail-account:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-account:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteMailAccount(@RequestParam Long id) {
         mailAccountService.deleteMailAccount(id);
         return success(true);
@@ -57,7 +57,7 @@ public class MailAccountController {
     @DeleteMapping("/delete-list")
     @Operation(summary = "批量删除邮箱账号")
     @Parameter(name = "ids", description = "编号列表", required = true)
-    @PreAuthorize("(@ss.hasPermission('system:mail-account:delete')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-account:delete')) and @ss.isPlatform()")
     public CommonResult<Boolean> deleteMailAccountList(@RequestParam("ids") List<Long> ids) {
         mailAccountService.deleteMailAccountList(ids);
         return success(true);
@@ -66,7 +66,7 @@ public class MailAccountController {
     @GetMapping("/get")
     @Operation(summary = "获得邮箱账号")
     @Parameter(name = "id", description = "编号", required = true, example = "1024")
-    @PreAuthorize("(@ss.hasPermission('system:mail-account:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-account:query')) and @ss.isPlatform()")
     public CommonResult<MailAccountRespVO> getMailAccount(@RequestParam("id") Long id) {
         MailAccountDO account = mailAccountService.getMailAccount(id);
         return success(BeanUtils.toBean(account, MailAccountRespVO.class));
@@ -74,7 +74,7 @@ public class MailAccountController {
 
     @GetMapping("/page")
     @Operation(summary = "获得邮箱账号分页")
-    @PreAuthorize("(@ss.hasPermission('system:mail-account:query')) and T(com.hm.framework.tenant.core.context.TenantContextHolder).getTenantId() == 1")
+    @PreAuthorize("(@ss.hasPermission('system:mail-account:query')) and @ss.isPlatform()")
     public CommonResult<PageResult<MailAccountRespVO>> getMailAccountPage(@Valid MailAccountPageReqVO pageReqVO) {
         PageResult<MailAccountDO> pageResult = mailAccountService.getMailAccountPage(pageReqVO);
         return success(BeanUtils.toBean(pageResult, MailAccountRespVO.class));
