@@ -35,6 +35,8 @@ import static org.mockito.Mockito.*;
 class PaymentFlowTest {
     @Autowired JdbcTemplate jdbc;@Autowired DataSource dataSource;@Autowired OrderService orders;@Autowired PaymentService payments;
     @Autowired PaymentLedgerService ledger;@Autowired PaymentPolicyService policy;@Autowired HmRepository repo;
+    @Autowired OrderChangeService changes;
+    @Autowired WorkerService workerService;
     @Autowired PayAppService apps;@Autowired PayChannelService channels;@Autowired PayOrderApi payApi;@Autowired PayOrderService payOrders;@Autowired PayRefundApi refunds;
     long id;
     @BeforeEach void seed(){
@@ -125,4 +127,87 @@ class PaymentFlowTest {
     }
     @Test void onlineDeadlineStillCancelsAndReleasesSlots(){online();jdbc.update("UPDATE hm_order SET payment_expires_at=? WHERE id=?",now().minusMinutes(1),id);orders.expire(id);assertEquals("CANCELLED",order().get("status"));assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM hm_worker_slot",Integer.class));}
     @Test void financeTotalsAndRowsAreStoreScoped(){ledger.receive(id,receipt("private-receipt",10000));AdminScope.set(new AdminScope(1,false,"STORES",Set.of(2L),null));assertEquals(0,HmRepository.number(summary(),"total"));assertEquals(0,HmRepository.cents(summary(),"net_cents"));assertTrue(((List<?>)ledger.report(LocalDate.now(),LocalDate.now(),1,20).get("list")).isEmpty());}
+
+    @Nested class OrderChanges {
+        OrderChangeService.Request price(int amount,String key){return new OrderChangeService.Request(HmRepository.number(order(),"version"),null,amount,"Customer agreed revised price",key);}
+        OrderChangeService.Request address(String district){var r=new OrderChangeService.Request(HmRepository.number(order(),"version"),new OrderChangeService.Contact("New contact","13800000002","New address",district),null,"Customer changed address",UUID.randomUUID().toString());var preview=changes.preview(id,r,true,false);return new OrderChangeService.Request(r.version(),r.contact(),null,r.reason(),r.requestKey(),HmRepository.cents((Map<String,Object>)preview.get("after"),"price_cents"));}
+        Map<String,Object> change(long change){return repo.require("hm_order_change",change,false);}
+        long refundFor(long change){return jdbc.queryForObject("SELECT id FROM hm_aftersale WHERE order_change_id=?",Long.class,change);}
+        @Test void unpaidPriceChangeIsVersionedAndKeepsItemTotalConsistent(){
+            var request=price(12000,"unpaid-change");long change=changes.create(id,request,true,true);
+            assertEquals(change,changes.create(id,request,true,true));assertEquals(12000,HmRepository.cents(order(),"price_cents"));assertEquals(0,HmRepository.cents(order(),"paid_cents"));
+            assertEquals(12000,jdbc.queryForObject("SELECT SUM(total_cents) FROM hm_order_item WHERE order_id=?",Integer.class,id));
+            assertEquals("APPLIED",change(change).get("status"));assertThrows(Exception.class,()->changes.create(id,new OrderChangeService.Request(request.version(),null,13000,request.reason(),request.requestKey()),true,true));
+        }
+        @Test void addressChangeKeepsBeforeAndAfterSnapshots(){
+            long change=changes.create(id,address(""),true,false);var history=changes.history(id).get(0);
+            assertEquals("Address",((Map<?,?>)history.get("before")).get("address"));assertEquals("New address",((Map<?,?>)history.get("after")).get("address"));assertEquals("APPLIED",change(change).get("status"));
+        }
+        @Test void manualPriceRequiresPricePermissionEvenWithAddressPermission(){assertThrows(org.springframework.security.access.AccessDeniedException.class,()->changes.create(id,price(1,"forged-price"),true,false));assertEquals(10000,HmRepository.cents(order(),"price_cents"));}
+        @Test void paidIncreaseRetainsOriginalUntilExactSupplementAndBlocksOtherOperations(){
+            ledger.receive(id,receipt("original-cash",10000));long change=changes.create(id,price(13000,"price-increase"),true,true);
+            assertEquals(10000,HmRepository.cents(order(),"price_cents"));assertEquals("PENDING_PAYMENT",change(change).get("status"));
+            assertThrows(Exception.class,()->orders.assign(id,1));assertThrows(Exception.class,()->orders.cancel(id,true));assertThrows(Exception.class,()->orders.start(id));
+            customer();assertThrows(Exception.class,()->orders.aftersale(new OrderService.Aftersale(id,1000,"Refund")));admin();
+            assertThrows(Exception.class,()->ledger.receive(id,receipt("wrong-difference",13000)));
+            var payment=receipt("exact-difference",3000);long entry=ledger.receive(id,payment);assertEquals(entry,ledger.receive(id,payment));
+            assertEquals(13000,HmRepository.cents(order(),"price_cents"));assertEquals(13000,HmRepository.cents(order(),"paid_cents"));assertNull(order().get("pending_change_id"));assertEquals("APPLIED",change(change).get("status"));assertDoesNotThrow(()->orders.assign(id,1));
+        }
+        @Test void reductionAndLaterIncreaseEnterNormalRefundAndSettlementTotals(){
+            ledger.receive(id,receipt("start-paid",10000));long reduction=changes.create(id,price(8000,"reduce-price"),true,true);
+            assertEquals(10000,HmRepository.cents(order(),"price_cents"));assertThrows(Exception.class,()->payments.rejectRefund(refundFor(reduction),"Cannot reject financial obligation"));
+            ledger.refund(refundFor(reduction),receipt("refund-difference",2000));assertEquals(8000,HmRepository.cents(order(),"price_cents"));assertEquals("PAID",order().get("status"));
+            changes.create(id,price(12000,"raise-price-again"),true,true);ledger.receive(id,receipt("receive-next-diff",4000));complete();
+            assertEquals(12000,jdbc.queryForObject("SELECT net_cents FROM hm_settlement WHERE order_id=?",Integer.class,id));assertEquals(12000,HmRepository.cents(summary(),"net_cents"));
+            long full=aftersale(12000);ledger.refund(full,receipt("refund-final-order",12000));assertEquals("REFUNDED",order().get("status"));assertEquals(0,HmRepository.cents(summary(),"net_cents"));
+        }
+        @Test void cancellingPendingReductionPreservesOriginalAndClosesRefundRequest(){
+            ledger.receive(id,receipt("paid-cancel",10000));long change=changes.create(id,price(9000,"reduce-to-cancel"),true,true);long refund=refundFor(change);
+            changes.cancel(id,change,"Customer retained original contract",true,true);changes.cancel(id,change,"Retry",true,true);
+            assertNull(order().get("pending_change_id"));assertEquals(10000,HmRepository.cents(order(),"price_cents"));assertEquals("CANCELLED",change(change).get("status"));assertEquals("REJECTED",repo.require("hm_aftersale",refund,false).get("status"));
+            assertThrows(Exception.class,()->ledger.refund(refund,receipt("cancelled-diff-refund",1000)));assertEquals(10000,HmRepository.cents(summary(),"net_cents"));
+        }
+        @Test void completedOrNormallyRefundedOrdersCannotBeRepriced(){
+            ledger.receive(id,receipt("before-normal-refund",10000));long a=aftersale(1000);ledger.refund(a,receipt("normal-refund",1000));assertThrows(Exception.class,()->changes.create(id,price(11000,"after-refund-change"),true,true));complete();assertThrows(Exception.class,()->changes.create(id,address(""),true,false));
+        }
+        @Test void issuedOnlinePaymentPriceCannotBeOverwritten(){online();admin();assertThrows(Exception.class,()->changes.create(id,price(9000,"inflight-change"),true,true));payments.sync(id);assertThrows(Exception.class,()->changes.create(id,price(11000,"paid-online-change"),true,true));assertEquals(10000,HmRepository.cents(order(),"price_cents"));assertEquals(10000,HmRepository.cents(order(),"paid_cents"));}
+        @Test void priceNeutralOnlineAddressChangeDoesNotBreakCallback(){online();admin();changes.create(id,address(""),true,false);payments.sync(id);assertEquals("PAID",order().get("status"));assertEquals("New address",order().get("address"));}
+        @Test void areaFeeIsRecalculatedFromFrozenOriginalAndInvalidCoverageRollsBack(){
+            jdbc.update("INSERT INTO hm_service_area(id,tenant_id,name,district_code,extra_cents) VALUES(1,1,'New district','B',2000)");jdbc.update("INSERT INTO hm_service_area_relation VALUES(1,1,1)");
+            var preview=changes.preview(id,address("B"),true,false);assertEquals(2000,preview.get("differenceCents"));changes.create(id,address("B"),true,false);assertEquals(12000,HmRepository.cents(order(),"price_cents"));
+            assertThrows(Exception.class,()->changes.create(id,address("UNKNOWN"),true,false));assertEquals("B",order().get("district_code"));
+        }
+        @Test void changedWorkerCoverageCannotCollectMoneyWithoutApplyingTheContract(){
+            ledger.receive(id,receipt("coverage-start",10000));var request=new OrderChangeService.Request(HmRepository.number(order(),"version"),new OrderChangeService.Contact("C","13800000002","District B","B"),12000,"New address and price","coverage-change");
+            changes.create(id,request,true,true);jdbc.update("DELETE FROM hm_worker_area");jdbc.update("INSERT INTO hm_worker_area VALUES(1,1,'A')");
+            assertThrows(Exception.class,()->ledger.receive(id,receipt("invalid-area-money",2000)));assertEquals(10000,HmRepository.cents(order(),"paid_cents"));assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM hm_payment_entry",Integer.class));
+        }
+        @Test void historicalAreaWithoutSnapshotRequiresExplicitRequoteForNewDistrict(){jdbc.update("UPDATE hm_order SET area_fee_cents=NULL WHERE id=?",id);assertThrows(Exception.class,()->changes.create(id,address("B"),true,false));assertDoesNotThrow(()->changes.create(id,address(""),true,false));}
+        @Test void staleVersionsAndSecondPendingChangeAreRejected(){var old=price(12000,"old-version");changes.create(id,address(""),true,false);assertThrows(Exception.class,()->changes.create(id,old,true,true));ledger.receive(id,receipt("pending-start",10000));changes.create(id,price(12000,"first-pending"),true,true);assertThrows(Exception.class,()->changes.create(id,price(14000,"second-pending"),true,true));}
+        @Test void otherStoreAndTenantCannotReadOrChangeTheOrder(){var request=address("");AdminScope.set(new AdminScope(1,false,"STORES",Set.of(2L),null));assertThrows(Exception.class,()->changes.create(id,request,true,false));assertThrows(Exception.class,()->orders.detail(id,true));AdminScope.set(null);TenantContextHolder.setTenantId(2L);assertThrows(Exception.class,()->orders.detail(id,false));}
+        @Test void customerAddressMustBelongToTheSameCustomerAndTenant(){
+            jdbc.update("INSERT INTO hm_customer(id,nickname) VALUES(2,'Other')");jdbc.update("INSERT INTO hm_customer_address(id,tenant_id,customer_id,contact_name,phone,address) VALUES(2,1,2,'Other','13800000002','Private'),(3,2,1,'Customer','13800000001','Other tenant')");customer();
+            for(long address:List.of(2L,3L))assertThrows(Exception.class,()->changes.customerRequest(id,new OrderChangeService.CustomerRequest(0,address,"Change","customer-private")));
+        }
+        @Test void rescheduleRetainsTheOriginalAppointmentSnapshot(){
+            var start=LocalDate.now().plusDays(2).atTime(13,0);orders.reschedule(id,new OrderService.Reschedule(start,1L,"Later appointment"),true);
+            var history=changes.history(id).get(0);assertEquals("RESCHEDULE",history.get("kind"));assertEquals(start.toString(),((Map<?,?>)history.get("after")).get("starts_at"));assertNotEquals(((Map<?,?>)history.get("before")).get("starts_at"),((Map<?,?>)history.get("after")).get("starts_at"));
+        }
+        @Test void changedAreaQuoteMustBeConfirmedAgainInsteadOfChargingANewPrice(){
+            jdbc.update("INSERT INTO hm_service_area(id,tenant_id,name,district_code,extra_cents) VALUES(1,1,'B','B',2000)");jdbc.update("INSERT INTO hm_service_area_relation VALUES(1,1,1)");var request=address("B");
+            jdbc.update("UPDATE hm_service_area SET extra_cents=3000 WHERE id=1");assertThrows(Exception.class,()->changes.create(id,request,true,false));assertEquals(10000,HmRepository.cents(order(),"price_cents"));assertTrue(changes.history(id).isEmpty());
+        }
+        @Test void serviceWorkerCannotAcceptAnUnsettledAmendment(){
+            jdbc.update("INSERT INTO hm_worker_account VALUES(1,1,42)");ledger.receive(id,receipt("worker-original",10000));changes.create(id,price(11000,"worker-pending"),true,true);
+            assertThrows(Exception.class,()->workerService.action(id,new WorkerService.Action("ACCEPT","")));ledger.receive(id,receipt("worker-difference",1000));assertDoesNotThrow(()->workerService.action(id,new WorkerService.Action("ACCEPT","")));
+        }
+        @Test void simultaneousReceiptAndCancellationCannotLeaveAnUnbalancedContract()throws Exception{
+            ledger.receive(id,receipt("race-original",10000));long change=changes.create(id,price(12000,"race-amendment"),true,true);var latch=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);
+            try{
+                var collect=pool.submit(()->{admin();latch.await();try{ledger.receive(id,receipt("race-difference",2000));return true;}catch(Exception e){return false;}finally{clear();}});
+                var cancel=pool.submit(()->{admin();latch.await();try{changes.cancel(id,change,"Cancel before settlement",true,true);return true;}catch(Exception e){return false;}finally{clear();}});
+                latch.countDown();boolean received=collect.get(10,TimeUnit.SECONDS),cancelled=cancel.get(10,TimeUnit.SECONDS);assertNotEquals(received,cancelled);assertEquals(received?12000:10000,HmRepository.cents(order(),"price_cents"));assertEquals(HmRepository.cents(order(),"price_cents"),HmRepository.cents(summary(),"net_cents"));assertNull(order().get("pending_change_id"));
+            }finally{pool.shutdownNow();}
+        }
+    }
 }

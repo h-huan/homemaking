@@ -87,6 +87,12 @@ export const saveShiftTemplate = (data: BusinessRow) =>
   request.post({ url: '/homemaking/shift-templates', data })
 export const applyShiftTemplate = (workerId: number, data: BusinessRow) =>
   request.post({ url: `/homemaking/workers/${workerId}/apply-shift`, data })
+export const previewOrderChange = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/orders/${id}/changes/preview`, data })
+export const createOrderChange = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/orders/${id}/changes`, data })
+export const cancelOrderChange = (id: number, changeId: number, reason: string) =>
+  request.post({ url: `/homemaking/orders/${id}/changes/${changeId}/cancel`, data: { reason } })
 export const getOrderDetail = (id: number) => request.get({ url: `/homemaking/orders/${id}` })
 export const getOrderEvidence = (id: number) =>
   request.get({ url: `/homemaking/orders/${id}/evidence` })

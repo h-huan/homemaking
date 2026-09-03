@@ -16,6 +16,7 @@ public class WorkerService {
     public record Action(@NotNull @Pattern(regexp="ACCEPT|REJECT|ARRIVE|START|COMPLETE|EXCEPTION") String action,@Size(max=500) String note) {}
     private final HmRepository repo;private final OrderService orders;private final EvidenceStorage storage;private final CustomerAccess customers;
     @org.springframework.beans.factory.annotation.Autowired private QuotaService quotas;
+    @org.springframework.beans.factory.annotation.Autowired private OrderChangeService changes;
     public WorkerService(HmRepository repo,OrderService orders,EvidenceStorage storage,CustomerAccess customers){this.repo=repo;this.orders=orders;this.storage=storage;this.customers=customers;}
     @Transactional public void bind(long worker,Binding b){
         repo.require("hm_worker",worker,true);
@@ -37,7 +38,7 @@ public class WorkerService {
     }
     @Transactional public void action(long id,Action request){
         long worker=current();var order=repo.require("hm_order",id,true);check(order.get("worker_id")!=null&&number(order,"worker_id")==worker,"订单不属于当前服务人员");
-        String status=Objects.toString(order.get("fulfillment_status"),"WAITING");
+        changes.requireSettled(order);String status=Objects.toString(order.get("fulfillment_status"),"WAITING");
         var booking=repo.require("hm_booking",number(order,"booking_id"),false);LocalDateTime start=OrderService.time(booking.get("starts_at")),end=OrderService.time(booking.get("ends_at")),now=LocalDateTime.now();
         switch(request.action()){
             case "ACCEPT"->{check(status.equals("WAITING")&&Set.of("PAID","ASSIGNED").contains(order.get("status")),"当前订单不可接单");update(id,"ACCEPTED");repo.jdbc().update("UPDATE hm_order SET status='ASSIGNED' WHERE tenant_id=? AND id=?",repo.tenant(),id);}
@@ -53,7 +54,7 @@ public class WorkerService {
     @Transactional public long uploadEvidence(long id,String phase,String note,byte[] content){
         long worker=current();var order=repo.require("hm_order",id,true);check(order.get("worker_id")!=null&&number(order,"worker_id")==worker,"订单不属于当前服务人员");
         check(Set.of("BEFORE","AFTER").contains(phase)&&CatalogService.s(note).length()<=500,"照片阶段或说明无效");
-        String status=Objects.toString(order.get("fulfillment_status"),"WAITING");
+        changes.requireSettled(order);String status=Objects.toString(order.get("fulfillment_status"),"WAITING");
         check(Set.of("ASSIGNED","IN_SERVICE").contains(order.get("status")),"当前订单不可上传履约照片");
         check(phase.equals("BEFORE")?Set.of("ARRIVED","STARTED").contains(status):status.equals("STARTED"),"当前履约阶段不能上传该照片");
         check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_fulfillment_evidence WHERE tenant_id=? AND order_id=?",Long.class,repo.tenant(),id)<20,"每个订单最多保存 20 张履约照片");

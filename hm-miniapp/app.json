@@ -16,6 +16,7 @@
     "pages/order/list/index",
     "pages/order/detail/index",
     "pages/order/reschedule/index",
+    "pages/order/address-change/index",
     "pages/order/feedback/index",
     "pages/state/empty-orders/index",
     "pages/state/no-slots/index",

@@ -33,7 +33,7 @@ class AdminPermissionTest {
     static boolean grantMenus;
     @Configuration @EnableMethodSecurity @EnableAspectJAutoProxy
     @Import({BusinessIsolationTest.Config.class, HomemakingAdminAccess.class, AdminScopeAspect.class,
-        StaffAccessService.class, HomemakingAdminController.class, HomemakingStaffController.class, HomemakingWorkerController.class,HomemakingPaymentController.class})
+        StaffAccessService.class, HomemakingAdminController.class, HomemakingStaffController.class, HomemakingWorkerController.class,HomemakingPaymentController.class,HomemakingOrderChangeController.class})
     static class Config {
         @Bean PermissionApi permissionApi(){return mock(PermissionApi.class, call -> {
             if(call.getMethod().getName().equals("hasAnyPermissions"))return grantMenus;
@@ -51,6 +51,7 @@ class AdminPermissionTest {
     @Autowired HomemakingAdminController admin; @Autowired HomemakingStaffController staff;
     @Autowired HomemakingWorkerController worker; @Autowired HomemakingAdminAccess access;
     @Autowired HomemakingPaymentController payment;
+    @Autowired HomemakingOrderChangeController orderChanges;
     @Autowired HmRepository repo; @Autowired OrderService orders;
     @Autowired PermissionService permissions; @Autowired RoleService roles;
     long orderId;
@@ -91,6 +92,17 @@ class AdminPermissionTest {
         if(!code.equals("PLATFORM"))assertThrows(AccessDeniedException.class,()->admin.plans());
     }
     @Test void listAndCountUseTheSameStoreScope(){role("MANAGER");var page=(Map<?,?>)admin.catalog("stores",1,20).getData();assertEquals(1L,page.get("total"));assertEquals(1,((List<?>)page.get("list")).size());assertThrows(Exception.class,()->admin.serviceSettings(2));assertThrows(Exception.class,()->admin.calendar(2,LocalDate.now(),LocalDate.now()));}
+    @Test void supportCanAmendAddressButCannotForgeAManualPrice(){
+        role("SUPPORT");long version=HmRepository.number(repo.require("hm_order",orderId,false),"version");
+        var address=new OrderChangeService.Contact("Customer","13800000001","Updated address","");
+        assertThrows(AccessDeniedException.class,()->orderChanges.preview(orderId,new OrderChangeService.Request(version,address,9000,"Manual price","support-forgery")));
+        assertDoesNotThrow(()->orderChanges.create(orderId,new OrderChangeService.Request(version,address,null,"Address confirmed","support-address",10000)));
+    }
+    @Test void orderAmendmentIsDeniedToFinanceAndDispatcherEvenWithMenuOvergrant(){
+        var request=new OrderChangeService.Request(0,null,11000,"Reprice","unauthorized-price");
+        for(String template:List.of("FINANCE","DISPATCHER","WORKER")){role(template);assertThrows(AccessDeniedException.class,()->orderChanges.create(orderId,request));}
+        role("MANAGER");long version=HmRepository.number(repo.require("hm_order",orderId,false),"version");assertDoesNotThrow(()->orderChanges.create(orderId,new OrderChangeService.Request(version,null,11000,"Customer confirmed","manager-price")));
+    }
     @Test void removingStoreGrantImmediatelyHidesRowsAndIds(){role("SUPPORT");assertNotNull(admin.order(orderId));jdbc.update("DELETE FROM hm_staff_store WHERE user_id=10");assertThrows(Exception.class,()->admin.order(orderId));assertEquals(0L,((Map<?,?>)admin.orders(1,20).getData()).get("total"));assertTrue(((List<?>)admin.customers().getData()).isEmpty());}
     @Test void cannotEditServiceIntoAnUnauthorizedStore(){role("MANAGER");var req=new CatalogService.Save(1L,"Changed",null,null,null,2L,null,null,"Clean","",10000,60,null,"ACTIVE",0L);assertThrows(Exception.class,()->admin.save("services",req));assertEquals(1L,jdbc.queryForObject("SELECT store_id FROM hm_service WHERE id=1",Long.class));}
     @Test void headquartersFinanceCannotReadAnotherTenantsStatementsOrQuotas(){role("FINANCE");assertThrows(AccessDeniedException.class,()->admin.statements(2));assertThrows(AccessDeniedException.class,()->admin.quota(2L));}

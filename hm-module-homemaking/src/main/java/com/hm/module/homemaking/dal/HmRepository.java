@@ -17,7 +17,7 @@ public class HmRepository {
     public String scope(String table) { return scope(table, ""); }
     public String scope(String table, String alias) { return com.hm.module.homemaking.security.AdminScope.sql(table, alias, tenant()); }
     private static final Set<String> TABLES = Set.of("hm_store", "hm_worker", "hm_service", "hm_order", "hm_booking",
-            "hm_customer_address", "hm_review", "hm_aftersale", "hm_settlement");
+            "hm_customer_address", "hm_review", "hm_aftersale", "hm_settlement", "hm_order_change");
     public HmRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
     public long tenant() {
         if (TenantContextHolder.isIgnore()) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "需要明确的租户范围");

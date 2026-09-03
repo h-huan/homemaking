@@ -31,6 +31,7 @@ public class OrderService {
     private final QuotaService quotas;
     private final SettlementService settlements;
     @org.springframework.beans.factory.annotation.Autowired private PaymentPolicyService paymentPolicy;
+    @org.springframework.beans.factory.annotation.Autowired private OrderChangeService changes;
     public OrderService(HmRepository repo,CustomerAccess customers,NotificationService notifications,PricingService pricing,ScheduleService schedules,QuotaService quotas,SettlementService settlements){this.repo=repo;this.customers=customers;this.notifications=notifications;this.pricing=pricing;this.schedules=schedules;this.quotas=quotas;this.settlements=settlements;}
     @Transactional
     public long saveAddress(Address a) {
@@ -62,6 +63,7 @@ public class OrderService {
         long order=repo.insert("INSERT INTO hm_order(tenant_id,customer_id,booking_id,service_id,service_name,store_id,worker_id,price_cents,contact_name,phone,address,request_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                 tenant,customer,booking,request.serviceId(),service.get("name"),service.get("store_id"),worker,quote.totalCents(),address.get("contact_name"),address.get("phone"),address.get("address"),request.requestKey());
         repo.jdbc().update("UPDATE hm_order SET customer_remark=?,district_code=? WHERE tenant_id=? AND id=?",CatalogService.s(request.customerRemark()),Objects.toString(address.get("district_code"),""),tenant,order);
+        repo.jdbc().update("UPDATE hm_order SET area_fee_cents=? WHERE tenant_id=? AND id=?",pricing.areaFee(request.serviceId(),Objects.toString(address.get("district_code"),"")),tenant,order);
         boolean onlineOnly=!paymentPolicy.options().offlineAvailable();
         repo.jdbc().update("UPDATE hm_order SET payment_method=?,payment_expires_at=? WHERE tenant_id=? AND id=?",onlineOnly?"ONLINE":"OFFLINE",onlineOnly?LocalDateTime.now().plusMinutes(30):null,tenant,order);
         for(var item:quote.items())repo.insert("INSERT INTO hm_order_item(tenant_id,order_id,name,price_cents,quantity,total_cents) VALUES(?,?,?,?,?,?)",tenant,order,item.name(),item.priceCents(),item.quantity(),item.totalCents());
@@ -74,21 +76,23 @@ public class OrderService {
     }
     public Map<String,Object> detail(long id,boolean admin){var order=admin?repo.require("hm_order",id,false):customers.own("hm_order",id,false);order.put("booking",repo.require("hm_booking",number(order,"booking_id"),false));
         var paymentOptions=paymentPolicy.options();
+        var pending=order.get("pending_change_id")==null?null:repo.require("hm_order_change",number(order,"pending_change_id"),false);boolean supplement=pending!=null&&"PENDING_PAYMENT".equals(pending.get("status"));
         boolean waiting="UNPAID".equals(order.get("status"));
         boolean expired=order.get("payment_expires_at")!=null&&!time(order.get("payment_expires_at")).isAfter(LocalDateTime.now());
-        order.put("payment_options",Map.of("mode",paymentOptions.mode(),"onlineAvailable",waiting&&!expired&&paymentOptions.onlineAvailable(),"offlineAvailable",waiting&&order.get("pay_order_id")==null&&paymentOptions.offlineAvailable(),"message",order.get("pay_order_id")!=null&&waiting?"线上支付结果待核对，请勿重复线下付款":paymentOptions.message()));
+        order.put("payment_options",Map.of("mode",paymentOptions.mode(),"onlineAvailable",waiting&&!expired&&paymentOptions.onlineAvailable(),"offlineAvailable",(waiting||supplement)&&order.get("pay_order_id")==null&&paymentOptions.offlineAvailable(),"message",order.get("pay_order_id")!=null&&waiting?"线上支付结果待核对，请勿重复线下付款":paymentOptions.message()));
+        var history=changes.history(id);order.put("changes",history);order.put("pending_change",history.stream().filter(c->Objects.equals(c.get("id"),order.get("pending_change_id"))).findFirst().orElse(null));
         order.put("logs",repo.jdbc().queryForList("SELECT id,action,detail,created_at FROM hm_order_log WHERE tenant_id=? AND order_id=? ORDER BY id",repo.tenant(),id));
         order.put("aftersales",repo.jdbc().queryForList("SELECT id,amount_cents,reason,status,audit_remark,created_at FROM hm_aftersale WHERE tenant_id=? AND order_id=? ORDER BY id DESC",repo.tenant(),id));
         order.put("review",repo.jdbc().queryForList("SELECT id,rating,content FROM hm_review WHERE tenant_id=? AND order_id=?",repo.tenant(),id));return order;}
     public Map<String,Object> list(int page,int size,boolean admin){
         size=Math.min(100,Math.max(1,size));page=Math.max(1,page);
-        String where=" WHERE tenant_id=?"+(admin?repo.scope("hm_order"):" AND customer_id=?");var args=new ArrayList<Object>();args.add(repo.tenant());if(!admin)args.add(customers.current());
+        String where=" WHERE hm_order.tenant_id=?"+(admin?repo.scope("hm_order"):" AND hm_order.customer_id=?");var args=new ArrayList<Object>();args.add(repo.tenant());if(!admin)args.add(customers.current());
         long total=repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_order"+where,Long.class,args.toArray());args.add(size);args.add((page-1)*size);
-        return Map.of("list",repo.jdbc().queryForList("SELECT * FROM hm_order"+where+" ORDER BY id DESC LIMIT ? OFFSET ?",args.toArray()),"total",total);
+        return Map.of("list",repo.jdbc().queryForList("SELECT hm_order.*,c.difference_cents AS pending_difference_cents,c.status AS change_status FROM hm_order LEFT JOIN hm_order_change c ON c.tenant_id=hm_order.tenant_id AND c.id=hm_order.pending_change_id"+where+" ORDER BY hm_order.id DESC LIMIT ? OFFSET ?",args.toArray()),"total",total);
     }
     @Transactional
     public void cancel(long id,boolean admin){var order=admin?repo.require("hm_order",id,true):customers.own("hm_order",id,true);
-        if("CANCELLED".equals(order.get("status")))return;
+        if("CANCELLED".equals(order.get("status")))return;changes.requireSettled(order);
         if(Set.of("PAID","ASSIGNED").contains(order.get("status"))){
             var booking=repo.require("hm_booking",number(order,"booking_id"),false);
             if(!admin)pricing.validateChange(number(order,"service_id"),time(booking.get("starts_at")),false);
@@ -101,7 +105,7 @@ public class OrderService {
         notifications.enqueue(number(order,"customer_id"),id,"ORDER_CANCELLED","IMPORTANT","cancel:"+id,Map.of("orderId",id));
     }
     @Transactional
-    public void assign(long id,long worker){var order=repo.require("hm_order",id,true);check(Set.of("PAID","ASSIGNED").contains(order.get("status")),"只有已付款订单可派单");validateWorker(worker,number(order,"store_id"));
+    public void assign(long id,long worker){var order=repo.require("hm_order",id,true);changes.requireSettled(order);check(Set.of("PAID","ASSIGNED").contains(order.get("status")),"只有已付款订单可派单");validateWorker(worker,number(order,"store_id"));
         var booking=repo.require("hm_booking",number(order,"booking_id"),true);
         check(Set.of("WAITING","ACCEPTED").contains(order.get("fulfillment_status")),"人员已经到达，请先处理当前履约");
         schedules.select(number(order,"service_id"),worker,Objects.toString(order.get("district_code"),""),time(booking.get("starts_at")),time(booking.get("ends_at")),number(booking,"id"));
@@ -112,13 +116,14 @@ public class OrderService {
         log(id,"ASSIGNED","worker="+worker);notifications.enqueue(number(order,"customer_id"),id,"WORKER_CHANGED","IMPORTANT","assign:"+id+":"+(number(order,"version")+1),Map.of("orderId",id));
     }
     @Transactional
-    public void start(long id){var order=repo.require("hm_order",id,true);check("ARRIVED".equals(order.get("fulfillment_status")),"人员尚未到达打卡");check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_fulfillment_evidence WHERE tenant_id=? AND order_id=? AND worker_id=? AND phase='BEFORE'",Long.class,repo.tenant(),id,order.get("worker_id"))>0,"缺少服务前凭证");transition(order,"IN_SERVICE");repo.jdbc().update("UPDATE hm_order SET fulfillment_status='STARTED' WHERE tenant_id=? AND id=?",repo.tenant(),id);log(id,"STARTED","");}
+    public void start(long id){var order=repo.require("hm_order",id,true);changes.requireSettled(order);check("ARRIVED".equals(order.get("fulfillment_status")),"人员尚未到达打卡");check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_fulfillment_evidence WHERE tenant_id=? AND order_id=? AND worker_id=? AND phase='BEFORE'",Long.class,repo.tenant(),id,order.get("worker_id"))>0,"缺少服务前凭证");transition(order,"IN_SERVICE");repo.jdbc().update("UPDATE hm_order SET fulfillment_status='STARTED' WHERE tenant_id=? AND id=?",repo.tenant(),id);log(id,"STARTED","");}
     @Transactional
     public void reschedule(long id,Reschedule request,boolean admin){
         var order=admin?repo.require("hm_order",id,true):customers.own("hm_order",id,true);
-        check(Set.of("UNPAID","PAID","ASSIGNED").contains(order.get("status")),"当前状态不允许改约");
+        changes.requireSettled(order);check(Set.of("UNPAID","PAID","ASSIGNED").contains(order.get("status")),"当前状态不允许改约");
         check(Set.of("WAITING","ACCEPTED").contains(order.get("fulfillment_status")),"人员已经到达，请联系门店处理");
         var booking=repo.require("hm_booking",number(order,"booking_id"),true);
+        var before=changes.snapshot(order,booking);
         if(!admin){pricing.validateChange(number(order,"service_id"),time(booking.get("starts_at")),true);check(number(order,"reschedule_count")<2,"自助改约已达两次，请联系门店");}
         LocalDateTime start=request.startsAt(),end=start.plusMinutes(Duration.between(time(booking.get("starts_at")),time(booking.get("ends_at"))).toMinutes());
         pricing.validateTime(number(order,"service_id"),start);
@@ -128,6 +133,7 @@ public class OrderService {
         reserveSlots(number(booking,"id"),worker,start,end);
         repo.jdbc().update("UPDATE hm_booking SET starts_at=?,ends_at=?,worker_id=? WHERE tenant_id=? AND id=?",start,end,worker,repo.tenant(),booking.get("id"));
         repo.jdbc().update("UPDATE hm_order SET worker_id=?,fulfillment_status='WAITING',reschedule_count=reschedule_count+1,version=version+1 WHERE tenant_id=? AND id=?",worker,repo.tenant(),id);
+        var after=changes.snapshot(repo.require("hm_order",id,false),repo.require("hm_booking",number(booking,"id"),false));changes.recordReschedule(order,before,after,request.reason());
         log(id,"RESCHEDULED",start+" / "+request.reason());
         notifications.enqueue(number(order,"customer_id"),id,"WORKER_CHANGED","IMPORTANT","reschedule:"+id+":"+(number(order,"version")+1),Map.of("orderId",id));
     }
@@ -137,14 +143,14 @@ public class OrderService {
         transition(order,"CANCELLED");release(order,"CANCELLED");log(id,"PAYMENT_EXPIRED","30 分钟未支付，释放预约");
     }
     @Transactional
-    public void complete(long id){var order=repo.require("hm_order",id,true);check("STARTED".equals(order.get("fulfillment_status")),"服务尚未按履约流程开始");check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_fulfillment_evidence WHERE tenant_id=? AND order_id=? AND worker_id=? AND phase='AFTER'",Long.class,repo.tenant(),id,order.get("worker_id"))>0,"缺少服务后凭证");transition(order,"COMPLETED");repo.jdbc().update("UPDATE hm_order SET completed_at=CURRENT_TIMESTAMP,fulfillment_status='COMPLETED' WHERE tenant_id=? AND id=?",repo.tenant(),id);release(order,"COMPLETED");
+    public void complete(long id){var order=repo.require("hm_order",id,true);changes.requireSettled(order);check("STARTED".equals(order.get("fulfillment_status")),"服务尚未按履约流程开始");check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_fulfillment_evidence WHERE tenant_id=? AND order_id=? AND worker_id=? AND phase='AFTER'",Long.class,repo.tenant(),id,order.get("worker_id"))>0,"缺少服务后凭证");transition(order,"COMPLETED");repo.jdbc().update("UPDATE hm_order SET completed_at=CURRENT_TIMESTAMP,fulfillment_status='COMPLETED' WHERE tenant_id=? AND id=?",repo.tenant(),id);release(order,"COMPLETED");
         settlements.completed(order);
         log(id,"COMPLETED","");notifications.enqueue(number(order,"customer_id"),id,"SERVICE_COMPLETED","NORMAL","complete:"+id,Map.of("orderId",id));
     }
     @Transactional
     public long review(Review r){var order=customers.own("hm_order",r.orderId(),true);check("COMPLETED".equals(order.get("status")),"完工后才能评价");return repo.insert("INSERT INTO hm_review(tenant_id,customer_id,order_id,rating,content) VALUES(?,?,?,?,?)",repo.tenant(),customers.current(),r.orderId(),r.rating(),r.content());}
     @Transactional
-    public long aftersale(Aftersale a){var order=customers.own("hm_order",a.orderId(),true);check(Set.of("PAID","ASSIGNED","COMPLETED").contains(order.get("status")),"当前状态不可申请退款");
+    public long aftersale(Aftersale a){var order=customers.own("hm_order",a.orderId(),true);changes.requireSettled(order);check(Set.of("PAID","ASSIGNED","COMPLETED").contains(order.get("status")),"当前状态不可申请退款");
         check(a.amountCents()<=cents(order,"paid_cents")-cents(order,"refunded_cents"),"退款金额超过可退金额");
         check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND status IN ('REQUESTED','REFUNDING')",Long.class,repo.tenant(),a.orderId())==0,"已有售后申请正在处理");
         return repo.insert("INSERT INTO hm_aftersale(tenant_id,customer_id,order_id,amount_cents,reason) VALUES(?,?,?,?,?)",repo.tenant(),customers.current(),a.orderId(),a.amountCents(),a.reason());

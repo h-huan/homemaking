@@ -108,6 +108,8 @@ const actions: Record<string, string> = {
   bind: '绑定账号',
   dispatch: '派单',
   reschedule: '改期',
+  change: '变更订单地址',
+  price: '调整订单价格',
   cancel: '取消',
   fulfill: '履约',
   reject: '驳回',

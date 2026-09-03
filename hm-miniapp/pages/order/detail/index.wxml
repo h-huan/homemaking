@@ -45,13 +45,17 @@
     <view class="fee-line"><text>允许必要时使用短信提醒</text><switch checked="{{allowSms}}" disabled="{{savingPreference}}" data-key="allowSms" bindchange="handlePreference" /></view>
     <button wx:if="{{subscriptionTemplates.length}}" bindtap="handleSubscribe">订阅微信服务通知</button>
   </view>
+
+  <view class="card" wx:if="{{detail.pendingChange}}"><view class="section-title">订单变更待处理</view><view>待{{detail.pendingChange.status === 'PENDING_PAYMENT' ? '补款' : '退款'}} ￥{{detail.pendingChange.amount}}</view><view class="muted">请联系门店处理差额，款项登记完成后新约定生效。</view><button wx:if="{{detail.pendingChange.actor_type === 1}}" bindtap="cancelChange">撤销此次变更</button></view>
+  <view class="card" wx:if="{{detail.changes.length}}"><view class="section-title">约定变更记录</view><view class="log-item" wx:for="{{detail.changes}}" wx:key="id"><view class="log-content"><view class="log-title">{{item.stateLabel}} · ￥{{item.oldAmount}} → ￥{{item.newAmount}}</view><view class="muted">原地址：{{item.before.address}}</view><view class="muted">新地址：{{item.after.address}}</view><view class="muted">原预约：{{item.before.starts_at}}</view><view class="muted">新预约：{{item.after.starts_at}}</view><view>{{item.reason}}</view><view wx:if="{{item.cancel_reason}}">撤销原因：{{item.cancel_reason}}</view></view></view></view>
   <view class="card" wx:if="{{detail.fulfillmentStatus}}"><view class="section-title">履约状态</view><view class="fulfillment-line"><text>{{detail.fulfillmentLabel}}</text><text>服务过程凭证仅限本订单相关人员查看</text></view><button wx:for="{{evidence}}" wx:key="id" class="evidence-link" data-id="{{item.id}}" bindtap="previewEvidence">查看{{item.phase === 'BEFORE' ? '服务前' : '服务后'}}照片 · {{item.note || item.created_at}}</button></view>
   <view class="card" wx:if="{{detail.aftersales.length}}"><view class="section-title">售后进度</view><view class="fee-line" wx:for="{{detail.aftersales}}" wx:key="id"><text>{{item.reason}}</text><text>{{item.status}}</text></view></view>
   <view class="bottom-bar action-grid" wx:if="{{detail.orderStatus === '10' || detail.orderStatus === '30' || detail.orderStatus === '40' || (detail.orderStatus === '60' && !detail.review) || (detail.refundableAmount > 0 && detail.orderStatus === '60')}}">
-    <button wx:if="{{detail.orderStatus === '10' || detail.orderStatus === '30' || detail.orderStatus === '40'}}" class="ghost-btn" bindtap="goReschedule">改期</button>
-    <button wx:if="{{detail.orderStatus === '10'}}" class="ghost-btn" bindtap="handleCancel">取消预约</button>
+    <button wx:if="{{detail.canAmend}}" class="ghost-btn" bindtap="goReschedule">改期</button>
+    <button wx:if="{{detail.canAmend}}" class="ghost-btn" bindtap="goAddressChange">变更地址</button>
+    <button wx:if="{{detail.orderStatus === '10' && !detail.pendingChangeId}}" class="ghost-btn" bindtap="handleCancel">取消预约</button>
     <button wx:if="{{detail.orderStatus === '10' && detail.paymentOptions.onlineAvailable}}" class="primary-btn" bindtap="handlePay" loading="{{paying}}" disabled="{{paying}}">微信支付</button>
     <button wx:if="{{detail.orderStatus === '60' && !detail.review}}" class="primary-btn" bindtap="goReview">评价服务</button>
-    <button wx:if="{{detail.refundableAmount > 0 && (detail.orderStatus === '30' || detail.orderStatus === '40' || detail.orderStatus === '60')}}" class="secondary-btn" bindtap="goAftersale">申请售后</button>
+    <button wx:if="{{!detail.pendingChangeId && detail.refundableAmount > 0 && (detail.orderStatus === '30' || detail.orderStatus === '40' || detail.orderStatus === '60')}}" class="secondary-btn" bindtap="goAftersale">申请售后</button>
   </view>
 </view>

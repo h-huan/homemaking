@@ -15,3 +15,5 @@ Scheduling checks worker skills, areas, shifts, leave and occupied slots. Orders
 Admin operations require both system permissions and a bounded homemaking role template. Store-scoped roles filter detail access, writes, lists, totals and financial reports; workers remain restricted to their own tasks. Platform authority requires a headquarters platform role, not merely tenant id 1.
 
 Tenant payment mode is OFFLINE by default; ONLINE and BOTH preserve the existing pay integration. Missing merchant configuration falls back to offline operation. Positive, server-priced orders become paid only after an authorized, audited receipt or a verified online payment result. Append-only receipt/refund/reversal entries and order/settlement balance changes share one transaction. Historical payment callbacks remain valid after a mode change; manual offline receipts cannot overlap an initiated online payment.
+
+订单变更通过 hm_order_change 保留原约定和新约定。未付订单直接应用；已线下支付订单先处理差额，再在同一事务中记账并应用变更。收支凭证及退差额申请关联变更单，pending_change_id 阻止未结清时履约，幂等请求、订单锁与确认报价共同防止重复记账和并发错价。

@@ -87,6 +87,7 @@ public class PaymentService {
     public void rejectRefund(long aftersaleId,String remark){
         var aftersale=repo.require("hm_aftersale",aftersaleId,true);
         check("REQUESTED".equals(aftersale.get("status")),"售后单不在待审核状态");
+        check(aftersale.get("order_change_id")==null,"退差额不能单独驳回，请从订单撤销对应变更");
         String reason=CatalogService.s(remark);check(!reason.isBlank()&&reason.length()<=1000,"请填写 1000 字以内的驳回说明");
         repo.jdbc().update("UPDATE hm_aftersale SET status='REJECTED',audit_remark=? WHERE tenant_id=? AND id=?",reason,repo.tenant(),aftersaleId);
         orders.log(number(aftersale,"order_id"),"AFTERSALE_REJECTED",reason);

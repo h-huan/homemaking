@@ -11,7 +11,7 @@
           ? '冲正用于撤销误登记，不代表向客户转账。已开始服务或退款的订单请走售后。'
           : kind === 'REFUND'
             ? '请先通过所选渠道完成实际退款，再登记凭证。此操作不会自动转账。'
-            : '请核实款项实际到账后再确认。V1 按整单金额确认，不能登记为免费或部分付款。'
+            : '请核实款项实际到账后再确认。按整单应收或变更单待补差额确认，记录不会自动转账。'
       "
       type="warning"
       :closable="false"
@@ -72,7 +72,7 @@ const title = computed(
 )
 const amount = computed(() =>
   props.kind === 'RECEIPT'
-    ? Number(props.target?.price_cents)
+    ? Number(props.target?.receipt_amount_cents ?? props.target?.price_cents)
     : Math.abs(Number(props.target?.amount_cents))
 )
 watch(visible, (open) => {

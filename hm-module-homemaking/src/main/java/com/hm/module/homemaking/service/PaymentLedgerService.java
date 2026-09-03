@@ -22,6 +22,7 @@ public class PaymentLedgerService {
             @NotBlank @Size(max=1000) String note,@NotNull @Pattern(regexp="[A-Za-z0-9_-]{8,80}") String requestKey) {}
     private final HmRepository repo; private final OrderService orders; private final SettlementService settlements; private final PaymentPolicyService policy;
     @org.springframework.beans.factory.annotation.Autowired private NotificationService notifications;
+    @org.springframework.beans.factory.annotation.Autowired private OrderChangeService changes;
     public PaymentLedgerService(HmRepository repo,OrderService orders,SettlementService settlements,PaymentPolicyService policy){this.repo=repo;this.orders=orders;this.settlements=settlements;this.policy=policy;}
     private long operator(){var user=SecurityFrameworkUtils.getLoginUser();AdminScope.denyUnless(user!=null&&Objects.equals(user.getUserType(),2)&&AdminScope.current()!=null);return user.getId();}
     private void time(LocalDateTime at,LocalDateTime earliest){check(at!=null&&!at.isBefore(earliest)&&!at.isAfter(LocalDateTime.now().plusMinutes(5)),"实际发生时间须在订单创建/收款后且不能晚于当前时间");}
@@ -37,6 +38,16 @@ public class PaymentLedgerService {
     @Transactional public long receive(long id,Receipt r){
         long actor=operator();var order=repo.require("hm_order",id,true);
         Long previous=repeated(id,null,null,"RECEIPT",r.amountCents(),r.channel(),r.occurredAt(),r.note(),r.requestKey());if(previous!=null)return previous;
+        var change=changes.pending(order);
+        if(change!=null){
+            check("PENDING_PAYMENT".equals(change.get("status"))&&r.amountCents()==cents(change,"difference_cents"),"请按待补差额确认收款");
+            check(order.get("pay_order_id")==null&&"OFFLINE".equals(order.get("payment_method")),"变更补差额仅适用于已登记线下收款的订单");
+            check(policy.options().offlineAvailable(),"当前未开放线下收款");time(r.occurredAt(),OrderService.time(change.get("created_at")).withNano(0));
+            long receipt=entry(id,null,null,"RECEIPT","OFFLINE",r.channel(),r.amountCents(),r.occurredAt(),actor,r.note(),"manual:"+r.requestKey());
+            repo.jdbc().update("UPDATE hm_payment_entry SET order_change_id=? WHERE tenant_id=? AND id=?",change.get("id"),repo.tenant(),receipt);
+            repo.jdbc().update("UPDATE hm_order SET paid_cents=?,version=version+1 WHERE tenant_id=? AND id=?",Math.addExact(cents(order,"paid_cents"),r.amountCents()),repo.tenant(),id);
+            changes.settle(id,number(change,"id"));orders.log(id,"OFFLINE_RECEIVED","变更补款流水="+receipt);return receipt;
+        }
         check(policy.options().offlineAvailable(),"该租户当前仅开放在线支付");
         check("UNPAID".equals(order.get("status"))&&cents(order,"paid_cents")==0,"当前订单不能重复确认收款");
         check(order.get("pay_order_id")==null,"已发起线上支付，请先核对线上结果；不能重复登记线下收款");
@@ -48,16 +59,18 @@ public class PaymentLedgerService {
         orders.log(id,"OFFLINE_RECEIVED","流水="+receipt+"，渠道="+r.channel()+"，金额（分）="+r.amountCents());return receipt;
     }
     @Transactional public long refund(long aftersale,Receipt r){
-        long actor=operator();var a=repo.require("hm_aftersale",aftersale,true);long id=number(a,"order_id");var order=repo.require("hm_order",id,true);
+        long actor=operator();long id=number(repo.require("hm_aftersale",aftersale,false),"order_id");var order=repo.require("hm_order",id,true);var a=repo.require("hm_aftersale",aftersale,true);
         Long previous=repeated(id,aftersale,null,"REFUND",-r.amountCents(),r.channel(),r.occurredAt(),r.note(),r.requestKey());if(previous!=null)return previous;
         check("OFFLINE".equals(order.get("payment_method"))&&order.get("pay_order_id")==null,"仅支持已登记的线下收款退款；线上订单须原路退款");
         check("REQUESTED".equals(a.get("status"))&&r.amountCents()==cents(a,"amount_cents"),"请按待审核售后单的申请金额登记实际退款");
         check(r.amountCents()<=cents(order,"paid_cents")-cents(order,"refunded_cents"),"退款金额超过剩余实收款");
         check(hasReceipt(id),"缺少线下收款凭证，请先对账");time(r.occurredAt(),OrderService.time(order.get("paid_at")));
+        if(a.get("order_change_id")!=null){var change=changes.pending(order);check(change!=null&&number(change,"id")==number(a,"order_change_id")&&"PENDING_REFUND".equals(change.get("status")),"退差额变更单已失效");}
         long receipt=entry(id,aftersale,null,"REFUND","OFFLINE",r.channel(),-r.amountCents(),r.occurredAt(),actor,r.note(),"manual:"+r.requestKey());
         int total=cents(order,"refunded_cents")+r.amountCents();String next=total==cents(order,"paid_cents")?"REFUNDED":order.get("status").toString();
         repo.jdbc().update("UPDATE hm_order SET refunded_cents=?,status=?,version=version+1 WHERE tenant_id=? AND id=?",total,next,repo.tenant(),id);
         repo.jdbc().update("UPDATE hm_aftersale SET status='REFUNDED',previous_order_status=?,audit_remark=? WHERE tenant_id=? AND id=?",order.get("status"),r.note(),repo.tenant(),aftersale);
+        if(a.get("order_change_id")!=null){repo.jdbc().update("UPDATE hm_payment_entry SET order_change_id=? WHERE tenant_id=? AND id=?",a.get("order_change_id"),repo.tenant(),receipt);changes.settle(id,number(a,"order_change_id"));}
         if(next.equals("REFUNDED"))orders.release(order,"CANCELLED");
         repo.jdbc().update("UPDATE hm_settlement SET refund_cents=?,net_cents=gross_cents-?,version=version+1 WHERE tenant_id=? AND order_id=? AND status='PENDING'",total,total,repo.tenant(),id);
         settlements.refund(order,aftersale,r.amountCents());
@@ -66,6 +79,7 @@ public class PaymentLedgerService {
     }
     @Transactional public long reverse(long id,Reversal r){
         long actor=operator();var order=repo.require("hm_order",id,true);
+        changes.requireSettled(order);
         var rows=repo.jdbc().queryForList("SELECT * FROM hm_payment_entry WHERE tenant_id=? AND order_id=? AND id=? AND kind='RECEIPT' AND payment_method='OFFLINE'",repo.tenant(),id,r.receiptId());check(rows.size()==1,"线下收款凭证不存在");var original=rows.get(0);
         Long previous=repeated(id,null,r.receiptId(),"REVERSAL",-cents(original,"amount_cents"),original.get("channel").toString(),r.occurredAt(),r.note(),r.requestKey());if(previous!=null)return previous;
         check("OFFLINE".equals(order.get("payment_method"))&&Set.of("PAID","ASSIGNED").contains(order.get("status"))&&Set.of("WAITING","ACCEPTED").contains(order.get("fulfillment_status")),"仅未开始履约的误登记收款可冲正，其他情况请走售后退款");

@@ -26,6 +26,11 @@ public class PricingService {
         check(price>0&&price<=100000000&&duration>0&&duration<=480,"服务计价配置无效");return new Quote(price,duration,items);
     }
     public Map<String,Object> rule(long serviceId){var rows=repo.jdbc().queryForList("SELECT * FROM hm_service_booking_rule WHERE tenant_id=? AND service_id=?",repo.tenant(),serviceId);return rows.isEmpty()?Map.of("min_advance_minutes",120,"max_advance_days",90,"allow_same_day",true,"time_slots_json","[\"09:00-11:00\",\"13:00-15:00\",\"16:00-18:00\"]"):rows.get(0);}
+    public int areaFee(long serviceId,String district){
+        var areas=repo.jdbc().queryForList("SELECT a.district_code,a.extra_cents FROM hm_service_area_relation r JOIN hm_service_area a ON a.id=r.area_id AND a.tenant_id=r.tenant_id WHERE r.tenant_id=? AND r.service_id=? AND a.status='ACTIVE'",repo.tenant(),serviceId);
+        if(areas.isEmpty())return 0;
+        var matching=areas.stream().filter(a->Objects.equals(a.get("district_code"),district)).findFirst();check(matching.isPresent(),"该地址不在服务范围内");return cents(matching.get(),"extra_cents");
+    }
     public void validateTime(long serviceId,LocalDateTime start){var rule=rule(serviceId);LocalDateTime now=LocalDateTime.now();
         check(start.isAfter(now.plusMinutes(number(rule,"min_advance_minutes")))&&start.isBefore(now.plusDays(number(rule,"max_advance_days"))),"预约时间超出可预约范围");
         if(Boolean.FALSE.equals(rule.get("allow_same_day")))check(start.toLocalDate().isAfter(now.toLocalDate()),"该服务不支持当天预约");

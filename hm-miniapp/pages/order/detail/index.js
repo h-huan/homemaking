@@ -22,6 +22,10 @@ require('../../../utils/page')({
     detail.paymentMethodLabel = ({ OFFLINE: '线下付款', ONLINE: '微信在线支付', LEGACY: '历史付款' })[detail.paymentMethod] || '待确认'
     detail.operateLogs = detail.operateLogs || []
     detail.aftersales = detail.aftersales || []
+    const states = { PENDING_PAYMENT: '待补款', PENDING_REFUND: '待退差额', APPLIED: '已生效', CANCELLED: '已撤销' }
+    detail.changes = (detail.changes || []).map(change => ({ ...change, stateLabel: states[change.status], oldAmount: (change.old_price_cents / 100).toFixed(2), newAmount: (change.new_price_cents / 100).toFixed(2) }))
+    detail.canAmend = !detail.pendingChangeId && ['10', '30', '40'].includes(detail.orderStatus) && ['WAITING', 'ACCEPTED'].includes(detail.fulfillmentStatus)
+    if (detail.pendingChange) detail.pendingChange.amount = (Math.abs(detail.pendingChange.difference_cents) / 100).toFixed(2)
     detail.fulfillmentLabel = ({ WAITING: '等待接单', ACCEPTED: '人员已接单', ARRIVED: '人员已到达', STARTED: '正在服务', COMPLETED: '服务已完成' })[detail.fulfillmentStatus] || '等待安排'
     this.setData({ detail })
     const evidence = await api.getEvidence(this.orderId)
@@ -83,6 +87,16 @@ require('../../../utils/page')({
     await this.loadDetail()
   },
   goReschedule() { wx.navigateTo({ url: `/pages/order/reschedule/index?id=${this.data.detail.orderId}` }) },
+  goAddressChange() { if (this.data.detail.canAmend) wx.navigateTo({ url: `/pages/order/address-change/index?id=${this.data.detail.orderId}` }) },
+  cancelChange() {
+    const change = this.data.detail.pendingChange
+    if (!change || change.actor_type !== 1) return
+    wx.showModal({ title: '撤销地址变更', content: '未生效的新地址和价格将作废，继续保留原约定。', success: async result => {
+      if (!result.confirm) return
+      await api.cancelOrderChange(this.orderId, change.id, '客户撤销尚未生效的地址变更')
+      await this.loadDetail()
+    } })
+  },
   goReview() { wx.navigateTo({ url: `/pages/order/feedback/index?id=${this.data.detail.orderId}&mode=review` }) },
   goAftersale() { wx.navigateTo({ url: `/pages/order/feedback/index?id=${this.data.detail.orderId}&mode=aftersale&amount=${this.data.detail.refundableAmount}` }) }
 })

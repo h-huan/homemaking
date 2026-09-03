@@ -112,11 +112,27 @@
           <template v-if="tab === 'orders'">
             <el-button link type="primary" @click="showOrder(row.id)">详情</el-button>
             <el-button
-              v-if="row.status === 'UNPAID' && !row.pay_order_id && can('payment:receive')"
+              v-if="
+                can('orders:change') &&
+                !row.pending_change_id &&
+                ['UNPAID', 'PAID', 'ASSIGNED'].includes(row.status) &&
+                ['WAITING', 'ACCEPTED'].includes(row.fulfillment_status)
+              "
+              link
+              type="primary"
+              @click="openChange(row)"
+              >变更地址/价格</el-button
+            >
+            <el-button
+              v-if="
+                (row.status === 'UNPAID' || row.change_status === 'PENDING_PAYMENT') &&
+                !row.pay_order_id &&
+                can('payment:receive')
+              "
               link
               type="primary"
               @click="openPayment('RECEIPT', row)"
-              >确认收款</el-button
+              >{{ row.change_status === 'PENDING_PAYMENT' ? '确认补款' : '确认收款' }}</el-button
             >
             <el-button
               v-if="
@@ -124,7 +140,7 @@
                 ['WAITING', 'ACCEPTED'].includes(row.fulfillment_status)
               "
               link
-              :disabled="!can('orders:reschedule')"
+              :disabled="!!row.pending_change_id || !can('orders:reschedule')"
               @click="openReschedule(row)"
               >改期</el-button
             >
@@ -132,7 +148,7 @@
               v-if="['PAID', 'ASSIGNED'].includes(row.status)"
               link
               type="primary"
-              :disabled="!can('orders:dispatch')"
+              :disabled="!!row.pending_change_id || !can('orders:dispatch')"
               @click="beginAssign(row)"
               >派单</el-button
             >
@@ -174,7 +190,7 @@
               >登记线下退款</el-button
             >
             <el-button
-              v-if="row.status === 'REQUESTED'"
+              v-if="row.status === 'REQUESTED' && !row.order_change_id"
               link
               :disabled="!can('aftersales:reject')"
               @click="reject(row)"
@@ -353,6 +369,14 @@
             ></el-table-column
           >
         </el-table>
+        <OrderChangeHistory
+          :order="detail"
+          :can-cancel="
+            can('orders:change') &&
+            (!detail.pending_change?.difference_cents || can('orders:price'))
+          "
+          @cancel="cancelChange"
+        />
         <el-timeline class="detail-timeline"
           ><el-timeline-item
             v-for="log in detail.logs"
@@ -372,6 +396,12 @@
         ></template
       ></el-drawer
     >
+    <OrderChangeDialog
+      v-model="changeVisible"
+      :order="changeTarget"
+      :can-price="can('orders:price')"
+      @saved="paymentSaved"
+    />
     <PaymentEntryDialog
       v-model="paymentVisible"
       :kind="paymentKind"
@@ -391,6 +421,8 @@ import { useHmAccess } from './useAccess'
 const { can, range, loadAccess } = useHmAccess()
 import ServiceSettings from './components/ServiceSettings.vue'
 import PaymentEntryDialog from './components/PaymentEntryDialog.vue'
+import OrderChangeDialog from './components/OrderChangeDialog.vue'
+import OrderChangeHistory from './components/OrderChangeHistory.vue'
 import { paymentChannels, paymentKinds, paymentMethods } from './paymentLabels'
 const settingsVisible = ref(false),
   settingsService = ref<api.BusinessRow>()
@@ -445,6 +477,21 @@ const labels: Record<string, string> = {
   REJECTED: '已驳回',
   FAILED: '退款失败'
 }
+const changeVisible = ref(false),
+  changeTarget = ref<api.BusinessRow>()
+async function openChange(row: api.BusinessRow) {
+  changeTarget.value = await api.getOrderDetail(row.id)
+  changeVisible.value = true
+}
+async function cancelChange(changeId: number) {
+  const { value } = await ElMessageBox.prompt(
+    '请填写撤销原因，未生效的新地址和价格将作废',
+    '撤销订单变更',
+    { inputValidator: (v) => !!v?.trim() && v.trim().length <= 500 }
+  )
+  await api.cancelOrderChange(detail.value!.id, changeId, value.trim())
+  await paymentSaved()
+}
 const paymentVisible = ref(false),
   paymentKind = ref<'RECEIPT' | 'REFUND' | 'REVERSAL'>('RECEIPT'),
   paymentTarget = ref<api.BusinessRow>(),
@@ -454,6 +501,13 @@ async function openPayment(kind: 'RECEIPT' | 'REFUND' | 'REVERSAL', row: api.Bus
     const current = await api.getOrderDetail(row.id)
     if (!current.payment_options.offlineAvailable)
       return ElMessage.warning(current.payment_options.message)
+    row = {
+      ...current,
+      receipt_amount_cents:
+        current.pending_change?.status === 'PENDING_PAYMENT'
+          ? current.pending_change.difference_cents
+          : current.price_cents
+    }
   }
   paymentKind.value = kind
   paymentTarget.value = row
@@ -462,6 +516,8 @@ async function openPayment(kind: 'RECEIPT' | 'REFUND' | 'REVERSAL', row: api.Bus
 function canReverse(row: api.BusinessRow) {
   return (
     row.kind === 'RECEIPT' &&
+    !detail.value?.pending_change_id &&
+    Number(row.amount_cents) === Number(detail.value?.paid_cents) &&
     row.payment_method === 'OFFLINE' &&
     ['PAID', 'ASSIGNED'].includes(detail.value?.status) &&
     ['WAITING', 'ACCEPTED'].includes(detail.value?.fulfillment_status) &&

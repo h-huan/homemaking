@@ -1,0 +1,11 @@
+<view class="page safe-bottom" style="{{themeStyle}}">
+  <view class="page-intro"><text class="eyebrow">SERVICE ADDRESS</text><view class="page-title">调整上门地址</view><view class="muted">我们会核对服务范围与区域费用。有补退差额时，原约定保留至款项处理完成。</view></view>
+  <view class="card"><view class="section-title">当前地址</view><view>{{order.contactName}} · {{order.contactMobile}}</view><view class="muted">{{order.serviceAddress}}</view></view>
+  <view class="card"><view class="section-title">新的服务地址</view>
+    <picker wx:if="{{addresses.length}}" range="{{labels}}" value="{{selected + 1}}" bindchange="selectAddress"><view class="input-card">{{labels[selected + 1]}}</view></picker>
+    <view class="muted" wx:else>暂无地址，请先在“我的 → 服务地址”中添加。</view>
+    <view class="section-title">变更原因</view><view class="input-card"><textarea class="textarea-field" value="{{reason}}" maxlength="500" bindinput="inputReason" placeholder="请填写调整原因" /></view>
+  </view>
+  <view class="card" wx:if="{{preview}}"><view class="section-title">核对新的约定</view><view class="fee-line"><text>原总价</text><text>￥{{preview.oldAmount}}</text></view><view class="fee-line"><text>新总价</text><text>￥{{preview.newAmount}}</text></view><view class="muted" wx:if="{{preview.requiresSettlement}}">需{{preview.differenceCents > 0 ? '补款' : '退款'}} ￥{{preview.differenceAmount}}，请联系门店处理；款项登记完成后新地址生效。</view><view class="muted" wx:else>确认后新地址生效，尚未付款时按新的总价付款。</view></view>
+  <view class="bottom-bar action-grid"><button class="ghost-btn" loading="{{checking}}" disabled="{{checking || submitting}}" bindtap="checkQuote">核对变更</button><button class="primary-btn" disabled="{{!preview || checking || submitting}}" loading="{{submitting}}" bindtap="submit">确认变更</button></view>
+</view>

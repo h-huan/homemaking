@@ -66,5 +66,19 @@ async function run() {
   const template = fs.readFileSync(path.join(root, 'pages/order/detail/index.wxml'), 'utf8')
   assert.match(template, /wx:if="\{\{detail.orderStatus === '10' && detail.paymentOptions.onlineAvailable\}\}"[^>]+bindtap="handlePay"/)
   console.log('PASS: unavailable online payment is hidden and cannot be invoked; enabled WeChat payment still submits and reconciles.')
+  const lateQuote = pending(); let changes = 0
+  const amendment = page('pages/order/address-change/index.js', {
+    previewAddressChange: () => lateQuote.promise,
+    changeOrderAddress: async () => { changes++ }
+  }, { showToast() {}, navigateBack() {} })
+  amendment.orderId = 1; amendment.requestKey = 'quote-check'
+  amendment.data.order = { version: 2 }; amendment.data.addresses = [{ addressId: 5 }, { addressId: 6 }]
+  amendment.data.selected = 0; amendment.data.reason = 'Move address'
+  const quotation = amendment.checkQuote(); amendment.selectAddress({ detail: { value: 2 } })
+  lateQuote.resolve({ before: { price_cents: 10000 }, after: { price_cents: 12000 }, differenceCents: 2000, requiresSettlement: true })
+  await quotation; assert.equal(amendment.data.preview, null); await amendment.submit(); assert.equal(changes, 0)
+  await amendment.checkQuote(); assert.equal(amendment.checkedRequest.expectedPriceCents, 12000)
+  const submission = amendment.submit(); await amendment.submit(); await submission; assert.equal(changes, 1)
+  console.log('PASS: address changes discard stale quotes, submit the confirmed price and prevent double submission.')
 }
 run().catch(error => { console.error(error); process.exitCode = 1 })
