@@ -41,7 +41,13 @@
             ><el-form-item label="公众号 AppID"><el-input v-model="brand.mpAppId" /></el-form-item
           ></div>
           <el-form-item label="支付应用标识"><el-input v-model="brand.payAppKey" /></el-form-item>
-          <el-button type="primary" :loading="saving" @click="saveBrand">保存品牌设置</el-button>
+          <el-button
+            type="primary"
+            :loading="saving"
+            :disabled="!can('brand:write')"
+            @click="saveBrand"
+            >保存品牌设置</el-button
+          >
         </el-form>
       </el-tab-pane>
       <el-tab-pane label="域名" name="domain"
@@ -49,8 +55,11 @@
           ><p>填写域名后，按提示添加 DNS TXT 记录。验证通过后启用品牌识别。</p
           ><el-input v-model="domain" placeholder="例如 service.example.com" /><div
             class="hm-actions"
-            ><el-button @click="requestDomain">获取验证记录</el-button
-            ><el-button type="primary" @click="verifyDomain">验证域名</el-button></div
+            ><el-button :disabled="!can('brand:write')" @click="requestDomain"
+              >获取验证记录</el-button
+            ><el-button type="primary" :disabled="!can('brand:write')" @click="verifyDomain"
+              >验证域名</el-button
+            ></div
           ><el-descriptions v-if="domainProof.record" :column="1" border
             ><el-descriptions-item label="记录名">{{ domainProof.record }}</el-descriptions-item
             ><el-descriptions-item label="记录值">{{
@@ -116,7 +125,9 @@
             <el-form-item label="允许重要通知使用短信兜底"
               ><el-switch v-model="policy.allowSms" :disabled="!platform.allowSms"
             /></el-form-item>
-            <el-button type="primary" @click="savePolicy">保存通知规则</el-button>
+            <el-button type="primary" :disabled="!can('notification:write')" @click="savePolicy"
+              >保存通知规则</el-button
+            >
           </el-form>
         </div></el-tab-pane
       >
@@ -140,6 +151,8 @@ import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as api from '@/api/homemaking'
 import { applyTenantBrand } from '@/hooks/web/useTenantBrand'
+import { useHmAccess } from './useAccess'
+const { can, loadAccess } = useHmAccess()
 defineOptions({ name: 'HomemakingSettings' })
 const tab = ref('brand'),
   loading = ref(false),
@@ -214,6 +227,7 @@ async function loadHistory() {
   history.value = await api.listBusiness('notifications')
 }
 onMounted(async () => {
+  await loadAccess()
   await Promise.all([loadBrand(), loadPolicy(), loadHistory()])
 })
 </script>

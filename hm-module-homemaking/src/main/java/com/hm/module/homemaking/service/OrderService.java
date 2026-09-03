@@ -73,7 +73,7 @@ public class OrderService {
         order.put("review",repo.jdbc().queryForList("SELECT id,rating,content FROM hm_review WHERE tenant_id=? AND order_id=?",repo.tenant(),id));return order;}
     public Map<String,Object> list(int page,int size,boolean admin){
         size=Math.min(100,Math.max(1,size));page=Math.max(1,page);
-        String where=" WHERE tenant_id=?"+(admin?"":" AND customer_id=?");var args=new ArrayList<Object>();args.add(repo.tenant());if(!admin)args.add(customers.current());
+        String where=" WHERE tenant_id=?"+(admin?repo.scope("hm_order"):" AND customer_id=?");var args=new ArrayList<Object>();args.add(repo.tenant());if(!admin)args.add(customers.current());
         long total=repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_order"+where,Long.class,args.toArray());args.add(size);args.add((page-1)*size);
         return Map.of("list",repo.jdbc().queryForList("SELECT * FROM hm_order"+where+" ORDER BY id DESC LIMIT ? OFFSET ?",args.toArray()),"total",total);
     }

@@ -39,13 +39,15 @@
                 placeholder="填写行政区编号，全部区域选择 *"
                 ><el-option label="全部区域（明确允许）" value="*" /></el-select
             ></el-form-item>
-            <el-button type="primary" @click="saveSkills">保存能力</el-button>
+            <el-button type="primary" :disabled="!can('schedule:write')" @click="saveSkills"
+              >保存能力</el-button
+            >
             <el-divider />
             <el-form-item label="绑定后台用户编号"
               ><el-input-number v-model="userId" :min="1"
             /></el-form-item>
             <p class="muted">请先创建同租户后台用户，并为其角色授予“服务人员工作台”权限。</p>
-            <el-button @click="bind">绑定工作台账号</el-button>
+            <el-button :disabled="!can('workers:bind')" @click="bind">绑定工作台账号</el-button>
           </el-form>
         </el-card></el-col
       >
@@ -61,8 +63,14 @@
             ><el-form-item label="请假原因"
               ><el-input v-model="reason" maxlength="500" /></el-form-item
             ><el-space
-              ><el-button type="primary" @click="add('schedules')">新增班次</el-button
-              ><el-button @click="add('leaves')">登记请假</el-button></el-space
+              ><el-button
+                type="primary"
+                :disabled="!can('schedule:write')"
+                @click="add('schedules')"
+                >新增班次</el-button
+              ><el-button :disabled="!can('schedule:write')" @click="add('leaves')"
+                >登记请假</el-button
+              ></el-space
             ></el-form
           >
           <el-divider />
@@ -82,8 +90,13 @@
                 type="dates"
                 value-format="YYYY-MM-DD" /></el-form-item
             ><el-space
-              ><el-button @click="applyTemplate">批量安排</el-button
-              ><el-button text type="primary" @click="templateVisible = true"
+              ><el-button :disabled="!can('schedule:write')" @click="applyTemplate"
+                >批量安排</el-button
+              ><el-button
+                text
+                type="primary"
+                :disabled="!can('schedule:templates')"
+                @click="templateVisible = true"
                 >新建模板</el-button
               ></el-space
             ></el-form
@@ -103,7 +116,12 @@
           label="预约服务"
         /><el-table-column prop="reason" label="说明" /><el-table-column label="操作" width="90"
           ><template #default="{ row }"
-            ><el-button v-if="row.source" text type="danger" @click="remove(row)"
+            ><el-button
+              v-if="row.source"
+              text
+              type="danger"
+              :disabled="!can('schedule:write')"
+              @click="remove(row)"
               >删除</el-button
             ></template
           ></el-table-column
@@ -120,7 +138,9 @@
             is-range
             value-format="HH:mm:ss" /></el-form-item></el-form
       ><template #footer
-        ><el-button type="primary" @click="createTemplate">保存模板</el-button></template
+        ><el-button type="primary" :disabled="!can('schedule:templates')" @click="createTemplate"
+          >保存模板</el-button
+        ></template
       ></el-dialog
     >
   </HmPage>
@@ -131,6 +151,8 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as api from '@/api/homemaking'
 import HmPage from './components/HmPage.vue'
+import { useHmAccess } from './useAccess'
+const { can, loadAccess } = useHmAccess()
 defineOptions({ name: 'HomemakingScheduling' })
 const workers = ref<any[]>([]),
   services = ref<any[]>([]),
@@ -225,7 +247,10 @@ async function applyTemplate() {
   ElMessage.success('班次已批量安排')
   await load()
 }
-onMounted(loadWorkers)
+onMounted(async () => {
+  await loadAccess()
+  await loadWorkers()
+})
 </script>
 <style scoped>
 .toolbar {

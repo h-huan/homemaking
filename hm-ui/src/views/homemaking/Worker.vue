@@ -32,11 +32,13 @@
           <el-space wrap>
             <el-button
               v-if="task.fulfillment_status === 'ARRIVED'"
+              :disabled="!can('worker:fulfill')"
               @click="openEvidence(task.id, 'BEFORE')"
               >上传服务前照片</el-button
             >
             <el-button
               v-if="task.fulfillment_status === 'STARTED'"
+              :disabled="!can('worker:fulfill')"
               @click="openEvidence(task.id, 'AFTER')"
               >上传服务后照片</el-button
             >
@@ -44,6 +46,7 @@
               v-for="action in actions(task.fulfillment_status)"
               :key="action.value"
               :type="action.primary ? 'primary' : 'default'"
+              :disabled="!can('worker:fulfill')"
               @click="act(task.id, action.value)"
               >{{ action.label }}</el-button
             >
@@ -65,7 +68,11 @@
       />
       <template #footer
         ><el-button @click="evidence.visible = false">取消</el-button
-        ><el-button type="primary" :loading="uploading" @click="saveEvidence"
+        ><el-button
+          type="primary"
+          :loading="uploading"
+          :disabled="!can('worker:fulfill')"
+          @click="saveEvidence"
           >保存照片</el-button
         ></template
       >
@@ -91,6 +98,8 @@ import { onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as api from '@/api/homemaking'
 import HmPage from './components/HmPage.vue'
+import { useHmAccess } from './useAccess'
+const { can, loadAccess } = useHmAccess()
 defineOptions({ name: 'HomemakingWorker' })
 const range = ref([dayjs().format('YYYY-MM-DD'), dayjs().add(7, 'day').format('YYYY-MM-DD')]),
   tasks = ref<any[]>([]),
@@ -185,7 +194,10 @@ async function act(id: number, action: string) {
   ElMessage.success(action === 'EXCEPTION' ? '异常已记录，请联系门店跟进' : '任务状态已更新')
   await load()
 }
-onMounted(load)
+onMounted(async () => {
+  await loadAccess()
+  await load()
+})
 onBeforeUnmount(() => {
   if (localPreview.value) URL.revokeObjectURL(localPreview.value)
   photos.value.forEach((p) => URL.revokeObjectURL(p.url))

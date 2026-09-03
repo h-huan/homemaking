@@ -1,6 +1,6 @@
 # 当前 SaaS 版本部署说明
 
-更新日期：2026-09-03。适用于 `saas-platform`，默认启用 system、infra、pay、mp、homemaking。此次新增独立官网、排班履约、私有照片、套餐与结算及 V002/V003 增量升级。
+更新日期：2026-09-03。适用于 `saas-platform`，默认启用 system、infra、pay、mp、homemaking。此次新增独立官网、排班履约、私有照片、套餐与结算及 V002–V004 增量升级及后台角色权限。
 
 本说明按“单台 Linux 主机运行 Java + Nginx，连接 MySQL/Redis”的方式提供模板；Windows 可负责打包和本地初始化。服务器地址、实际域名和账号尚未提供，下面的目录是部署约定示例，**不是已经替你部署好的地址**。当前副本、原仓库目录、未来 Git 克隆目录都可以作为打包目录，不需要把 `.codex` 隐藏目录上传到服务器。
 
@@ -131,6 +131,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON `CHANGE_ME_DATABASE`.* TO 'CHANGE_ME_DB_
 5. `sql/mysql/hm-menu.sql`
 6. `sql/mysql/upgrades/V002__operations_and_portal.sql`
 7. `sql/mysql/upgrades/V003__operations_menu.sql`
+8. `sql/mysql/upgrades/V004__admin_permissions.sql`
 
 例如 Linux shell，在上传 SQL 的发布目录执行（命令中的主机/账号/库名全部替换）：
 
@@ -142,11 +143,12 @@ mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --passw
 mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/hm-menu.sql
 mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V002__operations_and_portal.sql
 mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V003__operations_menu.sql
+mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --password --default-character-set=utf8mb4 --ssl-mode=REQUIRED CHANGE_ME_DATABASE < sql/mysql/upgrades/V004__admin_permissions.sql
 ```
 
 每条执行成功后再执行下一条，密码交互输入。Windows PowerShell 不支持上述 `<` 写法，可使用数据库客户端选择目标库逐份执行。无需机械替换表名前缀，也不要用旧 `ruoyi-vue-pro.sql` 替代这些 HM 脚本。
 
-**已有 502a15e 数据库仅执行 V002、V003，不能重跑前五份初始化脚本。** 执行前停止写入、备份并确认恢复方案；V002 不可重复执行，部分 DDL 失败不能依靠事务整体回滚。详细步骤见[增量升级说明](../../sql/mysql/upgrades/README.md)。旧家政数据迁移另见[迁移操作说明](../migration/runbook.md#旧库迁移)。
+**已有 502a15e 数据库依次执行 V002、V003、V004；已完成 V003 的数据库仅执行 V004，不能重跑前五份初始化脚本。** 执行前停止写入、备份并确认恢复方案；V002、V004 不可重复执行，部分 DDL 失败不能依靠事务整体回滚。详细步骤见[增量升级说明](../../sql/mysql/upgrades/README.md)。旧家政数据迁移另见[迁移操作说明](../migration/runbook.md#旧库迁移)。
 
 ## 6. 首次管理员与后端启动
 

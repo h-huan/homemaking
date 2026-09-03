@@ -39,7 +39,7 @@ public class QuotaService {
         return limits(row.get("limits_json")).getOrDefault(resource,-1L);
     }
     public Map<String,Object> current(){return describe(repo.tenant());}
-    public Map<String,Object> describe(long tenant){
+    public Map<String,Object> describe(long tenant){com.hm.module.homemaking.security.AdminScope.tenant(tenant);
         check(tenant==repo.tenant()||repo.tenant()==1,"无权查看其他租户配额");
         var r=row(tenant,false);var used=new LinkedHashMap<String,Long>();for(String resource:RESOURCES)used.put(resource,usage(tenant,resource));
         var result=new LinkedHashMap<String,Object>();result.put("tenantId",tenant);result.put("planId",r.get("plan_id"));result.put("version",r.get("version"));result.put("limits",limits(r.get("limits_json")));result.put("features",features(r.get("features_json")));result.put("usage",used);return result;

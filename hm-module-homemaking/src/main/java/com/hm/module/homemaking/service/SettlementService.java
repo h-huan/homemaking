@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
 import java.util.*;
+import com.hm.module.homemaking.security.AdminScope;
 import static com.hm.module.homemaking.dal.HmRepository.*;
 
 @Service("hmSettlementService")
@@ -18,9 +19,9 @@ public class SettlementService {
     public record Payout(@NotBlank @Size(max=150) String reference) {}
     private final HmRepository repo;private final QuotaService quotas;
     public SettlementService(HmRepository repo,QuotaService quotas){this.repo=repo;this.quotas=quotas;}
-    public Map<String,Object> rule(long tenant){check(repo.tenant()==tenant||repo.tenant()==1,"无权查看该规则");var rows=repo.jdbc().queryForList("SELECT * FROM hm_commission_rule WHERE tenant_id=?",tenant);return rows.isEmpty()?Map.of("tenant_id",tenant,"platform_bps",0,"worker_bps",0,"cycle_days",30,"enabled",false,"version",0):rows.get(0);}
+    public Map<String,Object> rule(long tenant){AdminScope.tenant(tenant);check(repo.tenant()==tenant||repo.tenant()==1,"无权查看该规则");var rows=repo.jdbc().queryForList("SELECT * FROM hm_commission_rule WHERE tenant_id=?",tenant);return rows.isEmpty()?Map.of("tenant_id",tenant,"platform_bps",0,"worker_bps",0,"cycle_days",30,"enabled",false,"version",0):rows.get(0);}
     @Transactional public void saveRule(long tenant,Rule r){
-        check(repo.tenant()==1,"仅总部可设置平台抽成和人员分成规则");check(r.platformBps()+r.workerBps()<=10000,"平台与人员分成合计不能超过 100%");
+        AdminScope.platformOnly();check(repo.tenant()==1,"仅总部可设置平台抽成和人员分成规则");check(r.platformBps()+r.workerBps()<=10000,"平台与人员分成合计不能超过 100%");
         check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM system_tenant WHERE id=? AND deleted=FALSE",Long.class,tenant)==1,"租户不存在");
         var current=repo.jdbc().queryForList("SELECT version FROM hm_commission_rule WHERE tenant_id=? FOR UPDATE",tenant);
         if(current.isEmpty()){
@@ -53,17 +54,17 @@ public class SettlementService {
     }
     private void entry(Map<String,Object> order,String type,long beneficiary,long amount,String event){if(amount==0)return;repo.jdbc().update("INSERT INTO hm_settlement_entry(tenant_id,order_id,beneficiary,beneficiary_id,amount_cents,event_key) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE event_key=VALUES(event_key)",repo.tenant(),order.get("id"),type,beneficiary,amount,event);}
     @Transactional public long statement(Statement s){
-        check(repo.tenant()==1,"仅总部可生成结算单");check(!s.periodEnd().isBefore(s.periodStart())&&s.periodEnd().isBefore(s.periodStart().plusDays(93)),"结算周期最多 93 天");
-        if(s.beneficiary().equals("STORE"))check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_store WHERE tenant_id=? AND id=?",Long.class,s.tenantId(),s.beneficiaryId())==1,"门店不存在");
-        else check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_worker WHERE tenant_id=? AND id=?",Long.class,s.tenantId(),s.beneficiaryId())==1,"人员不存在");
+        AdminScope.tenant(s.tenantId());check(s.tenantId()==repo.tenant()||repo.tenant()==1,"无权生成该租户结算单");check(!s.periodEnd().isBefore(s.periodStart())&&s.periodEnd().isBefore(s.periodStart().plusDays(93)),"结算周期最多 93 天");
+        if(s.beneficiary().equals("STORE"))check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_store WHERE tenant_id=? AND id=?"+repo.scope("hm_store"),Long.class,s.tenantId(),s.beneficiaryId())==1,"门店不存在");
+        else check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_worker WHERE tenant_id=? AND id=?"+repo.scope("hm_worker"),Long.class,s.tenantId(),s.beneficiaryId())==1,"人员不存在");
         var entries=repo.jdbc().queryForList("SELECT id,amount_cents FROM hm_settlement_entry WHERE tenant_id=? AND beneficiary=? AND beneficiary_id=? AND statement_id IS NULL AND created_at>=? AND created_at<? ORDER BY id FOR UPDATE",s.tenantId(),s.beneficiary(),s.beneficiaryId(),s.periodStart().atStartOfDay(),s.periodEnd().plusDays(1).atStartOfDay());check(!entries.isEmpty(),"没有未结算明细");
         long amount=entries.stream().mapToLong(e->number(e,"amount_cents")).sum();long id=repo.insert("INSERT INTO hm_settlement_statement(tenant_id,beneficiary,beneficiary_id,period_start,period_end,amount_cents,created_by) VALUES(?,?,?,?,?,?,?)",s.tenantId(),s.beneficiary(),s.beneficiaryId(),s.periodStart(),s.periodEnd(),amount,SecurityFrameworkUtils.getLoginUserId());
         for(var entry:entries)check(repo.jdbc().update("UPDATE hm_settlement_entry SET statement_id=? WHERE id=? AND statement_id IS NULL",id,entry.get("id"))==1,"结算明细已被处理");return id;
     }
-    public List<Map<String,Object>> statements(long tenant){check(repo.tenant()==1,"仅总部可管理结算单");return repo.jdbc().queryForList("SELECT * FROM hm_settlement_statement WHERE tenant_id=? ORDER BY id DESC LIMIT 200",tenant);}
+    public List<Map<String,Object>> statements(long tenant){AdminScope.tenant(tenant);check(tenant==repo.tenant()||repo.tenant()==1,"无权查看结算单");return repo.jdbc().queryForList("SELECT * FROM hm_settlement_statement WHERE tenant_id=?"+repo.scope("hm_settlement_statement")+" ORDER BY id DESC LIMIT 200",tenant);}
     @Transactional public void approve(long id){var s=lock(id);check("DRAFT".equals(s.get("status"))&&number(s,"amount_cents")>0,"结算单不可审核或金额非正数");update(id,"APPROVED","approved_by",SecurityFrameworkUtils.getLoginUserId());}
     @Transactional public void paid(long id,Payout p){var s=lock(id);check("APPROVED".equals(s.get("status")),"结算单尚未审核");repo.jdbc().update("UPDATE hm_settlement_statement SET status='PAID',payment_reference=?,paid_by=?,paid_at=CURRENT_TIMESTAMP WHERE id=?",p.reference(),SecurityFrameworkUtils.getLoginUserId(),id);}
     @Transactional public void reconcile(long id){var s=lock(id);check("PAID".equals(s.get("status")),"结算单尚未登记打款");update(id,"RECONCILED","reconciled_by",SecurityFrameworkUtils.getLoginUserId());repo.jdbc().update("UPDATE hm_settlement_statement SET reconciled_at=CURRENT_TIMESTAMP WHERE id=?",id);}
-    private Map<String,Object> lock(long id){check(repo.tenant()==1,"仅总部可处理结算");var rows=repo.jdbc().queryForList("SELECT * FROM hm_settlement_statement WHERE id=? FOR UPDATE",id);check(rows.size()==1,"结算单不存在");return rows.get(0);}
+    private Map<String,Object> lock(long id){var scope=AdminScope.current();boolean platform=scope!=null?scope.platform():repo.tenant()==1;var rows=platform?repo.jdbc().queryForList("SELECT * FROM hm_settlement_statement WHERE id=? FOR UPDATE",id):repo.jdbc().queryForList("SELECT * FROM hm_settlement_statement WHERE id=? AND tenant_id=?"+repo.scope("hm_settlement_statement")+" FOR UPDATE",id,repo.tenant());check(rows.size()==1,"结算单不存在");return rows.get(0);}
     private void update(long id,String status,String actor,Object value){repo.jdbc().update("UPDATE hm_settlement_statement SET status=?,"+actor+"=? WHERE id=?",status,value,id);}
 }

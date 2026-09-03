@@ -25,7 +25,7 @@ public class CatalogService {
     }
     public Map<String,Object> list(String kind,int page,int size,boolean publicView) {
         size=Math.min(Math.max(size,1),100);page=Math.max(page,1);
-        String table=table(kind),where=" WHERE tenant_id=?"+(publicView?" AND status='ACTIVE'":"");
+        String table=table(kind),where=" WHERE tenant_id=?"+(publicView?" AND status='ACTIVE'":repo.scope(table));
         String columns=publicView? switch(kind){case "workers"->"id,store_id,name,skills,avatar";case "services"->"id,store_id,name,category,description,price_cents,duration_minutes,cover";default->"id,name,address,phone,service_area";} : "*";
         return Map.of("list",repo.jdbc().queryForList("SELECT "+columns+" FROM "+table+where+" ORDER BY id DESC LIMIT ? OFFSET ?",repo.tenant(),size,(page-1)*size),
             "total",repo.jdbc().queryForObject("SELECT COUNT(*) FROM "+table+where,Long.class,repo.tenant()));
@@ -33,6 +33,7 @@ public class CatalogService {
     @Transactional
     public long save(String kind,Save request) {
         String table=table(kind);var values=new LinkedHashMap<String,Object>();
+        if(kind.equals("stores") && request.id()==null) com.hm.module.homemaking.security.AdminScope.tenantWide();
         values.put("name",request.name());values.put("status",Objects.requireNonNullElse(request.status(),"ACTIVE"));
         if(kind.equals("stores")) {values.put("address",s(request.address()));values.put("phone",s(request.phone()));values.put("service_area",s(request.serviceArea()));}
         else {

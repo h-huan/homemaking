@@ -14,6 +14,8 @@ import java.util.*;
 public class HmRepository {
     private final JdbcTemplate jdbc;
     public JdbcTemplate jdbc(){return jdbc;}
+    public String scope(String table) { return scope(table, ""); }
+    public String scope(String table, String alias) { return com.hm.module.homemaking.security.AdminScope.sql(table, alias, tenant()); }
     private static final Set<String> TABLES = Set.of("hm_store", "hm_worker", "hm_service", "hm_order", "hm_booking",
             "hm_customer_address", "hm_review", "hm_aftersale", "hm_settlement");
     public HmRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
@@ -25,7 +27,7 @@ public class HmRepository {
     }
     public Map<String,Object> require(String table, long id, boolean lock) {
         if (!TABLES.contains(table)) throw new IllegalArgumentException("Unknown business table");
-        var rows = jdbc.queryForList("SELECT * FROM " + table + " WHERE tenant_id=? AND id=?" + (lock ? " FOR UPDATE" : ""), tenant(), id);
+        var rows = jdbc.queryForList("SELECT * FROM " + table + " WHERE tenant_id=? AND id=?" + scope(table) + (lock ? " FOR UPDATE" : ""), tenant(), id);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "记录不存在");
         return rows.get(0);
     }

@@ -5,7 +5,10 @@
     description="维护门店、人员与服务，处理订单、评价和售后。"
   >
     <template #actions
-      ><el-button v-if="isCatalog" type="primary" @click="edit()"
+      ><el-button
+        v-if="isCatalog && can(`${tab}:write`) && (tab !== 'stores' || range === 'TENANT')"
+        type="primary"
+        @click="edit()"
         >新增{{ tabLabel }}</el-button
       ></template
     >
@@ -79,6 +82,7 @@
           ><template #default="{ row }"
             ><el-switch
               :model-value="!!row.visible"
+              :disabled="!can('reviews:moderate')"
               @change="reviewVisibility(row, !!$event)" /></template></el-table-column
       ></template>
       <el-table-column v-if="tab !== 'reviews'" label="状态" width="120"
@@ -95,9 +99,11 @@
         min-width="230"
         fixed="right"
         ><template #default="{ row }">
-          <el-button v-if="isCatalog" link type="primary" @click="edit(row)">编辑</el-button>
+          <el-button v-if="isCatalog && can(`${tab}:write`)" link type="primary" @click="edit(row)"
+            >编辑</el-button
+          >
           <el-button
-            v-if="tab === 'services'"
+            v-if="tab === 'services' && can('services:write')"
             link
             type="primary"
             @click="openSettings(row)"
@@ -111,6 +117,7 @@
                 ['WAITING', 'ACCEPTED'].includes(row.fulfillment_status)
               "
               link
+              :disabled="!can('orders:reschedule')"
               @click="openReschedule(row)"
               >改期</el-button
             >
@@ -118,6 +125,7 @@
               v-if="['PAID', 'ASSIGNED'].includes(row.status)"
               link
               type="primary"
+              :disabled="!can('orders:dispatch')"
               @click="beginAssign(row)"
               >派单</el-button
             >
@@ -125,6 +133,7 @@
               v-if="row.status === 'ASSIGNED' && row.fulfillment_status === 'ARRIVED'"
               link
               type="primary"
+              :disabled="!can('orders:fulfill')"
               @click="action(row, 'start')"
               >开始服务</el-button
             >
@@ -132,6 +141,7 @@
               v-if="row.status === 'IN_SERVICE' && row.fulfillment_status === 'STARTED'"
               link
               type="primary"
+              :disabled="!can('orders:fulfill')"
               @click="action(row, 'complete')"
               >确认完工</el-button
             >
@@ -139,19 +149,30 @@
               v-if="['UNPAID', 'PAID', 'ASSIGNED'].includes(row.status)"
               link
               type="danger"
+              :disabled="!can('orders:cancel')"
               @click="action(row, 'cancel')"
               >取消订单</el-button
             >
           </template>
           <template v-if="tab === 'aftersales'">
-            <el-button v-if="row.status === 'REQUESTED'" link @click="reject(row)">驳回</el-button
+            <el-button
+              v-if="row.status === 'REQUESTED'"
+              link
+              :disabled="!can('aftersales:reject')"
+              @click="reject(row)"
+              >驳回</el-button
             ><el-button
               v-if="row.status === 'REQUESTED'"
               link
               type="danger"
+              :disabled="!can('aftersales:refund')"
               @click="refund(row, 'approve')"
               >批准退款</el-button
-            ><el-button v-if="row.status === 'REFUNDING'" link @click="refund(row, 'sync')"
+            ><el-button
+              v-if="row.status === 'REFUNDING'"
+              link
+              :disabled="!can('aftersales:refund')"
+              @click="refund(row, 'sync')"
               >查询退款结果</el-button
             ></template
           >
@@ -293,12 +314,17 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import * as api from '@/api/homemaking'
 import HmPage from './components/HmPage.vue'
+import { useHmAccess } from './useAccess'
+const { can, range, loadAccess } = useHmAccess()
 import ServiceSettings from './components/ServiceSettings.vue'
 const settingsVisible = ref(false),
   settingsService = ref<api.BusinessRow>()
 defineOptions({ name: 'HomemakingOperations' })
-function openSettings(row:api.BusinessRow){settingsService.value=row;settingsVisible.value=true}
-const tabs = [
+function openSettings(row: api.BusinessRow) {
+  settingsService.value = row
+  settingsVisible.value = true
+}
+const allTabs = [
   { key: 'stores', label: '门店' },
   { key: 'workers', label: '服务人员' },
   { key: 'services', label: '服务' },
@@ -308,6 +334,9 @@ const tabs = [
   { key: 'reviews', label: '评价' },
   { key: 'settlements', label: '结算' }
 ]
+const tabs = computed(() =>
+  allTabs.filter((t) => can(`${t.key === 'settlements' ? 'finance' : t.key}:read`))
+)
 const tab = ref('orders'),
   page = ref(1),
   total = ref(0),
@@ -323,7 +352,7 @@ const rows = ref<api.BusinessRow[]>([]),
   workerId = ref<number>(),
   formRef = ref<FormInstance>()
 const isCatalog = computed(() => ['stores', 'workers', 'services'].includes(tab.value))
-const tabLabel = computed(() => tabs.find((t) => t.key === tab.value)?.label || '')
+const tabLabel = computed(() => tabs.value.find((t) => t.key === tab.value)?.label || '')
 const money = (cents: number) => ((cents || 0) / 100).toFixed(2)
 const labels: Record<string, string> = {
   ACTIVE: '启用',
@@ -460,7 +489,11 @@ async function refund(row: api.BusinessRow, name: string) {
   await api.refundAction(row.id, name)
   await load()
 }
-onMounted(load)
+onMounted(async () => {
+  await loadAccess()
+  if (!tabs.value.some((t) => t.key === tab.value)) tab.value = tabs.value[0]?.key || ''
+  if (tab.value) await load()
+})
 </script>
 <style scoped>
 .detail-timeline {

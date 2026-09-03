@@ -10,7 +10,7 @@
         ><el-button
           type="primary"
           :loading="publishing"
-          :disabled="dirty || !version"
+          :disabled="dirty || !version || !can('portal:publish')"
           @click="publish"
           >发布版本 {{ version }}</el-button
         ></el-space
@@ -182,7 +182,11 @@
       <el-form-item label="页脚文字" class="footer-field"
         ><el-input v-model="config.footerText" maxlength="100"
       /></el-form-item>
-      <el-button type="primary" :loading="saving" :disabled="!dirty" @click="save"
+      <el-button
+        type="primary"
+        :loading="saving"
+        :disabled="!dirty || !can('portal:write')"
+        @click="save"
         >保存草稿</el-button
       >
     </el-form>
@@ -193,6 +197,8 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as api from '@/api/homemaking'
 import HmPage from './components/HmPage.vue'
+import { useHmAccess } from './useAccess'
+const { can, loadAccess } = useHmAccess()
 defineOptions({ name: 'HomemakingPortal' })
 const loading = ref(false),
   saving = ref(false),
@@ -289,9 +295,10 @@ async function publish() {
     publishing.value = false
   }
 }
-onMounted(() => {
-  load()
-  loadChoices()
+onMounted(async () => {
+  await loadAccess()
+  await load()
+  await loadChoices()
 })
 </script>
 <style scoped>

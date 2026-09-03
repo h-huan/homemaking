@@ -13,7 +13,7 @@
       ></div
     >
     <el-tabs>
-      <el-tab-pane label="功能与额度">
+      <el-tab-pane v-if="can('quota:read')" label="功能与额度">
         <el-alert
           v-if="!isHeadquarters"
           title="额度与功能由总部统一配置。如需调整，请联系总部。"
@@ -104,7 +104,7 @@
           <el-button v-if="isHeadquarters" type="primary" @click="saveRule">保存分佣规则</el-button>
         </el-form>
       </el-tab-pane>
-      <el-tab-pane v-if="isHeadquarters" label="结算单">
+      <el-tab-pane v-if="can('finance:read')" label="结算单">
         <el-form inline class="statement-form">
           <el-form-item label="结算对象"
             ><el-select v-model="statement.beneficiary" style="width: 140px"
@@ -123,7 +123,8 @@
               :clearable="false"
           /></el-form-item>
           <el-form-item
-            ><el-button type="primary" @click="generate">生成结算单</el-button
+            ><el-button v-if="can('finance:statement')" type="primary" @click="generate"
+              >生成结算单</el-button
             ><el-button @click="loadStatements">刷新</el-button></el-form-item
           >
         </el-form>
@@ -155,17 +156,21 @@
           <el-table-column label="操作" min-width="200"
             ><template #default="{ row }">
               <el-button
-                v-if="row.status === 'DRAFT'"
+                v-if="row.status === 'DRAFT' && can('finance:approve')"
                 text
                 type="primary"
                 @click="action(row.id, 'approve')"
                 >审核</el-button
               >
-              <el-button v-if="row.status === 'APPROVED'" text type="primary" @click="paid(row.id)"
+              <el-button
+                v-if="row.status === 'APPROVED' && can('finance:payout')"
+                text
+                type="primary"
+                @click="paid(row.id)"
                 >登记打款</el-button
               >
               <el-button
-                v-if="row.status === 'PAID'"
+                v-if="row.status === 'PAID' && can('finance:reconcile')"
                 text
                 type="primary"
                 @click="action(row.id, 'reconcile')"
@@ -185,9 +190,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getTenantId } from '@/utils/auth'
 import * as api from '@/api/homemaking'
 import HmPage from './components/HmPage.vue'
+import { useHmAccess } from './useAccess'
+const { can, loadAccess } = useHmAccess()
 
 defineOptions({ name: 'HomemakingFinance' })
-const isHeadquarters = Number(getTenantId()) === 1
+const isHeadquarters = computed(() => can('platform:manage'))
 const tenantId = ref(Number(getTenantId()) || 1),
   loading = ref(false),
   quotaVersion = ref(0),
@@ -238,12 +245,14 @@ const period = ref([dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().forma
 async function load() {
   loading.value = true
   try {
-    const q = await api.getQuota(tenantId.value)
-    quotaVersion.value = Number(q.version || 0)
-    planId.value = q.planId || undefined
-    limits.value = Object.fromEntries(resources.map((r) => [r.key, q.limits?.[r.key] ?? -1]))
-    features.value = q.features || []
-    usage.value = q.usage || {}
+    if (can('quota:read')) {
+      const q = await api.getQuota(tenantId.value)
+      quotaVersion.value = Number(q.version || 0)
+      planId.value = q.planId || undefined
+      limits.value = Object.fromEntries(resources.map((r) => [r.key, q.limits?.[r.key] ?? -1]))
+      features.value = q.features || []
+      usage.value = q.usage || {}
+    }
     const r = await api.getCommissionRule(tenantId.value)
     rule.value = {
       platformBps: Number(r.platform_bps),
@@ -252,7 +261,7 @@ async function load() {
       enabled: !!r.enabled,
       version: Number(r.version)
     }
-    if (isHeadquarters) {
+    if (isHeadquarters.value) {
       plans.value = await api.listPlans()
       await loadStatements()
     }
@@ -323,7 +332,10 @@ async function paid(id: number) {
   })
   await action(id, 'paid', { reference: value.trim() })
 }
-onMounted(load)
+onMounted(async () => {
+  await loadAccess()
+  await load()
+})
 </script>
 <style scoped>
 .tenant-picker {
