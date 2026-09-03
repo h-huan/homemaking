@@ -10,13 +10,14 @@ import jakarta.validation.constraints.*;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
+import java.time.LocalDate;
 import static com.hm.framework.common.pojo.CommonResult.success;
 import static com.hm.module.homemaking.dal.HmRepository.check;
 
 @RestController @RequestMapping("/homemaking") @Validated
 public class HomemakingAppController {
-    private final CatalogService catalog;private final OrderService orders;private final PaymentService payments;private final CustomerAccess access;private final IdentityService identity;private final HmRepository repo;
-    public HomemakingAppController(CatalogService catalog,OrderService orders,PaymentService payments,CustomerAccess access,IdentityService identity,HmRepository repo){this.catalog=catalog;this.orders=orders;this.payments=payments;this.access=access;this.identity=identity;this.repo=repo;}
+    private final CatalogService catalog;private final OrderService orders;private final PaymentService payments;private final CustomerAccess access;private final IdentityService identity;private final HmRepository repo;private final ScheduleService schedules;private final WorkerService workers;
+    public HomemakingAppController(CatalogService catalog,OrderService orders,PaymentService payments,CustomerAccess access,IdentityService identity,HmRepository repo,ScheduleService schedules,WorkerService workers){this.catalog=catalog;this.orders=orders;this.payments=payments;this.access=access;this.identity=identity;this.repo=repo;this.schedules=schedules;this.workers=workers;}
     @PermitAll @GetMapping("/catalog/{kind}") public CommonResult<?> catalog(@PathVariable String kind,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size){return success(catalog.list(kind,page,size,true));}
     @GetMapping("/me") public CommonResult<?> me(){return success(repo.jdbc().queryForMap("SELECT id,nickname,avatar,mobile FROM hm_customer WHERE id=?",access.current()));}
     public record Login(@NotBlank @Size(max=100) String appId,@NotBlank @Size(max=200) String code){}
@@ -31,6 +32,10 @@ public class HomemakingAppController {
     @GetMapping("/orders") public CommonResult<?> orders(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size){return success(orders.list(page,size,false));}
     @GetMapping("/orders/{id}") public CommonResult<?> order(@PathVariable long id){return success(orders.detail(id,false));}
     @PostMapping("/orders/{id}/cancel") public CommonResult<?> cancel(@PathVariable long id){orders.cancel(id,false);return success(true);}
+    @PostMapping("/orders/{id}/reschedule") public CommonResult<?> reschedule(@PathVariable long id,@Valid @RequestBody OrderService.Reschedule request){orders.reschedule(id,request,false);return success(true);}
+    @GetMapping("/orders/{id}/evidence") public CommonResult<?> evidence(@PathVariable long id){return success(workers.evidence(id,true));}
+    @GetMapping("/orders/{id}/evidence/{evidenceId}/content") public org.springframework.http.ResponseEntity<byte[]> evidenceContent(@PathVariable long id,@PathVariable long evidenceId){return workers.content(id,evidenceId,true,false);}
+    @GetMapping("/capacity") public CommonResult<?> capacity(@RequestParam long serviceId,@RequestParam(required=false) Long skuId,@RequestParam(required=false) Long workerId,@RequestParam LocalDate date,@RequestParam Long addressId){return success(schedules.capacity(serviceId,skuId,workerId,date,addressId));}
     @PostMapping("/orders/{id}/pay") public CommonResult<?> pay(@PathVariable long id,HttpServletRequest request){return success(payments.create(id,request.getRemoteAddr()));}
     public record MiniPay(@NotBlank @Size(max=100) String appId){}
     @PostMapping("/orders/{id}/mini-pay") public CommonResult<?> miniPay(@PathVariable long id,@Valid @RequestBody MiniPay payment,HttpServletRequest request){return success(payments.miniPay(id,payment.appId(),request.getRemoteAddr()));}

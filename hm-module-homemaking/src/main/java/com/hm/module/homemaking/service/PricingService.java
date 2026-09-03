@@ -31,4 +31,15 @@ public class PricingService {
         if(Boolean.FALSE.equals(rule.get("allow_same_day")))check(start.toLocalDate().isAfter(now.toLocalDate()),"该服务不支持当天预约");
         String slots=(String)rule.get("time_slots_json");if(slots!=null&&!slots.isBlank())try{List<String> configured=json.readValue(slots,new TypeReference<>(){});check(configured.stream().anyMatch(s->start.toLocalTime().equals(LocalTime.parse(s.split("-")[0]))),"请选择已配置的预约时段");}catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new IllegalArgumentException("预约规则配置无效");}
     }
+    public void validateChange(long serviceId,LocalDateTime original,boolean reschedule){
+        var rule=rule(serviceId);int minutes=120;boolean enabled=true;
+        Object configured=rule.get("cancel_rule_json");
+        if(configured!=null&&!configured.toString().isBlank())try{
+            Map<String,Object> policy=json.readValue(configured.toString(),new TypeReference<>(){});
+            String key=reschedule?"rescheduleBeforeMinutes":"cancelBeforeMinutes";
+            if(policy.get(key) instanceof Number n)minutes=n.intValue();
+            enabled=!Boolean.FALSE.equals(policy.get(reschedule?"allowReschedule":"allowCancel"));
+        }catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new IllegalArgumentException("订单变更规则配置无效");}
+        check(enabled&&minutes>=0&&original.isAfter(LocalDateTime.now().plusMinutes(minutes)),"已超过自助取消/改约时间，请联系门店");
+    }
 }

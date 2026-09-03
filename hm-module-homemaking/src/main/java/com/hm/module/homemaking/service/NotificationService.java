@@ -18,6 +18,7 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 public class NotificationService {
     private final HmRepository repo;private final ObjectMapper json;private final TransactionTemplate tx;private final NotificationGateway gateway;
     @Value("${hm.homemaking.notification-delivery-enabled:false}") private boolean deliveryEnabled;
+    @org.springframework.beans.factory.annotation.Autowired(required=false) private QuotaService quotas;
     public NotificationService(HmRepository repo,ObjectMapper json,PlatformTransactionManager manager,NotificationGateway gateway){this.repo=repo;this.json=json;this.tx=new TransactionTemplate(manager);this.gateway=gateway;}
     public void enqueue(long customer,Long order,String event,String level,String dedup,Map<String,Object> payload){
         try{repo.jdbc().update("INSERT INTO hm_notification_outbox(tenant_id,customer_id,order_id,event_type,level,dedup_key,payload) VALUES(?,?,?,?,?,?,?)",repo.tenant(),customer,order,event,level,dedup,json.writeValueAsString(payload));}
@@ -66,6 +67,7 @@ public class NotificationService {
         var tried=repo.jdbc().queryForList("SELECT channel FROM hm_notification_delivery WHERE outbox_id=?",String.class,id);
         String channel=decision.channels().stream().filter(c->!tried.contains(c)).findFirst().orElse(null);
         if(channel==null){mark(id,"FAILED","所有允许渠道均不可用",now);return null;}
+        if(channel.equals("SMS")&&quotas!=null&&!quotas.reserveSms(tenant)){mark(id,"SUPPRESSED","短信功能未开通或本月额度已用完",now);return null;}
         String token=UUID.randomUUID().toString();repo.jdbc().update("UPDATE hm_notification_outbox SET status='SENDING',lock_token=?,locked_until=? WHERE id=?",token,now.plusMinutes(5),id);
         repo.insert("INSERT INTO hm_notification_delivery(tenant_id,customer_id,outbox_id,channel,status) VALUES(?,?,?,?,'RESERVED')",tenant,customer,id,channel);
         job.put("channel",channel);job.put("lock_token",token);return job;

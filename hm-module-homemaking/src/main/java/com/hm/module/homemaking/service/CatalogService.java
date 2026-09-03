@@ -17,6 +17,7 @@ public class CatalogService {
             @Min(30) @Max(480) Integer durationMinutes, @Size(max=1000) String cover,
             @Pattern(regexp="ACTIVE|INACTIVE") String status, @Min(0) Long version) {}
     private final HmRepository repo;
+    @org.springframework.beans.factory.annotation.Autowired(required=false) private QuotaService quotas;
     public CatalogService(HmRepository repo) {this.repo=repo;}
     private String table(String kind) {
         return switch(kind) {case "stores"->"hm_store";case "workers"->"hm_worker";case "services"->"hm_service";
@@ -42,12 +43,16 @@ public class CatalogService {
                 repo.jdbc().update("INSERT INTO hm_service_category(tenant_id,name) VALUES(?,?) ON DUPLICATE KEY UPDATE name=VALUES(name)",repo.tenant(),category);
                 values.put("category",category);values.put("description",s(request.description()));values.put("price_cents",request.priceCents());values.put("duration_minutes",request.durationMinutes());values.put("cover",safeUrl(request.cover()));}
         }
-        if(request.id()==null){values.put("tenant_id",repo.tenant());return repo.insert("INSERT INTO "+table+" ("+String.join(",",values.keySet())+") VALUES ("+String.join(",",Collections.nCopies(values.size(),"?"))+")",values.values().toArray());}
+        if(request.id()==null){if(quotas!=null)quotas.checkCreate(kind);values.put("tenant_id",repo.tenant());return repo.insert("INSERT INTO "+table+" ("+String.join(",",values.keySet())+") VALUES ("+String.join(",",Collections.nCopies(values.size(),"?"))+")",values.values().toArray());}
         var current=repo.require(table,request.id(),true);HmRepository.check(request.version()!=null&&request.version()==HmRepository.number(current,"version"),"记录已更新，请刷新后重试");
         var args=new ArrayList<>(values.values());args.add(repo.tenant());args.add(request.id());args.add(request.version());
         int changed=repo.jdbc().update("UPDATE "+table+" SET "+String.join(",",values.keySet().stream().map(k->k+"=?").toList())+",version=version+1 WHERE tenant_id=? AND id=? AND version=?",args.toArray());
         HmRepository.check(changed==1,"记录已更新");return request.id();
     }
     public static String s(String value){return value==null?"":value;}
-    public static String safeUrl(String value){value=s(value);if(!value.isEmpty()&&!value.startsWith("https://")&&!value.matches("/[A-Za-z0-9_./-]+"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"图片地址须使用 HTTPS 或站内路径");return value;}
+    public static String safeUrl(String value){
+        value=s(value);if(value.isEmpty()||value.matches("/(?!/)[A-Za-z0-9_./-]+"))return value;
+        try{var uri=java.net.URI.create(value);if("https".equals(uri.getScheme())&&uri.getHost()!=null&&uri.getUserInfo()==null)return value;}catch(IllegalArgumentException ignored){}
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"图片地址须使用 HTTPS 或站内路径");
+    }
 }

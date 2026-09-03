@@ -10,9 +10,10 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 @Service("hmIdentityService")
 public class IdentityService {
     private final HmRepository repo;private final WechatGateway wechat;private final OAuth2TokenService tokens;private final CustomerAccess access;
+    @org.springframework.beans.factory.annotation.Autowired(required=false) private QuotaService quotas;
     public IdentityService(HmRepository repo,WechatGateway wechat,OAuth2TokenService tokens,CustomerAccess access){this.repo=repo;this.wechat=wechat;this.tokens=tokens;this.access=access;}
     @Transactional
-    public Map<String,Object> login(String appId,String kind,String code){return loginVerified(wechat.verify(appId,kind,code));}
+    public Map<String,Object> login(String appId,String kind,String code){if(quotas!=null)quotas.feature(kind.equals("MINI")?"mini":"mp");return loginVerified(wechat.verify(appId,kind,code));}
     Map<String,Object> loginVerified(WechatGateway.Verified identity){
         var existing=repo.jdbc().queryForList("SELECT customer_id FROM hm_wechat_identity WHERE app_id=? AND open_id=? FOR UPDATE",identity.appId(),identity.openId());
         Long customer=existing.isEmpty()?null:number(existing.get(0),"customer_id");
@@ -28,6 +29,7 @@ public class IdentityService {
         repo.jdbc().update("INSERT INTO hm_wechat_identity(app_id,open_id,customer_id,union_id) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE union_id=VALUES(union_id)",identity.appId(),identity.openId(),customer,identity.unionId());
         long actual=repo.jdbc().queryForObject("SELECT customer_id FROM hm_wechat_identity WHERE app_id=? AND open_id=?",Long.class,identity.appId(),identity.openId());check(actual==customer,"身份正在关联，请重新登录");
         check("ACTIVE".equals(repo.jdbc().queryForObject("SELECT status FROM hm_customer WHERE id=?",String.class,customer)),"客户账号不可用");
+        if(quotas!=null&&repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_customer_tenant WHERE tenant_id=? AND customer_id=?",Long.class,repo.tenant(),customer)==0)quotas.checkCreate("customers");
         repo.jdbc().update("INSERT INTO hm_customer_tenant(tenant_id,customer_id) VALUES(?,?) ON DUPLICATE KEY UPDATE customer_id=VALUES(customer_id)",repo.tenant(),customer);
         check("ACTIVE".equals(repo.jdbc().queryForObject("SELECT status FROM hm_customer_tenant WHERE tenant_id=? AND customer_id=?",String.class,repo.tenant(),customer)),"租户客户关系不可用");
         var token=tokens.createAccessToken(customer,1,"default",List.of("homemaking"));

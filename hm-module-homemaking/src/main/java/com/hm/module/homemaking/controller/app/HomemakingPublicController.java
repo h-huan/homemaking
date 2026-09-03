@@ -18,11 +18,14 @@ import static com.hm.module.homemaking.dal.HmRepository.check;
 
 @RestController @RequestMapping("/homemaking/public")
 public class HomemakingPublicController {
-    private final BrandingService branding;private final IdentityService identity;private final PaymentService payments;private final WechatGateway wechat;private final StringRedisTemplate redis;
-    public HomemakingPublicController(BrandingService branding,IdentityService identity,PaymentService payments,WechatGateway wechat,StringRedisTemplate redis){this.branding=branding;this.identity=identity;this.payments=payments;this.wechat=wechat;this.redis=redis;}
+    private final BrandingService branding;private final IdentityService identity;private final PaymentService payments;private final WechatGateway wechat;private final StringRedisTemplate redis;private final PortalService portal;
+    public HomemakingPublicController(BrandingService branding,IdentityService identity,PaymentService payments,WechatGateway wechat,StringRedisTemplate redis,PortalService portal){this.branding=branding;this.identity=identity;this.payments=payments;this.wechat=wechat;this.redis=redis;this.portal=portal;}
     @PermitAll @TenantIgnore @GetMapping("/brand") public CommonResult<?> brand(HttpServletRequest request){return success(branding.byHost(request.getServerName()));}
+    @PermitAll @TenantIgnore @GetMapping("/portal") public CommonResult<?> portal(HttpServletRequest request){return success(portal.published(request.getServerName()));}
     public record PaymentNotice(@NotNull @Min(1) Long payOrderId){}
     @PermitAll @TenantIgnore @PostMapping("/payment-callback") public CommonResult<?> callback(@Valid @RequestBody PaymentNotice notice){payments.callback(notice.payOrderId());return success(true);}
+    public record RefundNotice(@NotNull @Min(1) Long payRefundId){}
+    @PermitAll @TenantIgnore @PostMapping("/refund-callback") public CommonResult<?> refund(@Valid @RequestBody RefundNotice notice){payments.refundCallback(notice.payRefundId());return success(true);}
     @PermitAll @GetMapping("/wechat/mp-start") public CommonResult<?> start(@RequestParam String appId,HttpServletRequest request,HttpServletResponse response){wechat.app(appId,"MP");
         var brand=branding.byHost(request.getServerName());check(!brand.isEmpty(),"当前域名尚未验证");String state=UUID.randomUUID().toString();
         long tenant=com.hm.framework.tenant.core.context.TenantContextHolder.getRequiredTenantId();check(((Number)brand.get("tenant_id")).longValue()==tenant,"域名与租户不匹配");

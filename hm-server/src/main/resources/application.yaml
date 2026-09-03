@@ -147,6 +147,8 @@ spring:
 --- #################### HM 配置 ####################
 
 hm:
+  homemaking:
+    evidence-root: ${HM_EVIDENCE_ROOT:./data/homemaking-evidence}
   info:
     version: 1.0.0
     base-package: com.hm
