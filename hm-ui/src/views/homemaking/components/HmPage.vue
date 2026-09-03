@@ -37,6 +37,12 @@ defineProps<{ title: string; eyebrow: string; description?: string }>()
   font-size: 25px;
   font-weight: 600;
 }
+.hm-page :deep(.hm-hint) {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
 .hm-page > header span {
   color: var(--el-text-color-secondary);
 }

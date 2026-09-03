@@ -35,7 +35,7 @@ class AdminPermissionTest {
     @Import({BusinessIsolationTest.Config.class, HomemakingAdminAccess.class, AdminScopeAspect.class,
         PlatformAccessService.class, com.hm.module.system.controller.admin.permission.PlatformAccessController.class,
         com.hm.module.system.controller.admin.tenant.TenantController.class,
-        StaffAccessService.class, HomemakingAdminController.class, HomemakingStaffController.class, HomemakingWorkerController.class,HomemakingPaymentController.class,HomemakingOrderChangeController.class})
+        StaffAccessService.class, HomemakingAdminController.class, HomemakingStaffController.class, HomemakingWorkerController.class,HomemakingPaymentController.class,HomemakingOrderChangeController.class,HomemakingTimeOffController.class})
     static class Config {
         @Bean(name="ss") com.hm.framework.security.core.service.SecurityFrameworkService security(PermissionApi api){return new com.hm.framework.security.core.service.SecurityFrameworkServiceImpl(api);}
         @Bean com.hm.module.system.service.tenant.TenantService tenantService(){return mock(com.hm.module.system.service.tenant.TenantService.class);}
@@ -58,6 +58,7 @@ class AdminPermissionTest {
     @Autowired HomemakingAdminController admin; @Autowired HomemakingStaffController staff;
     @Autowired HomemakingWorkerController worker; @Autowired HomemakingAdminAccess access;
     @Autowired HomemakingPaymentController payment;
+    @Autowired HomemakingTimeOffController timeOff;
     @Autowired HomemakingOrderChangeController orderChanges;
     @Autowired HmRepository repo; @Autowired OrderService orders;
     @Autowired PermissionService permissions; @Autowired RoleService roles;
@@ -129,6 +130,35 @@ class AdminPermissionTest {
     @Test void tenantVisitHeaderCannotElevateOrdinaryStaff(){role("OWNER");TenantContextHolder.setTenantId(2L);assertThrows(AccessDeniedException.class,()->admin.orders(1,20));}
     @Test void platformCanVisitButLocalSuperAdminCannotBecomePlatform(){login(2,20,2);rolesByUser.put(20L,Set.of("super_admin"));assertFalse(access.allowed("homemaking:platform:manage"));assertTrue(access.allowed("homemaking:orders:read"));role("PLATFORM");TenantContextHolder.setTenantId(2L);assertDoesNotThrow(()->admin.orders(1,20));}
     @Test void workerOnlySeesOwnAssignedTasks(){role("WORKER");jdbc.update("UPDATE hm_order SET status='PAID' WHERE id=?",orderId);assertEquals(1,((List<?>)((Map<?,?>)worker.tasks(LocalDate.now(),LocalDate.now().plusDays(4)).getData()).get("tasks")).size());jdbc.update("UPDATE hm_order SET worker_id=2 WHERE id=?",orderId);assertThrows(Exception.class,()->worker.evidence(orderId));}
+    @Nested class WorkerWorkbenchPermissions {
+        LocalDate date(){return LocalDate.now().plusDays(2);}
+        WorkerTimeOffService.Request request(){return new WorkerTimeOffService.Request(date().atTime(12,0),date().atTime(13,0),"REST","Personal rest",UUID.randomUUID().toString());}
+        long apply(){role("WORKER");return ((Number)worker.request(request()).getData()).longValue();}
+        @Test void workerCanUseOwnWorkbenchButCannotApproveEvenWithOverGrantedMenus(){
+            long id=apply();assertDoesNotThrow(()->worker.calendar(date(),date()));assertDoesNotThrow(()->worker.income(date(),date(),"ENTRIES",1,20));
+            assertThrows(AccessDeniedException.class,()->timeOff.review(1,id,new WorkerTimeOffService.Decision(0,true,"Self approval")));
+            assertThrows(AccessDeniedException.class,()->admin.leave(1,new ScheduleService.Interval(date().atTime(14,0),date().atTime(15,0),"Bypass approval")));
+            assertThrows(AccessDeniedException.class,()->admin.removeLeave(1,id));
+        }
+        @Test void dispatcherAndSupportMayReadButCannotApproveOrUseLegacyLeaveWrites(){
+            long id=apply();for(String code:List.of("DISPATCHER","SUPPORT")){role(code);assertDoesNotThrow(()->timeOff.list(1,date(),date()));assertThrows(AccessDeniedException.class,()->timeOff.review(1,id,new WorkerTimeOffService.Decision(0,true,"Forbidden")));assertThrows(AccessDeniedException.class,()->admin.leave(1,new ScheduleService.Interval(date().atTime(14,0),date().atTime(15,0),"Forbidden")));assertThrows(AccessDeniedException.class,()->admin.removeLeave(1,id));}
+        }
+        @Test void managerApprovesOnlyGrantedStoreAndCannotReadOwnWorkerIncome(){
+            long id=apply();role("MANAGER");assertThrows(Exception.class,()->timeOff.list(2,date(),date()));assertThrows(Exception.class,()->timeOff.review(2,id,new WorkerTimeOffService.Decision(0,true,"Other store")));
+            assertDoesNotThrow(()->timeOff.review(1,id,new WorkerTimeOffService.Decision(0,true,"Approved")));assertThrows(AccessDeniedException.class,()->worker.income(date(),date(),"ENTRIES",1,20));
+        }
+        @Test void ordinaryTenantOwnerMayReviewButForgedVisitCannotReadWorkbench(){long id=apply();role("OWNER");assertDoesNotThrow(()->timeOff.review(1,id,new WorkerTimeOffService.Decision(0,true,"Tenant review")));role("WORKER");TenantContextHolder.setTenantId(2L);assertThrows(AccessDeniedException.class,()->worker.calendar(date(),date()));assertThrows(AccessDeniedException.class,()->worker.income(date(),date(),"PAID",1,20));}
+        @Test void menuMigrationAddsReviewAndIncomeWithoutElevatingDispatcher() throws Exception {
+            jdbc.update("INSERT INTO system_role(id,tenant_id,code) VALUES(501,1,'hm_worker'),(502,1,'hm_manager'),(503,1,'hm_dispatcher')");
+            String dml="INSERT INTO system_menu"+java.nio.file.Files.readString(java.nio.file.Path.of("../sql/mysql/upgrades/V008__worker_workbench.sql")).split("INSERT INTO system_menu",2)[1];
+            var populator=new ResourceDatabasePopulator(new org.springframework.core.io.ByteArrayResource(dml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));populator.setSqlScriptEncoding("UTF-8");populator.execute(dataSource);
+            assertEquals(List.of(901120L,901121L),jdbc.queryForList("SELECT menu_id FROM system_role_menu WHERE role_id=501 ORDER BY menu_id",Long.class));
+            assertEquals(List.of(901122L),jdbc.queryForList("SELECT menu_id FROM system_role_menu WHERE role_id=502",Long.class));assertEquals(0L,jdbc.queryForObject("SELECT COUNT(*) FROM system_role_menu WHERE role_id=503",Long.class));
+            var ids=new com.fasterxml.jackson.databind.ObjectMapper().readTree(jdbc.queryForObject("SELECT menu_ids FROM system_tenant_package WHERE name='HM 直营业务'",String.class));
+            for(long id:List.of(901120L,901121L,901122L))assertTrue(java.util.stream.StreamSupport.stream(ids.spliterator(),false).anyMatch(node->node.asLong()==id));
+            assertEquals(1L,jdbc.queryForObject("SELECT COUNT(*) FROM hm_schema_upgrade WHERE version='V008'",Long.class));
+        }
+    }
     @Test void ownerCannotGrantPlatformOrForeignUserOrEditSelf(){role("OWNER");assertThrows(AccessDeniedException.class,()->staff.grant(new StaffAccessService.Grant(11,"PLATFORM",Set.of())));assertThrows(Exception.class,()->staff.grant(new StaffAccessService.Grant(20,"SUPPORT",Set.of(1L))));assertThrows(AccessDeniedException.class,()->staff.grant(new StaffAccessService.Grant(10,"FINANCE",Set.of(1L))));verifyNoInteractions(permissions);}
     @Test void managerCannotAssignAnyRole(){role("MANAGER");assertThrows(AccessDeniedException.class,()->staff.grant(new StaffAccessService.Grant(11,"OWNER",Set.of())));verifyNoInteractions(permissions);}
     @Test void successfulGrantReplacesOldHomemakingRoleAndAuditsScope(){

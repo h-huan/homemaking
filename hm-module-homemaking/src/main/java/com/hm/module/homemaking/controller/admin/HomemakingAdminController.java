@@ -56,9 +56,9 @@ public class HomemakingAdminController {
     @PostMapping("/workers/{id}/schedules") public CommonResult<?> schedule(@PathVariable long id,@Valid @RequestBody ScheduleService.Interval interval){return success(schedules.add(id,interval,false));}
     @PreAuthorize("@hmAdmin.allowed('homemaking:schedule:write')")
     @DeleteMapping("/workers/{id}/schedules/{scheduleId}") public CommonResult<?> removeSchedule(@PathVariable long id,@PathVariable long scheduleId){schedules.remove(id,scheduleId,false);return success(true);}
-    @PreAuthorize("@hmAdmin.allowed('homemaking:schedule:write')")
+    @PreAuthorize("@hmAdmin.allowed('homemaking:schedule:review')")
     @PostMapping("/workers/{id}/leaves") public CommonResult<?> leave(@PathVariable long id,@Valid @RequestBody ScheduleService.Interval interval){return success(schedules.add(id,interval,true));}
-    @PreAuthorize("@hmAdmin.allowed('homemaking:schedule:write')")
+    @PreAuthorize("@hmAdmin.allowed('homemaking:schedule:review')")
     @DeleteMapping("/workers/{id}/leaves/{leaveId}") public CommonResult<?> removeLeave(@PathVariable long id,@PathVariable long leaveId){schedules.remove(id,leaveId,true);return success(true);}
     @PreAuthorize("@hmAdmin.allowed('homemaking:schedule:read')")
     @GetMapping("/shift-templates") public CommonResult<?> templates(){return success(schedules.templates());}

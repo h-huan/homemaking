@@ -68,7 +68,7 @@
                 :disabled="!can('schedule:write')"
                 @click="add('schedules')"
                 >新增班次</el-button
-              ><el-button :disabled="!can('schedule:write')" @click="add('leaves')"
+              ><el-button :disabled="!can('schedule:review')" @click="add('leaves')"
                 >登记请假</el-button
               ></el-space
             ></el-form
@@ -111,10 +111,13 @@
           prop="starts_at"
           label="开始"
           min-width="180"
-        /><el-table-column prop="ends_at" label="结束" min-width="180" /><el-table-column
-          prop="service_name"
-          label="预约服务"
-        /><el-table-column prop="reason" label="说明" /><el-table-column label="操作" width="90"
+          ><template #default="{ row }">{{ formatDate(row.starts_at) }}</template></el-table-column
+        ><el-table-column prop="ends_at" label="结束" min-width="180"
+          ><template #default="{ row }">{{ formatDate(row.ends_at) }}</template></el-table-column
+        ><el-table-column prop="service_name" label="预约服务" /><el-table-column
+          prop="reason"
+          label="说明"
+        /><el-table-column label="操作" width="90"
           ><template #default="{ row }"
             ><el-button
               v-if="row.source"
@@ -128,6 +131,19 @@
         ></el-table
       ></el-card
     >
+    <el-card v-if="workerId" shadow="never"
+      ><template #header>请假与休息审批</template>
+      <p class="hm-hint"
+        >待审核申请不影响预约。批准前请处理冲突订单；展开记录可查看完整处理经过。</p
+      >
+      <TimeOffTable
+        :rows="calendar.leaves || []"
+        :can-review="can('schedule:review')"
+        :can-cancel="can('schedule:review')"
+        @review="reviewLeave"
+        @cancel="cancelLeave"
+      />
+    </el-card>
     <el-dialog v-model="templateVisible" title="新建班次模板" width="min(460px,94vw)"
       ><el-form label-position="top"
         ><el-form-item label="模板名称"
@@ -151,6 +167,8 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as api from '@/api/homemaking'
 import HmPage from './components/HmPage.vue'
+import TimeOffTable from './components/TimeOffTable.vue'
+import { formatDate } from '@/utils/formatTime'
 import { useHmAccess } from './useAccess'
 const { can, loadAccess } = useHmAccess()
 defineOptions({ name: 'HomemakingScheduling' })
@@ -181,7 +199,6 @@ const events = computed(() =>
       kind: '班次',
       source: 'schedules'
     })),
-    ...(calendar.value.leaves || []).map((v: any) => ({ ...v, kind: '请假', source: 'leaves' })),
     ...(calendar.value.bookings || []).map((v: any) => ({ ...v, kind: '预约' }))
   ].sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)))
 )
@@ -193,12 +210,50 @@ async function loadWorkers() {
   if (!workerId.value && workers.value.length) workerId.value = workers.value[0].id
   await load()
 }
+let loadSequence = 0
 async function load() {
   if (!workerId.value) return
-  calendar.value = await api.getWorkerCalendar(workerId.value, range.value[0], range.value[1])
+  const sequence = ++loadSequence
+  const data = await api.getWorkerCalendar(workerId.value, range.value[0], range.value[1])
+  if (sequence !== loadSequence) return
+  calendar.value = data
   skills.value = {
     serviceIds: calendar.value.serviceIds || [],
     districts: calendar.value.districts || []
+  }
+}
+async function reviewLeave(row: any, approved: boolean) {
+  const selectedWorker = workerId.value!
+  const { value } = await ElMessageBox.prompt(
+    approved
+      ? '批准后该时段停止接单。请填写审批说明。'
+      : '请填写驳回原因，服务人员可在工作台查看。',
+    approved ? '批准申请' : '驳回申请',
+    { inputValidator: (v) => (!!v?.trim() && v.length <= 500) || '请填写 1–500 字说明' }
+  )
+  try {
+    await api.reviewWorkerLeave(selectedWorker, row.id, {
+      version: row.version,
+      approved,
+      reason: value
+    })
+    ElMessage.success(approved ? '申请已批准' : '申请已驳回')
+  } finally {
+    await load()
+  }
+}
+async function cancelLeave(row: any) {
+  const selectedWorker = workerId.value!
+  const { value } = await ElMessageBox.prompt(
+    '撤销后将恢复该时段的排班可用性，处理记录继续保留。',
+    '撤销申请',
+    { inputValidator: (v) => (!!v?.trim() && v.length <= 500) || '请填写 1–500 字原因' }
+  )
+  try {
+    await api.cancelWorkerLeave(selectedWorker, row.id, { version: row.version, reason: value })
+    ElMessage.success('申请已撤销')
+  } finally {
+    await load()
   }
 }
 async function saveSkills() {

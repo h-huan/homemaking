@@ -34,7 +34,9 @@ class BusinessIsolationTest {
         @Bean com.fasterxml.jackson.databind.ObjectMapper objectMapper(){return new com.fasterxml.jackson.databind.ObjectMapper();}
         @Bean PricingService pricing(HmRepository r,CustomerAccess c,com.fasterxml.jackson.databind.ObjectMapper j){return new PricingService(r,c,j);}
         @Bean QuotaService quotas(HmRepository r,com.fasterxml.jackson.databind.ObjectMapper j){return new QuotaService(r,j);}
-        @Bean ScheduleService schedules(HmRepository r,PricingService p,CustomerAccess c){return new ScheduleService(r,p,c);}
+        @Bean WorkerTimeOffService timeOff(HmRepository r){return new WorkerTimeOffService(r);}
+        @Bean ScheduleService schedules(HmRepository r,PricingService p,CustomerAccess c,WorkerTimeOffService t){return new ScheduleService(r,p,c,t);}
+        @Bean WorkerWorkbenchService workbench(HmRepository r,WorkerService w,ScheduleService s,WorkerTimeOffService t){return new WorkerWorkbenchService(r,w,s,t);}
         @Bean SettlementService settlements(HmRepository r,QuotaService q){return new SettlementService(r,q);}
         @Bean OrderService orders(HmRepository r,CustomerAccess c,NotificationService n,PricingService p,ScheduleService s,QuotaService q,SettlementService x){return new OrderService(r,c,n,p,s,q,x);}
         @Bean OrderChangeService changes(HmRepository r,PricingService p,ScheduleService s,CustomerAccess c,PaymentPolicyService policy,com.fasterxml.jackson.databind.ObjectMapper j){return new OrderChangeService(r,p,s,c,policy,j);}
@@ -105,7 +107,9 @@ class BusinessIsolationTest {
                 .filter(row->slot().equals(row.get("startsAt")))
                 .noneMatch(row->Boolean.TRUE.equals(row.get("available"))));
         jdbc.update("INSERT INTO hm_worker_skill VALUES(1,1,1)");
+        ((LoginUser)SecurityContextHolder.getContext().getAuthentication().getPrincipal()).setUserType(2);
         schedules.add(1L,new ScheduleService.Interval(slot().minusMinutes(30),slot().plusHours(2),"请假"),true);
+        login(1,1);
         var capacity=schedules.capacity(1L,null,1L,slot().toLocalDate(),1L);
         assertEquals(false,capacity.stream().filter(row->slot().equals(row.get("startsAt"))).findFirst().orElseThrow().get("available"));
         assertTrue(capacity.stream().anyMatch(row->Boolean.TRUE.equals(row.get("available"))));

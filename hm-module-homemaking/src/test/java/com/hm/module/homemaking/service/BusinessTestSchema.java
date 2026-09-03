@@ -17,6 +17,8 @@ final class BusinessTestSchema {
             populator.setSqlScriptEncoding("UTF-8");populator.execute(source);
             String changes=Files.readString(Path.of("../sql/mysql/upgrades/V006__order_changes.sql")).split("INSERT INTO system_menu",2)[0];
             var upgrade=new ResourceDatabasePopulator(new ByteArrayResource(changes.getBytes(StandardCharsets.UTF_8)));upgrade.setSqlScriptEncoding("UTF-8");upgrade.execute(source);
+            String workbench=Files.readString(Path.of("../sql/mysql/upgrades/V008__worker_workbench.sql")).split("INSERT INTO system_menu",2)[0];
+            var workerUpgrade=new ResourceDatabasePopulator(new ByteArrayResource(workbench.getBytes(StandardCharsets.UTF_8)));workerUpgrade.setSqlScriptEncoding("UTF-8");workerUpgrade.execute(source);
         } catch(IOException e){throw new UncheckedIOException(e);}
     }
 }

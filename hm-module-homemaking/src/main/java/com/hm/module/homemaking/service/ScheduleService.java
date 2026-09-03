@@ -22,8 +22,9 @@ public class ScheduleService {
     private final HmRepository repo;
     private final PricingService pricing;
     private final CustomerAccess customers;
-    public ScheduleService(HmRepository repo, PricingService pricing, CustomerAccess customers) {
-        this.repo=repo; this.pricing=pricing; this.customers=customers;
+    private final WorkerTimeOffService timeOff;
+    public ScheduleService(HmRepository repo, PricingService pricing, CustomerAccess customers, WorkerTimeOffService timeOff) {
+        this.repo=repo; this.pricing=pricing; this.customers=customers; this.timeOff=timeOff;
     }
 
     public Map<String,Object> calendar(long worker, LocalDate from, LocalDate to) {
@@ -31,7 +32,7 @@ public class ScheduleService {
         check(!to.isBefore(from) && to.isBefore(from.plusDays(93)),"日历范围最多 93 天");
         var args=new Object[]{repo.tenant(),worker,to.plusDays(1).atStartOfDay(),from.atStartOfDay()};
         return Map.of("schedules",repo.jdbc().queryForList("SELECT * FROM hm_worker_schedule WHERE tenant_id=? AND worker_id=? AND starts_at<? AND ends_at>? ORDER BY starts_at",args),
-                "leaves",repo.jdbc().queryForList("SELECT * FROM hm_worker_leave WHERE tenant_id=? AND worker_id=? AND starts_at<? AND ends_at>? ORDER BY starts_at",args),
+                "leaves",timeOff.list(worker,from,to),
                 "bookings",repo.jdbc().queryForList("SELECT b.id,b.starts_at,b.ends_at,o.id AS order_id,o.service_name,o.status FROM hm_booking b JOIN hm_order o ON o.tenant_id=b.tenant_id AND o.booking_id=b.id WHERE b.tenant_id=? AND b.worker_id=? AND b.starts_at<? AND b.ends_at>? AND o.status NOT IN ('CANCELLED','REFUNDED') ORDER BY b.starts_at",args),
                 "serviceIds",repo.jdbc().queryForList("SELECT service_id FROM hm_worker_skill WHERE tenant_id=? AND worker_id=?",Long.class,repo.tenant(),worker),
                 "districts",repo.jdbc().queryForList("SELECT district_code FROM hm_worker_area WHERE tenant_id=? AND worker_id=?",String.class,repo.tenant(),worker));
@@ -52,16 +53,17 @@ public class ScheduleService {
 
     @Transactional
     public long add(long worker, Interval interval, boolean leave) {
+        if(leave)return timeOff.register(worker,interval);
         repo.require("hm_worker",worker,true); validateInterval(interval.startsAt(),interval.endsAt());
         check(!interval.startsAt().isBefore(LocalDateTime.now()),"不能新增过去的排班或请假");
         check(!occupied(worker,interval.startsAt(),interval.endsAt(),null),"该时间仍有预约，请先改约或派给其他人员");
         if(!leave) check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_worker_schedule WHERE tenant_id=? AND worker_id=? AND starts_at<? AND ends_at>?",Long.class,repo.tenant(),worker,interval.endsAt(),interval.startsAt())==0,"班次时间重叠");
-        return leave ? repo.insert("INSERT INTO hm_worker_leave(tenant_id,worker_id,starts_at,ends_at,reason) VALUES(?,?,?,?,?)",repo.tenant(),worker,interval.startsAt(),interval.endsAt(),CatalogService.s(interval.reason()))
-                : repo.insert("INSERT INTO hm_worker_schedule(tenant_id,worker_id,starts_at,ends_at) VALUES(?,?,?,?)",repo.tenant(),worker,interval.startsAt(),interval.endsAt());
+        return repo.insert("INSERT INTO hm_worker_schedule(tenant_id,worker_id,starts_at,ends_at) VALUES(?,?,?,?)",repo.tenant(),worker,interval.startsAt(),interval.endsAt());
     }
 
     @Transactional
     public void remove(long worker, long id, boolean leave) {
+        if(leave){timeOff.cancelRegistered(worker,id);return;}
         repo.require("hm_worker",worker,true);
         String table=leave?"hm_worker_leave":"hm_worker_schedule";
         var rows=repo.jdbc().queryForList("SELECT * FROM "+table+" WHERE tenant_id=? AND worker_id=? AND id=?",repo.tenant(),worker,id);

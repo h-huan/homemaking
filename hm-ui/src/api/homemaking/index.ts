@@ -104,3 +104,16 @@ export const getServiceSettings = (id: number) =>
   request.get({ url: `/homemaking/services/${id}/settings` })
 export const saveServiceSettings = (id: number, data: BusinessRow) =>
   request.put({ url: `/homemaking/services/${id}/settings`, data })
+
+export const workerCalendar = (from: string, to: string) =>
+  request.get({ url: '/homemaking/worker/calendar', params: { from, to } })
+export const workerIncome = (params: BusinessRow) =>
+  request.get({ url: '/homemaking/worker/income', params })
+export const workerRequestLeave = (data: BusinessRow) =>
+  request.post({ url: '/homemaking/worker/time-off', data })
+export const workerCancelLeave = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/worker/time-off/${id}/cancel`, data })
+export const reviewWorkerLeave = (worker: number, id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/workers/${worker}/time-off/${id}/review`, data })
+export const cancelWorkerLeave = (worker: number, id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/workers/${worker}/time-off/${id}/cancel`, data })

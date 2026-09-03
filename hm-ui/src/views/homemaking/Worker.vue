@@ -1,61 +1,71 @@
 <template>
   <HmPage
     eyebrow="HM · 服务人员工作台"
-    title="今天的到家任务"
-    description="接单、到达、上传服务前后照片，再确认完成；照片通过订单权限保护。"
+    title="我的工作台"
+    description="安排服务日程，处理到家任务，查看自己的收入与结算记录。"
   >
-    <template #actions><el-button @click="load">刷新</el-button></template>
-    <el-date-picker
-      v-model="range"
-      type="daterange"
-      value-format="YYYY-MM-DD"
-      :clearable="false"
-      @change="load"
-    />
-    <el-timeline class="tasks"
-      ><el-timeline-item
-        v-for="task in tasks"
-        :key="task.id"
-        :timestamp="task.starts_at + ' — ' + task.ends_at"
-        placement="top"
-      >
-        <el-card shadow="never"
-          ><div class="task-head"
-            ><div
-              ><strong>{{ task.service_name }}</strong
-              ><p>{{ task.address }}</p
-              ><p v-if="task.customer_remark">客户备注：{{ task.customer_remark }}</p></div
-            ><el-tag>{{
-              stateNames[task.fulfillment_status] || task.fulfillment_status
-            }}</el-tag></div
+    <el-tabs v-model="activeTab">
+      <el-tab-pane label="我的任务" name="tasks">
+        <el-button class="mb-12px mr-12px" @click="load">刷新任务</el-button>
+        <el-date-picker
+          v-model="range"
+          type="daterange"
+          value-format="YYYY-MM-DD"
+          :clearable="false"
+          @change="load"
+        />
+        <el-timeline class="tasks"
+          ><el-timeline-item
+            v-for="task in tasks"
+            :key="task.id"
+            :timestamp="formatDate(task.starts_at) + ' — ' + formatDate(task.ends_at)"
+            placement="top"
           >
-          <el-space wrap>
-            <el-button
-              v-if="task.fulfillment_status === 'ARRIVED'"
-              :disabled="!can('worker:fulfill')"
-              @click="openEvidence(task.id, 'BEFORE')"
-              >上传服务前照片</el-button
-            >
-            <el-button
-              v-if="task.fulfillment_status === 'STARTED'"
-              :disabled="!can('worker:fulfill')"
-              @click="openEvidence(task.id, 'AFTER')"
-              >上传服务后照片</el-button
-            >
-            <el-button
-              v-for="action in actions(task.fulfillment_status)"
-              :key="action.value"
-              :type="action.primary ? 'primary' : 'default'"
-              :disabled="!can('worker:fulfill')"
-              @click="act(task.id, action.value)"
-              >{{ action.label }}</el-button
-            >
-            <el-button @click="viewPhotos(task.id)">查看照片</el-button>
-          </el-space>
-        </el-card>
-      </el-timeline-item></el-timeline
-    >
-    <el-empty v-if="!tasks.length" description="所选日期暂无已付款任务" />
+            <el-card shadow="never"
+              ><div class="task-head"
+                ><div
+                  ><strong>{{ task.service_name }}</strong
+                  ><p>{{ task.address }}</p
+                  ><p v-if="task.customer_remark">客户备注：{{ task.customer_remark }}</p></div
+                ><el-tag>{{
+                  stateNames[task.fulfillment_status] || task.fulfillment_status
+                }}</el-tag></div
+              >
+              <el-space wrap>
+                <el-button
+                  v-if="task.fulfillment_status === 'ARRIVED'"
+                  :disabled="!can('worker:fulfill')"
+                  @click="openEvidence(task.id, 'BEFORE')"
+                  >上传服务前照片</el-button
+                >
+                <el-button
+                  v-if="task.fulfillment_status === 'STARTED'"
+                  :disabled="!can('worker:fulfill')"
+                  @click="openEvidence(task.id, 'AFTER')"
+                  >上传服务后照片</el-button
+                >
+                <el-button
+                  v-for="action in actions(task.fulfillment_status)"
+                  :key="action.value"
+                  :type="action.primary ? 'primary' : 'default'"
+                  :disabled="!can('worker:fulfill')"
+                  @click="act(task.id, action.value)"
+                  >{{ action.label }}</el-button
+                >
+                <el-button @click="viewPhotos(task.id)">查看照片</el-button>
+              </el-space>
+            </el-card>
+          </el-timeline-item></el-timeline
+        >
+        <el-empty v-if="!tasks.length" description="所选日期暂无已付款任务" />
+      </el-tab-pane>
+      <el-tab-pane label="排班与请假" name="calendar"
+        ><WorkerCalendar v-if="activeTab === 'calendar'" :can-apply="can('worker:leave')"
+      /></el-tab-pane>
+      <el-tab-pane v-if="can('worker:income')" label="我的收入" name="income"
+        ><WorkerIncome v-if="activeTab === 'income'"
+      /></el-tab-pane>
+    </el-tabs>
     <el-dialog v-model="evidence.visible" title="上传履约照片" width="min(480px, 94vw)">
       <p>仅支持 JPEG / PNG，单张不超过 5 MB。请避免拍摄无关人员及私人信息。</p>
       <input :key="fileInputKey" type="file" accept="image/jpeg,image/png" @change="choosePhoto" />
@@ -98,6 +108,10 @@ import { onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as api from '@/api/homemaking'
 import HmPage from './components/HmPage.vue'
+import WorkerCalendar from './components/WorkerCalendar.vue'
+import WorkerIncome from './components/WorkerIncome.vue'
+import { formatDate } from '@/utils/formatTime'
+const activeTab = ref('tasks')
 import { useHmAccess } from './useAccess'
 const { can, loadAccess } = useHmAccess()
 defineOptions({ name: 'HomemakingWorker' })
