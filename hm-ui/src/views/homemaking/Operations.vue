@@ -1,10 +1,13 @@
 <template>
-  <div class="hm-operations">
-    <header class="hm-heading"
-      ><div><p>HM · 日常运营</p><h1>把每一次服务，安排妥当。</h1></div
+  <HmPage
+    eyebrow="HM · 日常运营"
+    title="把每一次服务，安排妥当。"
+    description="维护门店、人员与服务，处理订单、评价和售后。"
+  >
+    <template #actions
       ><el-button v-if="isCatalog" type="primary" @click="edit()"
         >新增{{ tabLabel }}</el-button
-      ></header
+      ></template
     >
     <el-tabs v-model="tab" @tab-change="load">
       <el-tab-pane v-for="item in tabs" :key="item.key" :label="item.label" :name="item.key" />
@@ -65,7 +68,20 @@
           ><template #default="{ row }">¥{{ money(row.net_cents) }}</template></el-table-column
         ></template
       >
-      <el-table-column label="状态" width="120"
+      <template v-if="tab === 'reviews'"
+        ><el-table-column prop="order_id" label="订单" width="100" /><el-table-column
+          prop="rating"
+          label="评分"
+          width="80" /><el-table-column
+          prop="content"
+          label="评价内容"
+          min-width="300" /><el-table-column label="官网展示" width="120"
+          ><template #default="{ row }"
+            ><el-switch
+              :model-value="!!row.visible"
+              @change="reviewVisibility(row, !!$event)" /></template></el-table-column
+      ></template>
+      <el-table-column v-if="tab !== 'reviews'" label="状态" width="120"
         ><template #default="{ row }"
           ><el-tag
             :type="row.status === 'ACTIVE' || row.status === 'COMPLETED' ? 'success' : 'info'"
@@ -80,7 +96,24 @@
         fixed="right"
         ><template #default="{ row }">
           <el-button v-if="isCatalog" link type="primary" @click="edit(row)">编辑</el-button>
+          <el-button
+            v-if="tab === 'services'"
+            link
+            type="primary"
+            @click="openSettings(row)"
+            >价格与预约规则</el-button
+          >
           <template v-if="tab === 'orders'">
+            <el-button link type="primary" @click="showOrder(row.id)">详情</el-button>
+            <el-button
+              v-if="
+                ['UNPAID', 'PAID', 'ASSIGNED'].includes(row.status) &&
+                ['WAITING', 'ACCEPTED'].includes(row.fulfillment_status)
+              "
+              link
+              @click="openReschedule(row)"
+              >改期</el-button
+            >
             <el-button
               v-if="['PAID', 'ASSIGNED'].includes(row.status)"
               link
@@ -89,28 +122,29 @@
               >派单</el-button
             >
             <el-button
-              v-if="row.status === 'ASSIGNED'"
+              v-if="row.status === 'ASSIGNED' && row.fulfillment_status === 'ARRIVED'"
               link
               type="primary"
               @click="action(row, 'start')"
               >开始服务</el-button
             >
             <el-button
-              v-if="row.status === 'IN_SERVICE'"
+              v-if="row.status === 'IN_SERVICE' && row.fulfillment_status === 'STARTED'"
               link
               type="primary"
               @click="action(row, 'complete')"
               >确认完工</el-button
             >
             <el-button
-              v-if="row.status === 'UNPAID'"
+              v-if="['UNPAID', 'PAID', 'ASSIGNED'].includes(row.status)"
               link
               type="danger"
               @click="action(row, 'cancel')"
               >取消订单</el-button
             >
           </template>
-          <template v-if="tab === 'aftersales'"
+          <template v-if="tab === 'aftersales'">
+            <el-button v-if="row.status === 'REQUESTED'" link @click="reject(row)">驳回</el-button
             ><el-button
               v-if="row.status === 'REQUESTED'"
               link
@@ -162,6 +196,12 @@
         <el-form-item v-if="tab === 'workers'" label="擅长服务"
           ><el-input v-model="form.skills" maxlength="1000"
         /></el-form-item>
+        <el-form-item v-if="tab === 'workers'" label="人员头像地址"
+          ><el-input v-model="form.avatar" placeholder="HTTPS 图片地址"
+        /></el-form-item>
+        <el-form-item v-if="tab === 'services'" label="服务封面地址"
+          ><el-input v-model="form.cover" placeholder="HTTPS 图片地址"
+        /></el-form-item>
         <template v-if="tab === 'services'"
           ><el-form-item label="分类"
             ><el-input v-model="form.category" maxlength="100" /></el-form-item
@@ -206,13 +246,58 @@
         ></template
       ></el-dialog
     >
-  </div>
+    <el-dialog v-model="rescheduling" title="调整预约时间" width="min(460px,94vw)"
+      ><el-form label-position="top"
+        ><el-form-item label="新预约时间"
+          ><el-date-picker
+            v-model="newStart"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss" /></el-form-item
+        ><el-form-item label="调整原因"
+          ><el-input v-model="rescheduleReason" maxlength="500" /></el-form-item></el-form
+      ><template #footer
+        ><el-button type="primary" @click="reschedule">确认改期</el-button></template
+      ></el-dialog
+    >
+    <el-drawer v-model="detailVisible" title="订单详情与履约记录" size="min(760px,96vw)"
+      ><template v-if="detail"
+        ><el-descriptions :column="1" border
+          ><el-descriptions-item label="服务">{{ detail.service_name }}</el-descriptions-item
+          ><el-descriptions-item label="时间"
+            >{{ detail.booking?.starts_at }} — {{ detail.booking?.ends_at }}</el-descriptions-item
+          ><el-descriptions-item label="地址">{{ detail.address }}</el-descriptions-item
+          ><el-descriptions-item label="联系人"
+            >{{ detail.contact_name }} · {{ detail.phone }}</el-descriptions-item
+          ></el-descriptions
+        ><el-timeline class="detail-timeline"
+          ><el-timeline-item v-for="log in detail.logs" :key="log.id" :timestamp="log.created_at"
+            >{{ log.action }} · {{ log.detail }}</el-timeline-item
+          ></el-timeline
+        ><div class="evidence-grid"
+          ><figure v-for="photo in detailPhotos" :key="photo.id"
+            ><el-image
+              :src="photo.url"
+              :preview-src-list="detailPhotos.map((p) => p.url)"
+            /><figcaption
+              >{{ photo.phase === 'BEFORE' ? '服务前' : '服务后' }} · {{ photo.note }}</figcaption
+            ></figure
+          ></div
+        ></template
+      ></el-drawer
+    >
+    <ServiceSettings v-model="settingsVisible" :service="settingsService" @saved="load" />
+  </HmPage>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import * as api from '@/api/homemaking'
+import HmPage from './components/HmPage.vue'
+import ServiceSettings from './components/ServiceSettings.vue'
+const settingsVisible = ref(false),
+  settingsService = ref<api.BusinessRow>()
 defineOptions({ name: 'HomemakingOperations' })
+function openSettings(row:api.BusinessRow){settingsService.value=row;settingsVisible.value=true}
 const tabs = [
   { key: 'stores', label: '门店' },
   { key: 'workers', label: '服务人员' },
@@ -220,6 +305,7 @@ const tabs = [
   { key: 'orders', label: '订单' },
   { key: 'customers', label: '客户' },
   { key: 'aftersales', label: '售后' },
+  { key: 'reviews', label: '评价' },
   { key: 'settlements', label: '结算' }
 ]
 const tab = ref('orders'),
@@ -251,8 +337,56 @@ const labels: Record<string, string> = {
   REFUNDING: '退款中',
   REFUNDED: '已退款',
   REQUESTED: '待审核',
-  PENDING: '待结算'
+  PENDING: '待结算',
+  REJECTED: '已驳回',
+  FAILED: '退款失败'
 }
+const detailVisible = ref(false),
+  detail = ref<any>(),
+  detailPhotos = ref<any[]>([]),
+  rescheduling = ref(false),
+  newStart = ref(''),
+  rescheduleReason = ref('')
+async function reviewVisibility(row: any, visible: boolean) {
+  await api.setReviewVisible(row.id, visible)
+  row.visible = visible
+  ElMessage.success(visible ? '评价已允许官网展示' : '评价已隐藏')
+}
+async function reject(row: any) {
+  const { value } = await ElMessageBox.prompt('填写驳回原因，客户可在售后进度中查看', '驳回申请', {
+    inputValidator: (v) => !!v?.trim() || '请填写原因'
+  })
+  await api.rejectRefund(row.id, value.trim())
+  await load()
+}
+function openReschedule(row: any) {
+  selectedOrder.value = row
+  newStart.value = ''
+  rescheduleReason.value = ''
+  rescheduling.value = true
+}
+async function reschedule() {
+  if (!newStart.value || !rescheduleReason.value.trim())
+    return ElMessage.warning('请选择时间并填写原因')
+  await api.orderAction(selectedOrder.value.id, 'reschedule', {
+    startsAt: newStart.value,
+    reason: rescheduleReason.value
+  })
+  rescheduling.value = false
+  ElMessage.success('预约已调整，符合产能的人员已重新安排')
+  await load()
+}
+async function showOrder(id: number) {
+  detail.value = await api.getOrderDetail(id)
+  detailVisible.value = true
+  detailPhotos.value.forEach((p) => URL.revokeObjectURL(p.url))
+  detailPhotos.value = []
+  for (const photo of await api.getOrderEvidence(id)) {
+    const blob = await api.evidenceImage(id, photo.id)
+    detailPhotos.value.push({ ...photo, url: URL.createObjectURL(blob) })
+  }
+}
+onBeforeUnmount(() => detailPhotos.value.forEach((p) => URL.revokeObjectURL(p.url)))
 const statusLabel = (s: string) => labels[s] || s
 async function load() {
   loading.value = true
@@ -329,6 +463,26 @@ async function refund(row: api.BusinessRow, name: string) {
 onMounted(load)
 </script>
 <style scoped>
+.detail-timeline {
+  margin-top: 28px;
+}
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+.evidence-grid figure {
+  margin: 0;
+}
+.evidence-grid .el-image {
+  width: 100%;
+  height: 180px;
+  border-radius: 12px;
+}
+.evidence-grid figcaption {
+  margin-top: 8px;
+  color: var(--el-text-color-secondary);
+}
 .hm-operations {
   padding: 28px;
   background: var(--el-bg-color);

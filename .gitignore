@@ -64,3 +64,6 @@ node_modules/
 # Private deployment values; only *.example templates are committed.
 /deploy/backend.env
 /hm-ui/.env.prod.local
+/data/homemaking-evidence/
+/output/playwright/
+/.playwright-cli/
