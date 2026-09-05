@@ -24,8 +24,15 @@ export const orderAction = (id: number, action: string, data = {}) =>
   request.post({ url: `/homemaking/orders/${id}/${action}`, data })
 export const refundAction = (id: number, action: string) =>
   request.post({ url: `/homemaking/aftersales/${id}/${action}` })
+export const retryRefund = (id: number, remark: string) =>
+  request.post({ url: `/homemaking/aftersales/${id}/retry`, data: { remark } })
 export const rejectRefund = (id: number, remark: string) =>
   request.post({ url: `/homemaking/aftersales/${id}/reject`, data: { remark } })
+export const getAftersale = (id: number) => request.get({ url: `/homemaking/aftersales/${id}` })
+export const scheduleAftersale = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/aftersales/${id}/schedule`, data })
+export const resolveAftersale = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/aftersales/${id}/resolve`, data })
 export const getBrand = () => request.get({ url: '/homemaking/brand' })
 export const saveBrand = (data: BusinessRow) => request.put({ url: '/homemaking/brand', data })
 export const requestDomain = (domain: string) =>

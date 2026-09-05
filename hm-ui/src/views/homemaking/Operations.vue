@@ -54,12 +54,16 @@
           width="150"
       /></template>
       <template v-else-if="tab === 'aftersales'"
-        ><el-table-column prop="order_id" label="订单编号" width="120" /><el-table-column
-          prop="reason"
-          label="申请原因"
-          min-width="240"
-        /><el-table-column label="申请退款"
-          ><template #default="{ row }">¥{{ money(row.amount_cents) }}</template></el-table-column
+        ><el-table-column prop="order_id" label="订单编号" width="110" /><el-table-column
+          label="处理类型"
+          width="130"
+          ><template #default="{ row }">{{ aftersaleType(row.type) }}</template></el-table-column
+        ><el-table-column prop="reason" label="申请原因" min-width="240" /><el-table-column
+          label="申请退款"
+          width="120"
+          ><template #default="{ row }">{{
+            row.amount_cents ? `¥${money(row.amount_cents)}` : '—'
+          }}</template></el-table-column
         ></template
       >
       <template v-else-if="tab === 'settlements'"
@@ -178,9 +182,11 @@
             >
           </template>
           <template v-if="tab === 'aftersales'">
+            <el-button link type="primary" @click="openAftersale(row)">详情/处理</el-button>
             <el-button
               v-if="
                 row.status === 'REQUESTED' &&
+                ['PARTIAL_REFUND', 'FULL_REFUND'].includes(row.type) &&
                 row.payment_method === 'OFFLINE' &&
                 can('aftersales:refund')
               "
@@ -196,7 +202,11 @@
               @click="reject(row)"
               >驳回</el-button
             ><el-button
-              v-if="row.status === 'REQUESTED' && row.payment_method !== 'OFFLINE'"
+              v-if="
+                row.status === 'REQUESTED' &&
+                ['PARTIAL_REFUND', 'FULL_REFUND'].includes(row.type) &&
+                row.payment_method !== 'OFFLINE'
+              "
               link
               type="danger"
               :disabled="!can('aftersales:refund')"
@@ -208,6 +218,13 @@
               :disabled="!can('aftersales:refund')"
               @click="refund(row, 'sync')"
               >查询退款结果</el-button
+            ><el-button
+              v-if="row.status === 'FAILED'"
+              link
+              type="danger"
+              :disabled="!can('aftersales:refund')"
+              @click="retryFailedRefund(row)"
+              >核对后重试</el-button
             ></template
           >
         </template></el-table-column
@@ -222,7 +239,11 @@
       layout="prev, pager, next"
       @current-change="load"
     />
-    <el-dialog v-model="editing" :title="(form.id ? '编辑' : '新增') + tabLabel" width="580px">
+    <el-dialog
+      v-model="editing"
+      :title="(form.id ? '编辑' : '新增') + tabLabel"
+      width="min(580px, 94vw)"
+    >
       <el-form ref="formRef" :model="form" label-position="top">
         <el-form-item label="名称" prop="name" :rules="[{ required: true, message: '请填写名称' }]"
           ><el-input v-model="form.name" maxlength="100"
@@ -288,7 +309,7 @@
         ><el-button :loading="saving" type="primary" @click="save">保存</el-button></template
       >
     </el-dialog>
-    <el-dialog v-model="assigning" title="安排服务人员" width="420px"
+    <el-dialog v-model="assigning" title="安排服务人员" width="min(420px, 94vw)"
       ><el-select v-model="workerId" class="w-full" placeholder="请选择服务人员"
         ><el-option
           v-for="worker in workers"
@@ -330,7 +351,9 @@
           <el-descriptions-item
             v-if="detail.fulfillment_status === 'AWAITING_CONFIRMATION'"
             label="客户确认期限"
-            >{{ formatDate(detail.confirmation_deadline) }}；存在进行中售后时暂停自动确认</el-descriptions-item
+            >{{
+              formatDate(detail.confirmation_deadline)
+            }}；存在进行中售后时暂停自动确认</el-descriptions-item
           >
           <el-descriptions-item label="应收 / 已收 / 已退"
             >￥{{ money(detail.price_cents) }} / ￥{{ money(detail.paid_cents) }} / ￥{{
@@ -417,6 +440,12 @@
       @saved="paymentSaved"
     />
     <ServiceSettings v-model="settingsVisible" :service="settingsService" @saved="load" />
+    <AftersaleDialog
+      v-model="aftersaleVisible"
+      :target="aftersaleTarget"
+      :can-process="can('aftersales:process')"
+      @saved="load"
+    />
   </HmPage>
 </template>
 <script setup lang="ts">
@@ -431,9 +460,25 @@ import ServiceSettings from './components/ServiceSettings.vue'
 import PaymentEntryDialog from './components/PaymentEntryDialog.vue'
 import OrderChangeDialog from './components/OrderChangeDialog.vue'
 import OrderChangeHistory from './components/OrderChangeHistory.vue'
+import AftersaleDialog from './components/AftersaleDialog.vue'
 import { paymentChannels, paymentKinds, paymentMethods } from './paymentLabels'
 const settingsVisible = ref(false),
   settingsService = ref<api.BusinessRow>()
+const aftersaleVisible = ref(false),
+  aftersaleTarget = ref<api.BusinessRow>()
+const aftersaleType = (type: string) =>
+  ({
+    REWORK: '补做',
+    REASSIGN_WORKER: '换服务人员',
+    REVISIT: '重新上门',
+    PARTIAL_REFUND: '部分退款',
+    FULL_REFUND: '全额退款',
+    OTHER_COMPENSATION: '其他补偿'
+  })[type] || type
+function openAftersale(row: api.BusinessRow) {
+  aftersaleTarget.value = row
+  aftersaleVisible.value = true
+}
 defineOptions({ name: 'HomemakingOperations' })
 function openSettings(row: api.BusinessRow) {
   settingsService.value = row
@@ -485,6 +530,19 @@ const labels: Record<string, string> = {
   PENDING: '待结算',
   REJECTED: '已驳回',
   FAILED: '退款失败'
+}
+const aftersaleStatuses: Record<string, string> = {
+  REQUESTED: '等待处理',
+  SCHEDULED: '已安排上门',
+  IN_PROGRESS: '服务补救中',
+  AWAITING_CONFIRMATION: '待客户确认补救',
+  REFUNDING: '退款中',
+  REFUNDED: '已退款',
+  COMPLETED: '已完成',
+  REJECTED: '已驳回',
+  CANCELLED: '客户已撤销',
+  FAILED: '退款失败',
+  MIGRATION_REVIEW: '待人工复核'
 }
 const changeVisible = ref(false),
   changeTarget = ref<api.BusinessRow>()
@@ -585,7 +643,8 @@ async function showOrder(id: number) {
   }
 }
 onBeforeUnmount(() => detailPhotos.value.forEach((p) => URL.revokeObjectURL(p.url)))
-const statusLabel = (s: string) => labels[s] || s
+const statusLabel = (s: string) =>
+  (tab.value === 'aftersales' ? aftersaleStatuses[s] : labels[s]) || s
 async function load() {
   loading.value = true
   try {
@@ -656,6 +715,16 @@ async function refund(row: api.BusinessRow, name: string) {
   if (name === 'approve')
     await ElMessageBox.confirm(`确认退款 ¥${money(row.amount_cents)}？`, '退款确认')
   await api.refundAction(row.id, name)
+  await load()
+}
+async function retryFailedRefund(row: api.BusinessRow) {
+  const { value } = await ElMessageBox.prompt(
+    '请先在支付渠道核对原退款确已失败，再填写本次重试说明。系统会使用新的退款请求号，避免重复退款。',
+    '重试退款',
+    { inputValidator: (v) => (!!v?.trim() && v.trim().length <= 1000) || '请填写核对说明' }
+  )
+  await api.retryRefund(row.id, value.trim())
+  ElMessage.success('已恢复为待审核，请重新批准退款')
   await load()
 }
 onMounted(async () => {

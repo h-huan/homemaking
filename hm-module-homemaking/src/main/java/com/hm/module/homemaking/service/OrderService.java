@@ -33,6 +33,7 @@ public class OrderService {
     @org.springframework.beans.factory.annotation.Autowired private PaymentPolicyService paymentPolicy;
     @org.springframework.beans.factory.annotation.Autowired private OrderChangeService changes;
     @org.springframework.beans.factory.annotation.Autowired private CompletionConfirmationService completionConfirmation;
+    @org.springframework.beans.factory.annotation.Autowired private AftersaleService aftersales;
     public OrderService(HmRepository repo,CustomerAccess customers,NotificationService notifications,PricingService pricing,ScheduleService schedules,QuotaService quotas,SettlementService settlements){this.repo=repo;this.customers=customers;this.notifications=notifications;this.pricing=pricing;this.schedules=schedules;this.quotas=quotas;this.settlements=settlements;}
     @Transactional
     public long saveAddress(Address a) {
@@ -83,7 +84,7 @@ public class OrderService {
         order.put("payment_options",Map.of("mode",paymentOptions.mode(),"onlineAvailable",waiting&&!expired&&paymentOptions.onlineAvailable(),"offlineAvailable",(waiting||supplement)&&order.get("pay_order_id")==null&&paymentOptions.offlineAvailable(),"message",order.get("pay_order_id")!=null&&waiting?"线上支付结果待核对，请勿重复线下付款":paymentOptions.message()));
         var history=changes.history(id);order.put("changes",history);order.put("pending_change",history.stream().filter(c->Objects.equals(c.get("id"),order.get("pending_change_id"))).findFirst().orElse(null));
         order.put("logs",repo.jdbc().queryForList("SELECT id,action,detail,created_at FROM hm_order_log WHERE tenant_id=? AND order_id=? ORDER BY id",repo.tenant(),id));
-        order.put("aftersales",repo.jdbc().queryForList("SELECT id,amount_cents,reason,status,audit_remark,created_at FROM hm_aftersale WHERE tenant_id=? AND order_id=? ORDER BY id DESC",repo.tenant(),id));
+        order.put("aftersales",aftersales.byOrder(id,admin));
         order.put("review",repo.jdbc().queryForList("SELECT id,rating,content FROM hm_review WHERE tenant_id=? AND order_id=?",repo.tenant(),id));return order;}
     public Map<String,Object> list(int page,int size,boolean admin){
         size=Math.min(100,Math.max(1,size));page=Math.max(1,page);
@@ -97,9 +98,9 @@ public class OrderService {
         if(Set.of("PAID","ASSIGNED").contains(order.get("status"))){
             var booking=repo.require("hm_booking",number(order,"booking_id"),false);
             if(!admin)pricing.validateChange(number(order,"service_id"),time(booking.get("starts_at")),false);
-            check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND status IN ('REQUESTED','REFUNDING')",Long.class,repo.tenant(),id)==0,"已有售后申请正在处理");
+            check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND status IN ('REQUESTED','SCHEDULED','IN_PROGRESS','AWAITING_CONFIRMATION','REFUNDING')",Long.class,repo.tenant(),id)==0,"已有售后申请正在处理");
             int remaining=cents(order,"paid_cents")-cents(order,"refunded_cents");check(remaining>0,"没有可退款金额");
-            repo.insert("INSERT INTO hm_aftersale(tenant_id,customer_id,order_id,amount_cents,reason) VALUES(?,?,?,?,?)",repo.tenant(),order.get("customer_id"),id,remaining,"取消预约退款");
+            long aftersale=repo.insert("INSERT INTO hm_aftersale(tenant_id,customer_id,order_id,amount_cents,reason,type) VALUES(?,?,?,?,?,'FULL_REFUND')",repo.tenant(),order.get("customer_id"),id,remaining,"取消预约退款");aftersales.generated(aftersale,id,"FULL_REFUND","取消预约退款");
             repo.jdbc().update("UPDATE hm_order SET status='CANCELLED',version=version+1 WHERE tenant_id=? AND id=?",repo.tenant(),id);
         }else transition(order,"CANCELLED");
         release(order,"CANCELLED");log(id,"CANCELLED","");
@@ -148,11 +149,7 @@ public class OrderService {
     @Transactional
     public long review(Review r){var order=customers.own("hm_order",r.orderId(),true);check("COMPLETED".equals(order.get("status")),"完工后才能评价");return repo.insert("INSERT INTO hm_review(tenant_id,customer_id,order_id,rating,content) VALUES(?,?,?,?,?)",repo.tenant(),customers.current(),r.orderId(),r.rating(),r.content());}
     @Transactional
-    public long aftersale(Aftersale a){var order=customers.own("hm_order",a.orderId(),true);changes.requireSettled(order);check(Set.of("PAID","ASSIGNED","COMPLETED").contains(order.get("status"))||"IN_SERVICE".equals(order.get("status"))&&"AWAITING_CONFIRMATION".equals(order.get("fulfillment_status")),"当前状态不可申请退款");
-        check(a.amountCents()<=cents(order,"paid_cents")-cents(order,"refunded_cents"),"退款金额超过可退金额");
-        check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND status IN ('REQUESTED','REFUNDING')",Long.class,repo.tenant(),a.orderId())==0,"已有售后申请正在处理");
-        return repo.insert("INSERT INTO hm_aftersale(tenant_id,customer_id,order_id,amount_cents,reason) VALUES(?,?,?,?,?)",repo.tenant(),customers.current(),a.orderId(),a.amountCents(),a.reason());
-    }
+    public long aftersale(Aftersale a){var order=customers.own("hm_order",a.orderId(),false);int remaining=cents(order,"paid_cents")-cents(order,"refunded_cents");String type=a.amountCents()==remaining?"FULL_REFUND":"PARTIAL_REFUND";return aftersales.apply(new AftersaleService.Request(a.orderId(),type,a.amountCents(),a.reason(),"legacy-"+UUID.randomUUID()));}
     void transition(Map<String,Object> order,String to){check(OrderState.allows((String)order.get("status"),to),"订单状态不允许此操作");int changed=repo.jdbc().update("UPDATE hm_order SET status=?,version=version+1 WHERE tenant_id=? AND id=? AND version=?",to,repo.tenant(),order.get("id"),order.get("version"));check(changed==1,"订单已更新，请重试");}
     void release(Map<String,Object> order,String status){repo.jdbc().update("DELETE FROM hm_worker_slot WHERE tenant_id=? AND booking_id=?",repo.tenant(),order.get("booking_id"));repo.jdbc().update("UPDATE hm_booking SET status=? WHERE tenant_id=? AND id=?",status,repo.tenant(),order.get("booking_id"));}
     void log(long order,String action,String detail){repo.insert("INSERT INTO hm_order_log(tenant_id,order_id,action,actor_id,detail) VALUES(?,?,?,?,?)",repo.tenant(),order,action,SecurityFrameworkUtils.getLoginUserId(),detail);}

@@ -45,13 +45,23 @@ export const useRenderLayout = () => {
   const renderClassic = () => {
     return (
       <>
+        {mobile.value && !collapse.value ? (
+          <button
+            aria-label="关闭导航"
+            class="fixed inset-0 z-[2999] border-0 bg-black/35"
+            onClick={() => appStore.setCollapse(true)}
+          ></button>
+        ) : undefined}
         <div
           class={[
             'absolute top-0 left-0 h-full layout-border__right',
-            { '!fixed z-3000': mobile.value }
+            {
+              '!fixed z-3000': mobile.value,
+              hidden: mobile.value && collapse.value
+            }
           ]}
         >
-          {logo.value ? (
+          {logo.value && (!mobile.value || !collapse.value) ? (
             <Logo
               class={[
                 'bg-[var(--left-menu-bg-color)] relative',
@@ -64,7 +74,9 @@ export const useRenderLayout = () => {
               style="transition: all var(--transition-time-02);"
             ></Logo>
           ) : undefined}
-          <Menu class={[{ '!h-[calc(100%-var(--logo-height))]': logo.value }]}></Menu>
+          {!mobile.value || !collapse.value ? (
+            <Menu class={[{ '!h-[calc(100%-var(--logo-height))]': logo.value }]}></Menu>
+          ) : undefined}
         </div>
         <div
           class={[

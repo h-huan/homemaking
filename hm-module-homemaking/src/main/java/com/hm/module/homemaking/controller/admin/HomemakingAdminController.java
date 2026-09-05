@@ -17,6 +17,7 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 @RestController @RequestMapping("/homemaking") @Validated
 @PreAuthorize("denyAll()")
 public class HomemakingAdminController {
+    @org.springframework.beans.factory.annotation.Autowired private AftersaleService aftersales;
     private final CatalogService catalog;private final OrderService orders;private final PaymentService payments;private final BrandingService branding;private final NotificationService notifications;private final HmRepository repo;private final ScheduleService schedules;private final WorkerService workers;private final QuotaService quotas;private final SettlementService settlementService;private final PortalService portal;private final ServiceSettingsService serviceSettings;
     public HomemakingAdminController(CatalogService catalog,OrderService orders,PaymentService payments,BrandingService branding,NotificationService notifications,HmRepository repo,ScheduleService schedules,WorkerService workers,QuotaService quotas,SettlementService settlementService,PortalService portal,ServiceSettingsService serviceSettings){this.catalog=catalog;this.orders=orders;this.payments=payments;this.branding=branding;this.notifications=notifications;this.repo=repo;this.schedules=schedules;this.workers=workers;this.quotas=quotas;this.settlementService=settlementService;this.portal=portal;this.serviceSettings=serviceSettings;}
     @PreAuthorize("@hmAdmin.catalog(#kind, 'read')")
@@ -67,7 +68,13 @@ public class HomemakingAdminController {
     @PreAuthorize("@hmAdmin.allowed('homemaking:schedule:write')")
     @PostMapping("/workers/{id}/apply-shift") public CommonResult<?> applyShift(@PathVariable long id,@Valid @RequestBody ScheduleService.ApplyShift request){schedules.apply(id,request);return success(true);}
     @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:read')")
-    @GetMapping("/aftersales") public CommonResult<?> aftersales(){return success(repo.jdbc().queryForList("SELECT a.*,o.payment_method FROM hm_aftersale a JOIN hm_order o ON o.id=a.order_id AND o.tenant_id=a.tenant_id WHERE a.tenant_id=?"+repo.scope("hm_aftersale","a")+" ORDER BY a.id DESC LIMIT 100",repo.tenant()));}
+    @GetMapping("/aftersales") public CommonResult<?> aftersales(){return success(repo.jdbc().queryForList("SELECT a.*,o.payment_method,o.store_id FROM hm_aftersale a JOIN hm_order o ON o.id=a.order_id AND o.tenant_id=a.tenant_id WHERE a.tenant_id=?"+repo.scope("hm_aftersale","a")+" ORDER BY a.id DESC LIMIT 100",repo.tenant()));}
+    @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:read')")
+    @GetMapping("/aftersales/{id}") public CommonResult<?> aftersale(@PathVariable long id){return success(aftersales.adminDetail(id));}
+    @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:process')")
+    @PostMapping("/aftersales/{id}/schedule") public CommonResult<?> scheduleAftersale(@PathVariable long id,@Valid @RequestBody AftersaleService.Schedule request){aftersales.schedule(id,request);return success(true);}
+    @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:process')")
+    @PostMapping("/aftersales/{id}/resolve") public CommonResult<?> resolveAftersale(@PathVariable long id,@Valid @RequestBody AftersaleService.Resolve request){aftersales.resolve(id,request);return success(true);}
     @PreAuthorize("@hmAdmin.allowed('homemaking:reviews:read')")
     @GetMapping("/reviews") public CommonResult<?> reviews(){return success(repo.jdbc().queryForList("SELECT id,order_id,rating,content,visible,created_at FROM hm_review WHERE tenant_id=?"+repo.scope("hm_review")+" ORDER BY id DESC LIMIT 100",repo.tenant()));}
     public record Visibility(boolean visible){}
@@ -77,9 +84,11 @@ public class HomemakingAdminController {
     @PostMapping("/aftersales/{id}/approve") public CommonResult<?> approve(@PathVariable long id,HttpServletRequest request){payments.approveRefund(id,request.getRemoteAddr());return success(true);}
     public record Reject(@NotBlank @Size(max=1000) String remark){}
     @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:reject')")
-    @PostMapping("/aftersales/{id}/reject") public CommonResult<?> reject(@PathVariable long id,@Valid @RequestBody Reject request){payments.rejectRefund(id,request.remark());return success(true);}
+    @PostMapping("/aftersales/{id}/reject") public CommonResult<?> reject(@PathVariable long id,@Valid @RequestBody Reject request){aftersales.reject(id,new AftersaleService.Resolve(request.remark()));return success(true);}
     @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:refund')")
     @PostMapping("/aftersales/{id}/sync") public CommonResult<?> sync(@PathVariable long id){payments.syncRefund(id);return success(true);}
+    @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:refund')")
+    @PostMapping("/aftersales/{id}/retry") public CommonResult<?> retry(@PathVariable long id,@Valid @RequestBody Reject request){payments.retryRefund(id,request.remark());return success(true);}
     @PreAuthorize("@hmAdmin.allowed('homemaking:finance:read')")
     @GetMapping("/settlements") public CommonResult<?> settlements(){return success(repo.jdbc().queryForList("SELECT * FROM hm_settlement WHERE tenant_id=?"+repo.scope("hm_settlement")+" ORDER BY id DESC LIMIT 100",repo.tenant()));}
     @PreAuthorize("@hmAdmin.allowed('homemaking:finance:read') and @hmAdmin.tenant(#tenantId)")

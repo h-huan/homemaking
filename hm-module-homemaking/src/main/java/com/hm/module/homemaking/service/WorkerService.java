@@ -17,6 +17,7 @@ public class WorkerService {
     private final HmRepository repo;private final OrderService orders;private final EvidenceStorage storage;private final CustomerAccess customers;
     @org.springframework.beans.factory.annotation.Autowired private QuotaService quotas;
     @org.springframework.beans.factory.annotation.Autowired private OrderChangeService changes;
+    @org.springframework.beans.factory.annotation.Autowired private AftersaleService aftersales;
     public WorkerService(HmRepository repo,OrderService orders,EvidenceStorage storage,CustomerAccess customers){this.repo=repo;this.orders=orders;this.storage=storage;this.customers=customers;}
     @Transactional public void bind(long worker,Binding b){
         repo.require("hm_worker",worker,true);
@@ -49,6 +50,7 @@ public class WorkerService {
             case "EXCEPTION"->{check(Set.of("PAID","ASSIGNED","IN_SERVICE").contains(order.get("status"))&&Set.of("WAITING","ACCEPTED","ARRIVED","STARTED").contains(status)&&!CatalogService.s(request.note()).isBlank(),"请填写异常说明");}
             default->throw new IllegalArgumentException("未知履约动作");
         }
+        aftersales.workerAction(id,request.action());
         orders.log(id,"WORKER_"+request.action(),CatalogService.s(request.note()));
     }
     @Transactional public long uploadEvidence(long id,String phase,String note,byte[] content){

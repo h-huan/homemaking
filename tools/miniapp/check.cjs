@@ -25,9 +25,14 @@ function page(file, api = {}, wx = {}) {
 async function run() {
   const scripts = walk(root).filter(f => f.endsWith('.js'))
   for (const file of scripts) new vm.Script(fs.readFileSync(file, 'utf8'), { filename: file })
+  const styles = walk(root).filter(f => f.endsWith('.wxss'))
+  for (const file of styles) {
+    const source = fs.readFileSync(file, 'utf8')
+    assert.doesNotMatch(source, /\b\d+(?:\.\d+)?px\b/, `${path.relative(root, file)} must use rpx, percentages, viewport units or safe-area values instead of fixed px`)
+  }
   const config = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'))
   for (const route of config.pages) for (const ext of ['js', 'wxml', 'json', 'wxss']) assert.ok(fs.existsSync(path.join(root, `${route}.${ext}`)), `${route}.${ext} missing`)
-  console.log(`PASS: ${scripts.length} JavaScript files parse; ${config.pages.length} page routes have all files.`)
+  console.log(`PASS: ${scripts.length} JavaScript files parse; ${config.pages.length} page routes have all files; ${styles.length} WXSS files contain no fixed px dimensions.`)
   const first = pending(), second = pending(); let queries = 0
   const booking = page('pages/order/booking/index.js', { getCapacity: () => (++queries === 1 ? first.promise : second.promise) })
   booking.data.form = { serviceItemId: 1, addressId: 1, appointmentDate: '2099-01-01' }
@@ -72,7 +77,10 @@ async function run() {
   completion.confirmCompletion(); await new Promise(resolve => setImmediate(resolve)); assert.equal(confirmed, 1); assert.equal(detailLoads, 1)
   const completionTemplate = fs.readFileSync(path.join(root, 'pages/order/detail/index.wxml'), 'utf8')
   assert.match(completionTemplate, /fulfillmentStatus === 'AWAITING_CONFIRMATION'/); assert.match(completionTemplate, /bindtap="confirmCompletion"/); assert.match(completionTemplate, /bindtap="goAftersale"/)
-  console.log('PASS: pending completion offers customer confirmation and an aftersale path without double submission.')
+console.log('PASS: pending completion offers customer confirmation and an aftersale path without double submission.')
+assert(fs.readFileSync('hm-miniapp/pages/order/feedback/index.js','utf8').includes('REASSIGN_WORKER'), 'aftersale remedy choices missing')
+assert(fs.readFileSync('hm-miniapp/pages/order/detail/index.wxml','utf8').includes('售后进度') && fs.readFileSync('hm-miniapp/pages/order/detail/index.js','utf8').includes('cancelAftersale'), 'aftersale progress/cancel flow missing')
+console.log('PASS: aftersale supports service remedies, partial/full refunds, compensation, progress and cancellation.')
   const lateQuote = pending(); let changes = 0
   const amendment = page('pages/order/address-change/index.js', {
     previewAddressChange: () => lateQuote.promise,

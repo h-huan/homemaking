@@ -21,6 +21,7 @@ public class PaymentService {
     private final PayOrderApi pay;private final PayRefundApi refunds;private final PayOrderService payOrderService;private final NotificationService notifications;private final SettlementService settlements;
     @org.springframework.beans.factory.annotation.Autowired private PaymentPolicyService policy;
     @org.springframework.beans.factory.annotation.Autowired private PaymentLedgerService ledger;
+    @org.springframework.beans.factory.annotation.Autowired private AftersaleService aftersales;
     public PaymentService(HmRepository repo,CustomerAccess customers,OrderService orders,PayOrderApi pay,PayRefundApi refunds,PayOrderService payOrderService,NotificationService notifications,SettlementService settlements){this.repo=repo;this.customers=customers;this.orders=orders;this.pay=pay;this.refunds=refunds;this.payOrderService=payOrderService;this.notifications=notifications;this.settlements=settlements;}
     private String appKey(){String key=repo.jdbc().queryForObject("SELECT pay_app_key FROM hm_tenant_profile WHERE tenant_id=?",String.class,repo.tenant());check(key!=null&&!key.isBlank(),"当前租户尚未配置支付");return key;}
     @Transactional
@@ -47,7 +48,7 @@ public class PaymentService {
         repo.jdbc().update("UPDATE hm_order SET paid_cents=price_cents,paid_at=?,version=version+1 WHERE tenant_id=? AND id=?",paid.getSuccessTime(),repo.tenant(),id);
         if("UNPAID".equals(order.get("status"))){repo.jdbc().update("UPDATE hm_order SET status='PAID' WHERE tenant_id=? AND id=?",repo.tenant(),id);orders.log(id,"PAID","");}
         else if("CANCELLED".equals(order.get("status"))){
-            repo.insert("INSERT INTO hm_aftersale(tenant_id,customer_id,order_id,amount_cents,reason) VALUES(?,?,?,?,?)",repo.tenant(),order.get("customer_id"),id,order.get("price_cents"),"取消后到账，请退款");
+            long aftersale=repo.insert("INSERT INTO hm_aftersale(tenant_id,customer_id,order_id,amount_cents,reason,type) VALUES(?,?,?,?,?,'FULL_REFUND')",repo.tenant(),order.get("customer_id"),id,order.get("price_cents"),"取消后到账，请退款");aftersales.generated(aftersale,id,"FULL_REFUND","取消后到账，请退款");
             orders.log(id,"LATE_PAYMENT","等待退款处理");notifications.enqueue(number(order,"customer_id"),id,"PAYMENT_EXCEPTION","URGENT","late-pay:"+id,Map.of("orderId",id));
         }
     }
@@ -76,36 +77,36 @@ public class PaymentService {
     }
     @Transactional
     public void approveRefund(long aftersaleId,String ip){var a=repo.require("hm_aftersale",aftersaleId,true);var order=repo.require("hm_order",number(a,"order_id"),true);
+        check(Set.of("PARTIAL_REFUND","FULL_REFUND").contains(a.get("type")),"该售后不是退款申请");
         check(!"OFFLINE".equals(order.get("payment_method")),"线下收款请在完成实际退款后登记线下退款凭证");
         if(a.get("pay_refund_id")!=null)return;check(order.get("pay_order_id")!=null,"历史支付需先人工对账，不可自动退款");check("REQUESTED".equals(a.get("status")),"售后单不在待审核状态");
         check(cents(a,"amount_cents")<=cents(order,"paid_cents")-cents(order,"refunded_cents"),"退款金额超出可退款金额");
-        var r=new PayRefundCreateReqDTO();r.setAppKey(appKey());r.setUserIp(ip);r.setUserId(number(order,"customer_id"));r.setUserType(1);r.setMerchantOrderId("HM-"+repo.tenant()+"-"+order.get("id"));r.setMerchantRefundId("HM-R-"+repo.tenant()+"-"+aftersaleId);String reason=(String)a.get("reason");r.setReason(reason.substring(0,Math.min(128,reason.length())));r.setPrice(cents(a,"amount_cents"));
-        long refund=refunds.createRefund(r);repo.jdbc().update("UPDATE hm_aftersale SET status='REFUNDING',pay_refund_id=?,previous_order_status=? WHERE tenant_id=? AND id=?",refund,order.get("status"),repo.tenant(),aftersaleId);
+        var r=new PayRefundCreateReqDTO();r.setAppKey(appKey());r.setUserIp(ip);r.setUserId(number(order,"customer_id"));r.setUserType(1);r.setMerchantOrderId("HM-"+repo.tenant()+"-"+order.get("id"));r.setMerchantRefundId(refundMerchantId(a));String reason=(String)a.get("reason");r.setReason(reason.substring(0,Math.min(128,reason.length())));r.setPrice(cents(a,"amount_cents"));
+        long refund=refunds.createRefund(r);repo.jdbc().update("UPDATE hm_aftersale SET status='REFUNDING',pay_refund_id=?,previous_order_status=?,processed_at=CURRENT_TIMESTAMP,version=version+1 WHERE tenant_id=? AND id=?",refund,order.get("status"),repo.tenant(),aftersaleId);aftersales.refundStarted(aftersaleId);
         repo.jdbc().update("UPDATE hm_order SET status='REFUNDING',version=version+1 WHERE tenant_id=? AND id=?",repo.tenant(),order.get("id"));
     }
     @Transactional
-    public void rejectRefund(long aftersaleId,String remark){
-        var aftersale=repo.require("hm_aftersale",aftersaleId,true);
-        check("REQUESTED".equals(aftersale.get("status")),"售后单不在待审核状态");
-        check(aftersale.get("order_change_id")==null,"退差额不能单独驳回，请从订单撤销对应变更");
-        String reason=CatalogService.s(remark);check(!reason.isBlank()&&reason.length()<=1000,"请填写 1000 字以内的驳回说明");
-        repo.jdbc().update("UPDATE hm_aftersale SET status='REJECTED',audit_remark=? WHERE tenant_id=? AND id=?",reason,repo.tenant(),aftersaleId);
-        orders.log(number(aftersale,"order_id"),"AFTERSALE_REJECTED",reason);
+    public void rejectRefund(long aftersaleId,String remark){aftersales.reject(aftersaleId,new AftersaleService.Resolve(remark));}
+    @Transactional
+    public void retryRefund(long aftersaleId,String remark){var a=repo.require("hm_aftersale",aftersaleId,true);var order=repo.require("hm_order",number(a,"order_id"),true);
+        check(Set.of("PARTIAL_REFUND","FULL_REFUND").contains(a.get("type")),"该售后不是退款申请");check("FAILED".equals(a.get("status")),"只有退款失败的售后单可以重试");check(a.get("pay_refund_id")!=null,"退款失败记录不完整，请先人工核对");check(!"OFFLINE".equals(order.get("payment_method")),"线下退款无需线上重试");
+        repo.jdbc().update("UPDATE hm_aftersale SET status='REQUESTED',pay_refund_id=NULL,refund_attempt=refund_attempt+1,audit_remark=?,processed_at=CURRENT_TIMESTAMP,version=version+1 WHERE tenant_id=? AND id=?",remark.trim(),repo.tenant(),aftersaleId);aftersales.refundRetried(aftersaleId,remark.trim());
     }
     @Transactional
     public void syncRefund(long aftersaleId){var a=repo.require("hm_aftersale",aftersaleId,true);if(a.get("pay_refund_id")==null||"REFUNDED".equals(a.get("status")))return;var r=refunds.getRefund(number(a,"pay_refund_id"));
         if(r==null)return;
-        check(r.getRefundPrice()!=null&&r.getRefundPrice()>0&&r.getRefundPrice()==cents(a,"amount_cents")&&Objects.equals(r.getMerchantRefundId(),"HM-R-"+repo.tenant()+"-"+aftersaleId)&&Objects.equals(r.getMerchantOrderId(),"HM-"+repo.tenant()+"-"+a.get("order_id")),"退款记录不匹配");
-        if(PayRefundStatusEnum.isFailure(r.getStatus())){repo.jdbc().update("UPDATE hm_aftersale SET status='FAILED' WHERE tenant_id=? AND id=? AND status='REFUNDING'",repo.tenant(),aftersaleId);repo.jdbc().update("UPDATE hm_order SET status=?,version=version+1 WHERE tenant_id=? AND id=? AND status='REFUNDING'",Objects.toString(a.get("previous_order_status"),"PAID"),repo.tenant(),a.get("order_id"));return;}
+        check(r.getRefundPrice()!=null&&r.getRefundPrice()>0&&r.getRefundPrice()==cents(a,"amount_cents")&&Objects.equals(r.getMerchantRefundId(),refundMerchantId(a))&&Objects.equals(r.getMerchantOrderId(),"HM-"+repo.tenant()+"-"+a.get("order_id")),"退款记录不匹配");
+        if(PayRefundStatusEnum.isFailure(r.getStatus())){repo.jdbc().update("UPDATE hm_aftersale SET status='FAILED',version=version+1 WHERE tenant_id=? AND id=? AND status='REFUNDING'",repo.tenant(),aftersaleId);aftersales.refundFailed(aftersaleId);repo.jdbc().update("UPDATE hm_order SET status=?,version=version+1 WHERE tenant_id=? AND id=? AND status='REFUNDING'",Objects.toString(a.get("previous_order_status"),"PAID"),repo.tenant(),a.get("order_id"));return;}
         if(!PayRefundStatusEnum.isSuccess(r.getStatus()))return;
         var order=repo.require("hm_order",number(a,"order_id"),true);int total=Math.addExact(cents(order,"refunded_cents"),r.getRefundPrice());check(total<=cents(order,"paid_cents"),"累计退款超过支付金额");
         ledger.onlineRefund(order,aftersaleId,r.getRefundPrice(),r.getSuccessTime());
         String next=total==cents(order,"paid_cents")?"REFUNDED":Objects.toString(a.get("previous_order_status"),"PAID");
-        repo.jdbc().update("UPDATE hm_order SET refunded_cents=?,status=?,version=version+1 WHERE tenant_id=? AND id=?",total,next,repo.tenant(),order.get("id"));repo.jdbc().update("UPDATE hm_aftersale SET status='REFUNDED' WHERE tenant_id=? AND id=?",repo.tenant(),aftersaleId);
+        aftersales.refundCompleted(aftersaleId);repo.jdbc().update("UPDATE hm_order SET refunded_cents=?,status=?,version=version+1 WHERE tenant_id=? AND id=?",total,next,repo.tenant(),order.get("id"));repo.jdbc().update("UPDATE hm_aftersale SET status='REFUNDED',version=version+1 WHERE tenant_id=? AND id=?",repo.tenant(),aftersaleId);
         if(next.equals("REFUNDED"))orders.release(order,"CANCELLED");
         repo.jdbc().update("UPDATE hm_settlement SET refund_cents=?,net_cents=gross_cents-?,version=version+1 WHERE tenant_id=? AND order_id=? AND status='PENDING'",total,total,repo.tenant(),order.get("id"));
         settlements.refund(order,aftersaleId,r.getRefundPrice());
         orders.log(number(order,"id"),"REFUNDED","cents="+r.getRefundPrice());notifications.enqueue(number(order,"customer_id"),number(order,"id"),"REFUND_RESULT","IMPORTANT","refund:"+aftersaleId,Map.of("orderId",order.get("id")));
     }
     public void refundCallback(long refundId){var records=repo.jdbc().queryForList("SELECT tenant_id FROM pay_refund WHERE id=? AND deleted=FALSE",refundId);if(records.isEmpty())return;TenantUtils.execute(number(records.get(0),"tenant_id"),()->{var rows=repo.jdbc().queryForList("SELECT id FROM hm_aftersale WHERE tenant_id=? AND pay_refund_id=?",repo.tenant(),refundId);if(!rows.isEmpty())transactionalSelf().syncRefund(number(rows.get(0),"id"));});}
+    private String refundMerchantId(Map<String,Object> a){int attempt=a.get("refund_attempt")==null?0:((Number)a.get("refund_attempt")).intValue();return "HM-R-"+repo.tenant()+"-"+a.get("id")+(attempt==0?"":"-A"+attempt);}
 }

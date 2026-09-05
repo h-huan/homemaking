@@ -32,6 +32,7 @@ const api = {
   getOrderCapacity: (orderId, appointmentDate) => request({ url: `/mini/order/${orderId}/capacity`, params: { appointmentDate } }),
   submitReview: (data) => request({ url: '/mini/order/review', method: 'POST', data }),
   submitAftersale: (data) => request({ url: '/mini/order/aftersale', method: 'POST', data }),
+  cancelAftersale: (id, data) => request({ url: `/mini/order/aftersale/${id}/cancel`, method: 'POST', data }),
   getEvidence: (orderId) => request({ url: `/homemaking/orders/${orderId}/evidence` })
 }
 

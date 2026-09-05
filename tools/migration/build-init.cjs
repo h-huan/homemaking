@@ -13,6 +13,18 @@ for (let i = 0; i < upgrades.length; i++) {
 const sources = ['hm-base.sql', 'hm-pay-mp.sql', 'hm-bootstrap.sql', 'hm-homemaking.sql', 'hm-menu.sql',
   ...upgrades.map(name => `upgrades/${name}`)]
 const normalize = text => text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
+const menuIds = new Map()
+for (const name of sources) {
+  const sql = normalize(fs.readFileSync(path.join(sqlRoot, name), 'utf8'))
+  for (const match of sql.matchAll(/\((9\d{5}),'[^']*','([^']*)',(?:1|2|3),/g)) {
+    const [, id, permission] = match
+    const prior = menuIds.get(id)
+    if (prior && prior.permission !== permission) {
+      throw new Error(`system_menu id ${id} conflicts between ${prior.file} (${prior.permission}) and ${name} (${permission}).`)
+    }
+    if (!prior) menuIds.set(id, { permission, file: name })
+  }
+}
 const latest = upgrades.at(-1)?.slice(0, 4) || 'base'
 const header = `-- HM fresh installation, including all upgrades through ${latest}.
 -- Import this file ONCE into an EMPTY MySQL 8.0.16+ database; stop on the first error.

@@ -12,6 +12,7 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 
 @Service
 public class CompletionConfirmationService {
+    @org.springframework.beans.factory.annotation.Autowired private AftersaleService aftersales;
     private final HmRepository repo; private final CustomerAccess customers; private final SettlementService settlements; private final NotificationService notifications;
     public CompletionConfirmationService(HmRepository repo,CustomerAccess customers,SettlementService settlements,NotificationService notifications){this.repo=repo;this.customers=customers;this.settlements=settlements;this.notifications=notifications;}
     @Transactional public void submit(long id){
@@ -29,14 +30,14 @@ public class CompletionConfirmationService {
     private void confirmLocked(Map<String,Object> order,String method,Long actor){
         if("COMPLETED".equals(order.get("status")))return;
         check("IN_SERVICE".equals(order.get("status"))&&"AWAITING_CONFIRMATION".equals(order.get("fulfillment_status")),"当前订单不等待完工确认");
-        check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND status IN ('REQUESTED','REFUNDING')",Long.class,repo.tenant(),order.get("id"))==0,"售后处理中，处理完成前不能确认完工");
+        check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND status IN ('REQUESTED','SCHEDULED','IN_PROGRESS','REFUNDING')",Long.class,repo.tenant(),order.get("id"))==0,"售后处理中，处理完成前不能确认完工");
         long id=number(order,"id");repo.jdbc().update("UPDATE hm_order SET status='COMPLETED',completed_at=CURRENT_TIMESTAMP,completion_confirmed_at=CURRENT_TIMESTAMP,completion_method=?,completion_confirmed_by=?,fulfillment_status='COMPLETED',version=version+1 WHERE tenant_id=? AND id=?",method,actor,repo.tenant(),id);
         repo.jdbc().update("UPDATE hm_booking SET status='COMPLETED' WHERE tenant_id=? AND id=?",repo.tenant(),order.get("booking_id"));
-        var completed=repo.require("hm_order",id,false);settlements.completed(completed);repo.insert("INSERT INTO hm_order_log(tenant_id,order_id,action,actor_id,detail) VALUES(?,?,?,?,?)",repo.tenant(),id,"COMPLETION_CONFIRMED",actor,method);
+        var completed=repo.require("hm_order",id,false);settlements.completed(completed);aftersales.completionConfirmed(id);repo.insert("INSERT INTO hm_order_log(tenant_id,order_id,action,actor_id,detail) VALUES(?,?,?,?,?)",repo.tenant(),id,"COMPLETION_CONFIRMED",actor,method);
         notifications.enqueue(number(order,"customer_id"),id,"SERVICE_COMPLETED","NORMAL","complete:"+id,Map.of("orderId",id,"method",method));
     }
     @Transactional @Scheduled(fixedDelay=60000) public void timeouts(){
-        var previous=TenantContextHolder.getTenantId();try{TenantContextHolder.setIgnore(true);var due=repo.jdbc().queryForList("SELECT o.tenant_id,o.id FROM hm_order o WHERE o.status='IN_SERVICE' AND o.fulfillment_status='AWAITING_CONFIRMATION' AND o.confirmation_deadline<=CURRENT_TIMESTAMP AND NOT EXISTS(SELECT 1 FROM hm_aftersale a WHERE a.tenant_id=o.tenant_id AND a.order_id=o.id AND a.status IN ('REQUESTED','REFUNDING')) ORDER BY o.confirmation_deadline LIMIT 200");TenantContextHolder.setIgnore(false);for(var row:due)confirmTimeout(number(row,"tenant_id"),number(row,"id"));}finally{TenantContextHolder.setIgnore(false);if(previous!=null)TenantContextHolder.setTenantId(previous);else TenantContextHolder.clear();}
+        var previous=TenantContextHolder.getTenantId();try{TenantContextHolder.setIgnore(true);var due=repo.jdbc().queryForList("SELECT o.tenant_id,o.id FROM hm_order o WHERE o.status='IN_SERVICE' AND o.fulfillment_status='AWAITING_CONFIRMATION' AND o.confirmation_deadline<=CURRENT_TIMESTAMP AND NOT EXISTS(SELECT 1 FROM hm_aftersale a WHERE a.tenant_id=o.tenant_id AND a.order_id=o.id AND a.status IN ('REQUESTED','SCHEDULED','IN_PROGRESS','REFUNDING')) ORDER BY o.confirmation_deadline LIMIT 200");TenantContextHolder.setIgnore(false);for(var row:due)confirmTimeout(number(row,"tenant_id"),number(row,"id"));}finally{TenantContextHolder.setIgnore(false);if(previous!=null)TenantContextHolder.setTenantId(previous);else TenantContextHolder.clear();}
     }
     private void log(long order,String action,String detail){repo.insert("INSERT INTO hm_order_log(tenant_id,order_id,action,actor_id,detail) VALUES(?,?,?,?,?)",repo.tenant(),order,action,SecurityFrameworkUtils.getLoginUserId(),detail);}
 }

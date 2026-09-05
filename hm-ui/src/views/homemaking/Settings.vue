@@ -233,6 +233,7 @@ const events = [
   { value: 'WORKER_CHANGED', label: '服务人员变更' },
   { value: 'ORDER_CANCELLED', label: '订单取消' },
   { value: 'REFUND_RESULT', label: '退款结果' },
+  { value: 'AFTERSALE_UPDATE', label: '售后进度' },
   { value: 'SERVICE_COMPLETED', label: '服务完工' },
   { value: 'SERVICE_COMPLETION_CONFIRM', label: '请客户确认完工' },
   { value: 'MARKETING', label: '优惠活动' }

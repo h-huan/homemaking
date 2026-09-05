@@ -19,6 +19,7 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 /** Financial amendments retain the original contract until the difference is settled. */
 @Service
 public class OrderChangeService {
+    @org.springframework.beans.factory.annotation.Autowired private AftersaleService aftersales;
     public record Contact(@NotBlank @Size(max=100) String contactName,@NotBlank @Size(max=32) String phone,
                           @NotBlank @Size(max=500) String address,@NotNull @Size(max=20) String districtCode) {}
     public record Request(@Min(0) long version,@Valid Contact contact,@Min(1) @Max(100000000) Integer priceCents,
@@ -57,7 +58,7 @@ public class OrderChangeService {
         var booking=repo.require("hm_booking",number(order,"booking_id"),false);
         check(OrderService.time(booking.get("ends_at")).isAfter(LocalDateTime.now()),"预约时段已结束，请先改期");
         if(!admin)pricing.validateChange(number(order,"service_id"),OrderService.time(booking.get("starts_at")),true);
-        check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND (status IN ('REQUESTED','REFUNDING') OR (order_change_id IS NULL AND status='REFUNDED'))",Long.class,repo.tenant(),order.get("id"))==0,"请先处理进行中的售后；已发生售后退款的订单不能重新改价");
+        check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND (status IN ('REQUESTED','SCHEDULED','IN_PROGRESS','AWAITING_CONFIRMATION','REFUNDING') OR (order_change_id IS NULL AND status='REFUNDED'))",Long.class,repo.tenant(),order.get("id"))==0,"请先处理进行中的售后；已发生售后退款的订单不能重新改价");
     }
     private Map<String,Object> proposed(Map<String,Object> order,Request r,boolean canPrice){
         var booking=repo.require("hm_booking",number(order,"booking_id"),false);var after=snapshot(order,booking);
@@ -110,7 +111,7 @@ public class OrderChangeService {
         if(status.equals("APPLIED"))apply(order,change,after);
         else{
             repo.jdbc().update("UPDATE hm_order SET pending_change_id=?,version=version+1 WHERE tenant_id=? AND id=?",change,repo.tenant(),id);
-            if(delta<0)repo.insert("INSERT INTO hm_aftersale(tenant_id,customer_id,order_id,amount_cents,reason,order_change_id) VALUES(?,?,?,?,?,?)",repo.tenant(),order.get("customer_id"),id,-delta,"订单变更退差额："+r.reason(),change);
+            if(delta<0){long aftersale=repo.insert("INSERT INTO hm_aftersale(tenant_id,customer_id,order_id,amount_cents,reason,type,order_change_id) VALUES(?,?,?,?,?,'PARTIAL_REFUND',?)",repo.tenant(),order.get("customer_id"),id,-delta,"订单变更退差额："+r.reason(),change);aftersales.generated(aftersale,id,"PARTIAL_REFUND","订单变更退差额："+r.reason());}
         }
         log(id,"CHANGE_REQUESTED","变更单 #"+change+"："+r.reason());return change;
     }
@@ -143,7 +144,7 @@ public class OrderChangeService {
         if(!admin)AdminScope.denyUnless(number(change,"actor_id")==actor()&&number(change,"actor_type")==1);
         if("CANCELLED".equals(change.get("status")))return;
         check(Objects.equals(order.get("pending_change_id"),changeId)&&Set.of("PENDING_PAYMENT","PENDING_REFUND").contains(change.get("status")),"变更已生效或不在处理中，不能撤销");
-        repo.jdbc().update("UPDATE hm_aftersale SET status='REJECTED',audit_remark=? WHERE tenant_id=? AND order_change_id=? AND status='REQUESTED'","变更已撤销："+reason,repo.tenant(),changeId);
+        aftersales.cancelGenerated(changeId,"变更已撤销："+reason);
         repo.jdbc().update("UPDATE hm_order_change SET status='CANCELLED',cancelled_by=?,cancelled_type=?,cancel_reason=?,cancelled_at=CURRENT_TIMESTAMP WHERE tenant_id=? AND id=?",actor(),actorType(),reason,repo.tenant(),changeId);
         repo.jdbc().update("UPDATE hm_order SET pending_change_id=NULL,version=version+1 WHERE tenant_id=? AND id=?",repo.tenant(),orderId);log(orderId,"CHANGE_CANCELLED","变更单 #"+changeId+"："+reason);
     }

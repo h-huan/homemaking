@@ -21,7 +21,9 @@ require('../../../utils/page')({
     detail.statusMeta = getOrderStatusMeta(detail.orderStatus, detail.paymentOptions)
     detail.paymentMethodLabel = ({ OFFLINE: '线下付款', ONLINE: '微信在线支付', LEGACY: '历史付款' })[detail.paymentMethod] || '待确认'
     detail.operateLogs = detail.operateLogs || []
-    detail.aftersales = detail.aftersales || []
+    const aftersaleTypes = { REWORK: '补做', REASSIGN_WORKER: '更换服务人员', REVISIT: '重新上门', PARTIAL_REFUND: '部分退款', FULL_REFUND: '全额退款', OTHER_COMPENSATION: '其他补偿' }
+    const aftersaleStates = { REQUESTED: '等待处理', SCHEDULED: '已安排上门', IN_PROGRESS: '补救服务中', AWAITING_CONFIRMATION: '等待您确认', REFUNDING: '退款处理中', REFUNDED: '退款完成', COMPLETED: '处理完成', REJECTED: '已驳回', CANCELLED: '已撤销', FAILED: '退款失败' }
+    detail.aftersales = (detail.aftersales || []).map(item => ({ ...item, typeLabel: aftersaleTypes[item.type] || item.type, statusLabel: aftersaleStates[item.status] || item.status, amountLabel: item.amount_cents ? `¥${(item.amount_cents / 100).toFixed(2)}` : '', canCancel: item.status === 'REQUESTED' && !item.order_change_id }))
     const states = { PENDING_PAYMENT: '待补款', PENDING_REFUND: '待退差额', APPLIED: '已生效', CANCELLED: '已撤销' }
     detail.changes = (detail.changes || []).map(change => ({ ...change, stateLabel: states[change.status], oldAmount: (change.old_price_cents / 100).toFixed(2), newAmount: (change.new_price_cents / 100).toFixed(2) }))
     detail.canAmend = !detail.pendingChangeId && ['10', '30', '40'].includes(detail.orderStatus) && ['WAITING', 'ACCEPTED'].includes(detail.fulfillmentStatus)
@@ -107,5 +109,6 @@ require('../../../utils/page')({
     } })
   },
   goReview() { wx.navigateTo({ url: `/pages/order/feedback/index?id=${this.data.detail.orderId}&mode=review` }) },
-  goAftersale() { wx.navigateTo({ url: `/pages/order/feedback/index?id=${this.data.detail.orderId}&mode=aftersale&amount=${this.data.detail.refundableAmount}` }) }
+  goAftersale() { wx.navigateTo({ url: `/pages/order/feedback/index?id=${this.data.detail.orderId}&mode=aftersale&amount=${this.data.detail.refundableAmount}` }) },
+  cancelAftersale(e) { const id = Number(e.currentTarget.dataset.id); wx.showModal({ title: '撤销售后申请', content: '仅待处理申请可撤销。确定继续吗？', success: async result => { if (!result.confirm) return; await api.cancelAftersale(id, { remark: '客户主动撤销售后申请' }); await this.loadDetail(); wx.showToast({ title: '已撤销', icon: 'success' }) } }) }
 })

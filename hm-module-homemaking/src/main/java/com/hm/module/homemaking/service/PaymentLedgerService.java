@@ -15,6 +15,7 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 /** Append-only cash journal. Order balances are changed in the same transaction under the order lock. */
 @Service
 public class PaymentLedgerService {
+    @org.springframework.beans.factory.annotation.Autowired private AftersaleService aftersales;
     public record Receipt(@NotNull @Pattern(regexp="CASH|WECHAT_TRANSFER|ALIPAY_TRANSFER|BANK_TRANSFER|OTHER") String channel,
             @Min(1) @Max(100000000) int amountCents, @NotNull @JsonDeserialize(using=BusinessTimeDeserializer.class) LocalDateTime occurredAt,
             @NotBlank @Size(max=1000) String note, @NotNull @Pattern(regexp="[A-Za-z0-9_-]{8,80}") String requestKey) {}
@@ -62,13 +63,13 @@ public class PaymentLedgerService {
         long actor=operator();long id=number(repo.require("hm_aftersale",aftersale,false),"order_id");var order=repo.require("hm_order",id,true);var a=repo.require("hm_aftersale",aftersale,true);
         Long previous=repeated(id,aftersale,null,"REFUND",-r.amountCents(),r.channel(),r.occurredAt(),r.note(),r.requestKey());if(previous!=null)return previous;
         check("OFFLINE".equals(order.get("payment_method"))&&order.get("pay_order_id")==null,"仅支持已登记的线下收款退款；线上订单须原路退款");
-        check("REQUESTED".equals(a.get("status"))&&r.amountCents()==cents(a,"amount_cents"),"请按待审核售后单的申请金额登记实际退款");
+        check(Set.of("PARTIAL_REFUND","FULL_REFUND").contains(a.get("type"))&&"REQUESTED".equals(a.get("status"))&&r.amountCents()==cents(a,"amount_cents"),"请按待审核退款售后单的申请金额登记实际退款");
         check(r.amountCents()<=cents(order,"paid_cents")-cents(order,"refunded_cents"),"退款金额超过剩余实收款");
         check(hasReceipt(id),"缺少线下收款凭证，请先对账");time(r.occurredAt(),OrderService.time(order.get("paid_at")));
         if(a.get("order_change_id")!=null){var change=changes.pending(order);check(change!=null&&number(change,"id")==number(a,"order_change_id")&&"PENDING_REFUND".equals(change.get("status")),"退差额变更单已失效");}
         long receipt=entry(id,aftersale,null,"REFUND","OFFLINE",r.channel(),-r.amountCents(),r.occurredAt(),actor,r.note(),"manual:"+r.requestKey());
         int total=cents(order,"refunded_cents")+r.amountCents();String next=total==cents(order,"paid_cents")?"REFUNDED":order.get("status").toString();
-        repo.jdbc().update("UPDATE hm_order SET refunded_cents=?,status=?,version=version+1 WHERE tenant_id=? AND id=?",total,next,repo.tenant(),id);
+        aftersales.refundCompleted(aftersale);repo.jdbc().update("UPDATE hm_order SET refunded_cents=?,status=?,version=version+1 WHERE tenant_id=? AND id=?",total,next,repo.tenant(),id);
         repo.jdbc().update("UPDATE hm_aftersale SET status='REFUNDED',previous_order_status=?,audit_remark=? WHERE tenant_id=? AND id=?",order.get("status"),r.note(),repo.tenant(),aftersale);
         if(a.get("order_change_id")!=null){repo.jdbc().update("UPDATE hm_payment_entry SET order_change_id=? WHERE tenant_id=? AND id=?",a.get("order_change_id"),repo.tenant(),receipt);changes.settle(id,number(a,"order_change_id"));}
         if(next.equals("REFUNDED"))orders.release(order,"CANCELLED");
@@ -85,7 +86,7 @@ public class PaymentLedgerService {
         check("OFFLINE".equals(order.get("payment_method"))&&Set.of("PAID","ASSIGNED").contains(order.get("status"))&&Set.of("WAITING","ACCEPTED").contains(order.get("fulfillment_status")),"仅未开始履约的误登记收款可冲正，其他情况请走售后退款");
         check(cents(order,"refunded_cents")==0&&cents(order,"paid_cents")==cents(original,"amount_cents"),"已退款或金额不一致，不能冲正");
         check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_payment_entry WHERE tenant_id=? AND reversal_of=?",Long.class,repo.tenant(),r.receiptId())==0,"该收款已冲正");
-        check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND status IN ('REQUESTED','REFUNDING')",Long.class,repo.tenant(),id)==0,"存在进行中的售后，请先处理售后");
+        check(repo.jdbc().queryForObject("SELECT COUNT(*) FROM hm_aftersale WHERE tenant_id=? AND order_id=? AND status IN ('REQUESTED','SCHEDULED','IN_PROGRESS','AWAITING_CONFIRMATION','REFUNDING')",Long.class,repo.tenant(),id)==0,"存在进行中的售后，请先处理售后");
         time(r.occurredAt(),OrderService.time(original.get("occurred_at")));
         long receipt=entry(id,null,r.receiptId(),"REVERSAL","OFFLINE",original.get("channel").toString(),-cents(original,"amount_cents"),r.occurredAt(),actor,r.note(),"manual:"+r.requestKey());
         repo.jdbc().update("UPDATE hm_order SET paid_cents=0,paid_at=NULL,status='UNPAID',fulfillment_status='WAITING',version=version+1 WHERE tenant_id=? AND id=?",repo.tenant(),id);

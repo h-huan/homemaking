@@ -361,20 +361,47 @@ export default defineComponent({
       horizontalOverflowOpened.value = true
     }
 
+    const closeHorizontalOverflowMenu = (event: Event) => {
+      if (!horizontalOverflowOpened.value) {
+        return
+      }
+      const target = event.target as Element | null
+      if (
+        target?.closest(`.${prefixCls}-overflow-fallback`) ||
+        target?.closest('.el-sub-menu__hide-arrow')
+      ) {
+        return
+      }
+      horizontalOverflowOpened.value = false
+    }
+
+    const closeHorizontalOverflowMenuByKeyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        horizontalOverflowOpened.value = false
+      }
+    }
+
     onMounted(() => {
       const wrapper = unref(menuWrapRef)
       wrapper?.addEventListener('click', openHorizontalOverflowMenu, true)
       wrapper?.addEventListener('mouseover', openHorizontalOverflowMenu, true)
+      document.addEventListener('pointerdown', closeHorizontalOverflowMenu, true)
+      document.addEventListener('keydown', closeHorizontalOverflowMenuByKeyboard)
     })
 
     onBeforeUnmount(() => {
       const wrapper = unref(menuWrapRef)
       wrapper?.removeEventListener('click', openHorizontalOverflowMenu, true)
       wrapper?.removeEventListener('mouseover', openHorizontalOverflowMenu, true)
+      document.removeEventListener('pointerdown', closeHorizontalOverflowMenu, true)
+      document.removeEventListener('keydown', closeHorizontalOverflowMenuByKeyboard)
     })
 
     const menuSelect = (index: string) => {
       horizontalOverflowOpened.value = false
+      if (appStore.getMobile) {
+        appStore.setCollapse(true)
+      }
       if (props.menuSelect) {
         props.menuSelect(index)
       }
