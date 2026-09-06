@@ -42,6 +42,16 @@ require('../../../utils/page')({
       fail: () => wx.showToast({ title: '照片读取失败', icon: 'none' })
     })
   },
+  previewReviewImage(e) {
+    const app = getApp()
+    const imageId = e.currentTarget.dataset.id
+    wx.downloadFile({
+      url: app.globalData.baseUrl + '/homemaking/reviews/' + this.data.detail.review.id + '/images/' + imageId + '/content',
+      header: { 'tenant-id': String(app.globalData.tenantId), Authorization: 'Bearer ' + wx.getStorageSync('miniToken') },
+      success: result => { if (result.statusCode === 200) wx.previewImage({ urls: [result.tempFilePath] }); else wx.showToast({ title: '评价图片读取失败', icon: 'none' }) },
+      fail: () => wx.showToast({ title: '评价图片读取失败', icon: 'none' })
+    })
+  },
   handleSubscribe() {
     const ids = this.data.subscriptionTemplates
     if (!ids.length) return

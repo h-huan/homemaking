@@ -23,6 +23,8 @@ final class BusinessTestSchema {
             var confirmationUpgrade=new ResourceDatabasePopulator(new ByteArrayResource(completion.getBytes(StandardCharsets.UTF_8)));confirmationUpgrade.setSqlScriptEncoding("UTF-8");confirmationUpgrade.execute(source);
             String aftersale=Files.readString(Path.of("../sql/mysql/upgrades/V010__aftersale_workflow.sql")).split("INSERT INTO system_menu",2)[0];
             var aftersaleUpgrade=new ResourceDatabasePopulator(new ByteArrayResource(aftersale.getBytes(StandardCharsets.UTF_8)));aftersaleUpgrade.setSqlScriptEncoding("UTF-8");aftersaleUpgrade.execute(source);
+            String reviews=Files.readString(Path.of("../sql/mysql/upgrades/V011__complete_reviews.sql")).split("INSERT INTO system_menu",2)[0];
+            var reviewUpgrade=new ResourceDatabasePopulator(new ByteArrayResource(reviews.getBytes(StandardCharsets.UTF_8)));reviewUpgrade.setSqlScriptEncoding("UTF-8");reviewUpgrade.execute(source);
         } catch(IOException e){throw new UncheckedIOException(e);}
     }
 }

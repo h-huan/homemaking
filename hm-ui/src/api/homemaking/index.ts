@@ -106,6 +106,13 @@ export const getOrderEvidence = (id: number) =>
 export const listReviews = () => request.get({ url: '/homemaking/reviews' })
 export const setReviewVisible = (id: number, visible: boolean) =>
   request.put({ url: `/homemaking/reviews/${id}/visibility`, data: { visible } })
+export const getReview = (id: number) => request.get({ url: `/homemaking/reviews/${id}` })
+export const moderateReview = (id: number, data: { visible: boolean; recommended: boolean }) =>
+  request.put({ url: `/homemaking/reviews/${id}/moderation`, data })
+export const replyReview = (id: number, content: string) =>
+  request.post({ url: `/homemaking/reviews/${id}/reply`, data: { content } })
+export const reviewImage = (reviewId: number, imageId: number) =>
+  request.download<Blob>({ url: `/homemaking/reviews/${reviewId}/images/${imageId}/content` })
 
 export const getServiceSettings = (id: number) =>
   request.get({ url: `/homemaking/services/${id}/settings` })

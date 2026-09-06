@@ -18,6 +18,7 @@ import static com.hm.module.homemaking.dal.HmRepository.*;
 @PreAuthorize("denyAll()")
 public class HomemakingAdminController {
     @org.springframework.beans.factory.annotation.Autowired private AftersaleService aftersales;
+    @org.springframework.beans.factory.annotation.Autowired private ReviewService reviews;
     private final CatalogService catalog;private final OrderService orders;private final PaymentService payments;private final BrandingService branding;private final NotificationService notifications;private final HmRepository repo;private final ScheduleService schedules;private final WorkerService workers;private final QuotaService quotas;private final SettlementService settlementService;private final PortalService portal;private final ServiceSettingsService serviceSettings;
     public HomemakingAdminController(CatalogService catalog,OrderService orders,PaymentService payments,BrandingService branding,NotificationService notifications,HmRepository repo,ScheduleService schedules,WorkerService workers,QuotaService quotas,SettlementService settlementService,PortalService portal,ServiceSettingsService serviceSettings){this.catalog=catalog;this.orders=orders;this.payments=payments;this.branding=branding;this.notifications=notifications;this.repo=repo;this.schedules=schedules;this.workers=workers;this.quotas=quotas;this.settlementService=settlementService;this.portal=portal;this.serviceSettings=serviceSettings;}
     @PreAuthorize("@hmAdmin.catalog(#kind, 'read')")
@@ -76,10 +77,18 @@ public class HomemakingAdminController {
     @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:process')")
     @PostMapping("/aftersales/{id}/resolve") public CommonResult<?> resolveAftersale(@PathVariable long id,@Valid @RequestBody AftersaleService.Resolve request){aftersales.resolve(id,request);return success(true);}
     @PreAuthorize("@hmAdmin.allowed('homemaking:reviews:read')")
-    @GetMapping("/reviews") public CommonResult<?> reviews(){return success(repo.jdbc().queryForList("SELECT id,order_id,rating,content,visible,created_at FROM hm_review WHERE tenant_id=?"+repo.scope("hm_review")+" ORDER BY id DESC LIMIT 100",repo.tenant()));}
+    @GetMapping("/reviews") public CommonResult<?> reviews(){return success(reviews.adminList());}
+    @PreAuthorize("@hmAdmin.allowed('homemaking:reviews:read')")
+    @GetMapping("/reviews/{id}") public CommonResult<?> review(@PathVariable long id){return success(reviews.adminDetail(id));}
+    @PreAuthorize("@hmAdmin.allowed('homemaking:reviews:read')")
+    @GetMapping("/reviews/{id}/images/{imageId}/content") public org.springframework.http.ResponseEntity<byte[]> reviewImage(@PathVariable long id,@PathVariable long imageId){return reviews.image(id,imageId,true);}
     public record Visibility(boolean visible){}
     @PreAuthorize("@hmAdmin.allowed('homemaking:reviews:moderate')")
-    @PutMapping("/reviews/{id}/visibility") public CommonResult<?> visibility(@PathVariable long id,@RequestBody Visibility visibility){repo.require("hm_review",id,false);check(repo.jdbc().update("UPDATE hm_review SET visible=? WHERE tenant_id=? AND id=?",visibility.visible(),repo.tenant(),id)==1,"评价不存在");return success(true);}
+    @PutMapping("/reviews/{id}/visibility") public CommonResult<?> visibility(@PathVariable long id,@RequestBody Visibility visibility){var current=reviews.adminDetail(id);reviews.moderate(id,new ReviewService.Moderation(visibility.visible(),visibility.visible()&&Boolean.TRUE.equals(current.get("recommended"))));return success(true);}
+    @PreAuthorize("@hmAdmin.allowed('homemaking:reviews:moderate')")
+    @PutMapping("/reviews/{id}/moderation") public CommonResult<?> moderation(@PathVariable long id,@RequestBody ReviewService.Moderation moderation){reviews.moderate(id,moderation);return success(true);}
+    @PreAuthorize("@hmAdmin.allowed('homemaking:reviews:reply')")
+    @PostMapping("/reviews/{id}/reply") public CommonResult<?> reply(@PathVariable long id,@Valid @RequestBody ReviewService.Reply reply){reviews.reply(id,reply);return success(true);}
     @PreAuthorize("@hmAdmin.allowed('homemaking:aftersales:refund')")
     @PostMapping("/aftersales/{id}/approve") public CommonResult<?> approve(@PathVariable long id,HttpServletRequest request){payments.approveRefund(id,request.getRemoteAddr());return success(true);}
     public record Reject(@NotBlank @Size(max=1000) String remark){}

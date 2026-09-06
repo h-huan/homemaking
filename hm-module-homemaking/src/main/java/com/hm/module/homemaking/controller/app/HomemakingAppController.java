@@ -19,6 +19,7 @@ public class HomemakingAppController {
     private final CatalogService catalog;private final OrderService orders;private final PaymentService payments;private final CustomerAccess access;private final IdentityService identity;private final HmRepository repo;private final ScheduleService schedules;private final WorkerService workers;
     @org.springframework.beans.factory.annotation.Autowired private CompletionConfirmationService completionConfirmation;
     @org.springframework.beans.factory.annotation.Autowired private AftersaleService aftersales;
+    @org.springframework.beans.factory.annotation.Autowired private ReviewService reviews;
     public HomemakingAppController(CatalogService catalog,OrderService orders,PaymentService payments,CustomerAccess access,IdentityService identity,HmRepository repo,ScheduleService schedules,WorkerService workers){this.catalog=catalog;this.orders=orders;this.payments=payments;this.access=access;this.identity=identity;this.repo=repo;this.schedules=schedules;this.workers=workers;}
     @PermitAll @GetMapping("/catalog/{kind}") public CommonResult<?> catalog(@PathVariable String kind,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size){return success(catalog.list(kind,page,size,true));}
     @GetMapping("/me") public CommonResult<?> me(){return success(repo.jdbc().queryForMap("SELECT id,nickname,avatar,mobile FROM hm_customer WHERE id=?",access.current()));}
@@ -43,7 +44,11 @@ public class HomemakingAppController {
     public record MiniPay(@NotBlank @Size(max=100) String appId){}
     @PostMapping("/orders/{id}/mini-pay") public CommonResult<?> miniPay(@PathVariable long id,@Valid @RequestBody MiniPay payment,HttpServletRequest request){return success(payments.miniPay(id,payment.appId(),request.getRemoteAddr()));}
     @PostMapping("/orders/{id}/sync-pay") public CommonResult<?> sync(@PathVariable long id){payments.syncOwned(id);return success(true);}
-    @PostMapping("/reviews") public CommonResult<?> review(@Valid @RequestBody OrderService.Review review){return success(orders.review(review));}
+    @PostMapping("/reviews") public CommonResult<?> review(@Valid @RequestBody OrderService.Review review){long id=reviews.draft(new ReviewService.Draft(review.orderId(),review.rating(),review.rating(),List.of(),review.content()));reviews.publish(id);return success(id);}
+    @PostMapping("/reviews/draft") public CommonResult<?> reviewDraft(@Valid @RequestBody ReviewService.Draft review){return success(reviews.draft(review));}
+    @PostMapping(value="/reviews/{id}/images",consumes="multipart/form-data") public CommonResult<?> reviewImage(@PathVariable long id,@RequestParam @NotBlank @Size(max=100) String requestKey,@RequestParam org.springframework.web.multipart.MultipartFile file) throws java.io.IOException{return success(reviews.upload(id,requestKey,file.getBytes()));}
+    @PostMapping("/reviews/{id}/publish") public CommonResult<?> publishReview(@PathVariable long id){return success(reviews.publish(id));}
+    @GetMapping("/reviews/{id}/images/{imageId}/content") public org.springframework.http.ResponseEntity<byte[]> reviewImage(@PathVariable long id,@PathVariable long imageId){return reviews.image(id,imageId,false);}
     @PostMapping("/aftersales") public CommonResult<?> aftersale(@Valid @RequestBody AftersaleService.Request request){return success(aftersales.apply(request));}
     @GetMapping("/aftersales/{id}") public CommonResult<?> aftersale(@PathVariable long id){return success(aftersales.customerDetail(id));}
     @PostMapping("/aftersales/{id}/cancel") public CommonResult<?> cancelAftersale(@PathVariable long id,@Valid @RequestBody AftersaleService.Resolve request){aftersales.cancel(id,request);return success(true);}

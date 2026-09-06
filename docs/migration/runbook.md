@@ -24,7 +24,7 @@
 
 后端：`java -jar hm-server/target/hm-server.jar`。默认仅监听 127.0.0.1:48080。后台产物 `hm-ui/dist-prod` 与官网产物 `hm-portal/dist` 分别部署到后台、官网域名。后台代理 `/admin-api` 和 `/app-api`，官网代理 `/app-api`；后台 SPA 路由包括 `/wechat/callback` 必须回退到后台 index.html。可信代理需正确转发已验证 Host 并拒绝未知域名，外部必须使用 HTTPS。
 
-设置 `HM_EVIDENCE_ROOT=/var/lib/hm/evidence` 保存私有履约照片，目录在发布目录与所有网站静态目录之外。数据库与此目录一起备份；更新 JAR 或静态包时不能删除照片。生产模板与目录权限见部署说明。
+设置 `HM_EVIDENCE_ROOT=/var/lib/hm/evidence` 保存私有履约照片和评价图片，目录在发布目录与所有网站静态目录之外。数据库与此目录一起备份；更新 JAR 或静态包时不能删除图片。生产模板与目录权限见部署说明。
 
 小程序 `hm-miniapp/app.js` 中设置各租户的正式 HTTPS baseUrl 和 tenantId，使用对应 AppID 构建发布；旧登录 token 不兼容，升级后重新微信登录。微信后台配置 request 合法域名。
 

@@ -122,6 +122,13 @@ class AdminPermissionTest {
         for(String template:List.of("FINANCE","DISPATCHER","WORKER")){role(template);assertThrows(AccessDeniedException.class,()->orderChanges.create(orderId,request));}
         role("MANAGER");long version=HmRepository.number(repo.require("hm_order",orderId,false),"version");assertDoesNotThrow(()->orderChanges.create(orderId,new OrderChangeService.Request(version,null,11000,"Customer confirmed","manager-price")));
     }
+    @Test void reviewReplyAndModerationHaveSeparateRoleCeilings(){
+        jdbc.update("UPDATE hm_order SET status='COMPLETED',fulfillment_status='COMPLETED' WHERE id=?",orderId);
+        long review=repo.insert("INSERT INTO hm_review(tenant_id,customer_id,order_id,rating,content,service_rating,worker_rating,status) VALUES(1,1,?,5,'Excellent',5,5,'PUBLISHED')",orderId);
+        role("SUPPORT");assertDoesNotThrow(()->admin.reply(review,new ReviewService.Reply("Thank you")));assertThrows(AccessDeniedException.class,()->admin.moderation(review,new ReviewService.Moderation(true,true)));
+        role("MANAGER");assertDoesNotThrow(()->admin.moderation(review,new ReviewService.Moderation(true,true)));
+        role("FINANCE");assertThrows(AccessDeniedException.class,()->admin.review(review));assertThrows(AccessDeniedException.class,()->admin.reply(review,new ReviewService.Reply("Forbidden")));
+    }
     @Test void removingStoreGrantImmediatelyHidesRowsAndIds(){role("SUPPORT");assertNotNull(admin.order(orderId));jdbc.update("DELETE FROM hm_staff_store WHERE user_id=10");assertThrows(Exception.class,()->admin.order(orderId));assertEquals(0L,((Map<?,?>)admin.orders(1,20).getData()).get("total"));assertTrue(((List<?>)admin.customers().getData()).isEmpty());}
     @Test void cannotEditServiceIntoAnUnauthorizedStore(){role("MANAGER");var req=new CatalogService.Save(1L,"Changed",null,null,null,2L,null,null,"Clean","",10000,60,null,"ACTIVE",0L);assertThrows(Exception.class,()->admin.save("services",req));assertEquals(1L,jdbc.queryForObject("SELECT store_id FROM hm_service WHERE id=1",Long.class));}
     @Test void headquartersFinanceCannotReadAnotherTenantsStatementsOrQuotas(){role("FINANCE");assertThrows(AccessDeniedException.class,()->admin.statements(2));assertThrows(AccessDeniedException.class,()->admin.quota(2L));}

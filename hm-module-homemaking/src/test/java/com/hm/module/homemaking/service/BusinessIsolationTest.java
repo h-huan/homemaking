@@ -53,11 +53,12 @@ class BusinessIsolationTest {
         @Bean PaymentLedgerService ledger(HmRepository r,OrderService o,SettlementService s,PaymentPolicyService p){return new PaymentLedgerService(r,o,s,p);}
         @Bean PaymentService payments(HmRepository r,CustomerAccess c,OrderService o,com.hm.module.pay.api.refund.PayRefundApi f,NotificationService n,SettlementService s,com.hm.module.pay.api.order.PayOrderApi a,com.hm.module.pay.service.order.PayOrderService p){return new PaymentService(r,c,o,a,f,p,n,s);}
         @Bean EvidenceStorage storage(){return mock(EvidenceStorage.class);}
+        @Bean ReviewService reviews(HmRepository r,CustomerAccess c,EvidenceStorage s,com.fasterxml.jackson.databind.ObjectMapper j){return new ReviewService(r,c,s,j);}
         @Bean WorkerService workers(HmRepository r,OrderService o,EvidenceStorage f,CustomerAccess c){return new WorkerService(r,o,f,c);}
         @Bean PortalService portal(HmRepository r,com.fasterxml.jackson.databind.ObjectMapper j,QuotaService q){return new PortalService(r,j,q);}
     }
     @Autowired JdbcTemplate jdbc;@Autowired DataSource dataSource;@Autowired OrderService orders;@Autowired CatalogService catalog;@Autowired HmRepository repo;@Autowired ScheduleService schedules;
-    @Autowired WorkerService workers;@Autowired SettlementService settlements;@Autowired PortalService portal;
+    @Autowired WorkerService workers;@Autowired SettlementService settlements;@Autowired PortalService portal;@Autowired ReviewService reviews;
     @Autowired ServiceSettingsService serviceSettings;@Autowired PaymentService payments;@Autowired com.hm.module.pay.api.refund.PayRefundApi refundApi;
     @BeforeEach void seed(){
         jdbc.execute("DROP ALL OBJECTS");
@@ -95,7 +96,7 @@ class BusinessIsolationTest {
     @Test void customerCannotReadAnotherCustomersOrder(){long id=orders.book(request("owner",1));login(1,2);assertThrows(Exception.class,()->orders.detail(id,false));}
     @Test void cancellationReleasesSlotsAndCannotCompleteUnpaidOrder(){long id=orders.book(request("cancel",1));assertThrows(Exception.class,()->orders.complete(id));orders.cancel(id,false);assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM hm_worker_slot",Integer.class));assertEquals("CANCELLED",jdbc.queryForObject("SELECT status FROM hm_order WHERE id=?",String.class,id));}
     @Test void publicWorkerDirectoryDoesNotExposePhone(){var page=catalog.list("workers",1,20,true);var row=((List<Map<String,Object>>)page.get("list")).get(0);assertFalse(row.containsKey("phone"));assertEquals(1L,((Number)row.get("id")).longValue());}
-    @Test void cannotReviewAnUnfinishedOrder(){long id=orders.book(request("review",1));assertThrows(Exception.class,()->orders.review(new OrderService.Review(id,5,"Good")));}
+    @Test void cannotReviewAnUnfinishedOrder(){long id=orders.book(request("review",1));assertThrows(Exception.class,()->reviews.draft(new ReviewService.Draft(id,5,5,List.of(),"Good")));}
     @Test void missingTenantFailsClosed(){TenantContextHolder.clear();assertThrows(Exception.class,()->catalog.list("stores",1,10,true));}
     @Test void skuCannotBeBorrowedFromAnotherTenant(){jdbc.update("INSERT INTO hm_service_sku(id,tenant_id,service_id,name,price_cents,duration_minutes) VALUES(1,2,2,'Foreign',1,60)");assertThrows(Exception.class,()->orders.book(new OrderService.Book(1L,null,slot(),1L,"sku",1L,List.of(),"")));assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM hm_order",Integer.class));}
     @Test void extrasAndAreaFeeAreCalculatedOnServer(){jdbc.update("INSERT INTO hm_service_extra(id,tenant_id,service_id,name,price_cents) VALUES(1,1,1,'Windows',1500)");jdbc.update("INSERT INTO hm_service_area(id,tenant_id,name,district_code,extra_cents) VALUES(1,1,'District','110101',500)");jdbc.update("INSERT INTO hm_service_area_relation VALUES(1,1,1)");jdbc.update("UPDATE hm_customer_address SET district_code='110101' WHERE id=1");long id=orders.book(new OrderService.Book(1L,null,slot(),1L,"price",null,List.of(new PricingService.Extra(1L,2)),""));assertEquals(13500,jdbc.queryForObject("SELECT price_cents FROM hm_order WHERE id=?",Integer.class,id));assertEquals(3,jdbc.queryForObject("SELECT COUNT(*) FROM hm_order_item WHERE order_id=?",Integer.class,id));}

@@ -30,3 +30,4 @@
   margin-bottom: 8rpx;
 }
 .fulfillment-line{display:flex;justify-content:space-between;gap:24rpx;color:var(--hm-muted);font-size:24rpx}.action-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14rpx}.action-grid button:only-child{grid-column:1/-1}
+.review-content{margin-top:24rpx;line-height:1.7}.review-thumb-row{display:flex;flex-wrap:wrap;gap:12rpx;margin-top:20rpx}.review-thumb{width:auto;margin:0;padding:0 22rpx;border:1rpx solid var(--hm-line);background:var(--hm-paper);color:var(--hm-primary)}.review-reply{margin-top:24rpx;padding:22rpx;border-radius:18rpx;background:var(--hm-primary-soft)}.review-reply text{display:block;margin-bottom:8rpx;font-weight:700;color:var(--hm-primary)}

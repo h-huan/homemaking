@@ -1,4 +1,4 @@
-const { request } = require('./request')
+const { request, uploadFile } = require('./request')
 
 const api = {
   login: async (code) => { const result = await request({ url: '/homemaking/wechat/mini-login', method: 'POST', data: { code, appId: wx.getAccountInfoSync().miniProgram.appId } }); return { ...result, token: result.accessToken } },
@@ -31,6 +31,9 @@ const api = {
   rescheduleOrder: (orderId, data) => request({ url: `/mini/order/${orderId}/reschedule`, method: 'POST', data }),
   getOrderCapacity: (orderId, appointmentDate) => request({ url: `/mini/order/${orderId}/capacity`, params: { appointmentDate } }),
   submitReview: (data) => request({ url: '/mini/order/review', method: 'POST', data }),
+  saveReviewDraft: (data) => request({ url: '/homemaking/reviews/draft', method: 'POST', data }),
+  uploadReviewImage: (id, filePath, requestKey) => uploadFile({ url: `/homemaking/reviews/${id}/images`, filePath, formData: { requestKey } }),
+  publishReview: (id) => request({ url: `/homemaking/reviews/${id}/publish`, method: 'POST' }),
   submitAftersale: (data) => request({ url: '/mini/order/aftersale', method: 'POST', data }),
   cancelAftersale: (id, data) => request({ url: `/mini/order/aftersale/${id}/cancel`, method: 'POST', data }),
   getEvidence: (orderId) => request({ url: `/homemaking/orders/${orderId}/evidence` })

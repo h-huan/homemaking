@@ -60,7 +60,7 @@
 
         <section v-else-if="module.type === 'TESTIMONIALS'" id="reviews" class="section reviews">
           <div class="shell"><SectionHeading :title="module.title" :subtitle="module.subtitle" eyebrow="真实评价" />
-            <div class="quotes"><blockquote v-for="review in site.catalog.reviews" :key="review.id"><div aria-label="评分">{{ '★'.repeat(review.rating) }}</div><p>“{{ review.content }}”</p><footer>{{ review.nickname || '客户' }}</footer></blockquote></div>
+            <div class="quotes"><blockquote v-for="review in site.catalog.reviews" :key="review.id"><div class="quote-score" aria-label="评分">服务 {{ review.service_rating }} · 人员 {{ review.worker_rating }}</div><div v-if="review.tags?.length" class="quote-tags"><span v-for="tag in review.tags" :key="tag">{{ tag }}</span></div><p>“{{ review.content }}”</p><div v-if="review.reply_content" class="quote-reply"><strong>商家回复</strong>{{ review.reply_content }}</div><footer>{{ review.nickname || '客户' }}</footer></blockquote></div>
           </div>
         </section>
 

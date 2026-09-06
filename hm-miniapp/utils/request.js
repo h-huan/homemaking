@@ -49,4 +49,29 @@ function request(options) {
   })
 }
 
-module.exports = { request }
+function uploadFile(options) {
+  const token = wx.getStorageSync('miniToken')
+  return new Promise((resolve, reject) => {
+    wx.uploadFile({
+      url: `${app.globalData.baseUrl}${options.url}`,
+      filePath: options.filePath,
+      name: options.name || 'file',
+      formData: options.formData || {},
+      header: {
+        'tenant-id': String(app.globalData.tenantId),
+        Authorization: token ? `Bearer ${token}` : ''
+      },
+      success(res) {
+        let data
+        try { data = JSON.parse(res.data || '{}') } catch (_) { data = {} }
+        if (data.code === 0) return resolve(data.data)
+        if (data.code === 401) wx.removeStorageSync('miniToken')
+        wx.showToast({ title: data.msg || '图片上传失败', icon: 'none' })
+        reject(data)
+      },
+      fail(err) { wx.showToast({ title: '图片上传失败', icon: 'none' }); reject(err) }
+    })
+  })
+}
+
+module.exports = { request, uploadFile }

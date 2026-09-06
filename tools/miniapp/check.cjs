@@ -81,6 +81,30 @@ console.log('PASS: pending completion offers customer confirmation and an afters
 assert(fs.readFileSync('hm-miniapp/pages/order/feedback/index.js','utf8').includes('REASSIGN_WORKER'), 'aftersale remedy choices missing')
 assert(fs.readFileSync('hm-miniapp/pages/order/detail/index.wxml','utf8').includes('售后进度') && fs.readFileSync('hm-miniapp/pages/order/detail/index.js','utf8').includes('cancelAftersale'), 'aftersale progress/cancel flow missing')
 console.log('PASS: aftersale supports service remedies, partial/full refunds, compensation, progress and cancellation.')
+  const reviewEvents = []
+  const feedback = page('pages/order/feedback/index.js', {
+    saveReviewDraft: async data => { reviewEvents.push(['draft', data]); return 91 },
+    uploadReviewImage: async (id, file, key) => { reviewEvents.push(['image', id, file, key]) },
+    publishReview: async id => { reviewEvents.push(['publish', id]) }
+  }, { showToast() {}, navigateBack() {} })
+  feedback.orderId = 7; feedback.reviewRequestKey = 'stable-review-key'
+  feedback.data.mode = 'review'; feedback.data.content = '服务专业，沟通顺畅'; feedback.data.serviceRating = 5; feedback.data.workerRating = 4
+  feedback.data.reviewTags[0].active = true; feedback.data.reviewImages = ['one.jpg', 'two.jpg']
+  await feedback.submit()
+  assert.deepEqual(reviewEvents.map(event => event[0]), ['draft', 'image', 'image', 'publish'])
+  assert.equal(reviewEvents[0][1].serviceRating, 5); assert.equal(reviewEvents[0][1].workerRating, 4); assert.deepEqual(reviewEvents[0][1].tags, ['准时到达'])
+  assert.equal(reviewEvents[1][3], 'stable-review-key-0'); assert.equal(reviewEvents[2][3], 'stable-review-key-1')
+  let publishedAfterFailure = false
+  const failedFeedback = page('pages/order/feedback/index.js', {
+    saveReviewDraft: async () => 92,
+    uploadReviewImage: async () => { throw new Error('simulated upload failure') },
+    publishReview: async () => { publishedAfterFailure = true }
+  }, { showToast() {}, navigateBack() {} })
+  failedFeedback.orderId = 8; failedFeedback.reviewRequestKey = 'failed-review-key'; failedFeedback.data.mode = 'review'; failedFeedback.data.content = '保留草稿等待重试'; failedFeedback.data.reviewImages = ['broken.jpg']
+  await failedFeedback.submit(); assert.equal(publishedAfterFailure, false); assert.equal(failedFeedback.data.submitting, false)
+  const feedbackTemplate = fs.readFileSync(path.join(root, 'pages/order/feedback/index.wxml'), 'utf8')
+  assert.match(feedbackTemplate, /serviceRating/); assert.match(feedbackTemplate, /workerRating/); assert.match(feedbackTemplate, /chooseReviewImages/)
+  console.log('PASS: review keeps separate ratings/tags, uploads every private image before publish, and remains a draft on upload failure.')
   const lateQuote = pending(); let changes = 0
   const amendment = page('pages/order/address-change/index.js', {
     previewAddressChange: () => lateQuote.promise,

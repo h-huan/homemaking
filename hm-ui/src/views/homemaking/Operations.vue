@@ -77,17 +77,20 @@
       >
       <template v-if="tab === 'reviews'"
         ><el-table-column prop="order_id" label="订单" width="100" /><el-table-column
-          prop="rating"
-          label="评分"
-          width="80" /><el-table-column
+          label="服务 / 人员"
+          width="120"
+          ><template #default="{ row }">{{ row.service_rating }} / {{ row.worker_rating }}</template></el-table-column
+        ><el-table-column
           prop="content"
           label="评价内容"
-          min-width="300" /><el-table-column label="官网展示" width="120"
-          ><template #default="{ row }"
-            ><el-switch
-              :model-value="!!row.visible"
-              :disabled="!can('reviews:moderate')"
-              @change="reviewVisibility(row, !!$event)" /></template></el-table-column
+          min-width="260"
+          show-overflow-tooltip
+        /><el-table-column label="标签" min-width="190"
+          ><template #default="{ row }"><el-space wrap><el-tag v-for="item in row.tags" :key="item" size="small" effect="plain">{{ item }}</el-tag></el-space></template></el-table-column
+        ><el-table-column label="商家回复" width="110"
+          ><template #default="{ row }"><el-tag :type="row.reply_content ? 'success' : 'info'">{{ row.reply_content ? '已回复' : '待回复' }}</el-tag></template></el-table-column
+        ><el-table-column label="展示" width="120"
+          ><template #default="{ row }"><el-tag :type="row.visible ? 'success' : 'info'">{{ row.visible ? (row.recommended ? '推荐展示' : '公开展示') : '已隐藏' }}</el-tag></template></el-table-column
       ></template>
       <el-table-column v-if="tab !== 'reviews'" label="状态" width="120"
         ><template #default="{ row }"
@@ -98,7 +101,7 @@
         ></el-table-column
       >
       <el-table-column
-        v-if="isCatalog || tab === 'orders' || tab === 'aftersales'"
+        v-if="isCatalog || tab === 'orders' || tab === 'aftersales' || tab === 'reviews'"
         label="操作"
         min-width="230"
         fixed="right"
@@ -226,6 +229,9 @@
               @click="retryFailedRefund(row)"
               >核对后重试</el-button
             ></template
+          >
+          <el-button v-if="tab === 'reviews'" link type="primary" @click="openReview(row)"
+            >{{ can('reviews:reply') || can('reviews:moderate') ? '详情/处理' : '详情' }}</el-button
           >
         </template></el-table-column
       >
@@ -446,6 +452,13 @@
       :can-process="can('aftersales:process')"
       @saved="load"
     />
+    <ReviewDialog
+      v-model="reviewVisible"
+      :target="reviewTarget"
+      :can-reply="can('reviews:reply')"
+      :can-moderate="can('reviews:moderate')"
+      @saved="load"
+    />
   </HmPage>
 </template>
 <script setup lang="ts">
@@ -461,11 +474,14 @@ import PaymentEntryDialog from './components/PaymentEntryDialog.vue'
 import OrderChangeDialog from './components/OrderChangeDialog.vue'
 import OrderChangeHistory from './components/OrderChangeHistory.vue'
 import AftersaleDialog from './components/AftersaleDialog.vue'
+import ReviewDialog from './components/ReviewDialog.vue'
 import { paymentChannels, paymentKinds, paymentMethods } from './paymentLabels'
 const settingsVisible = ref(false),
   settingsService = ref<api.BusinessRow>()
 const aftersaleVisible = ref(false),
   aftersaleTarget = ref<api.BusinessRow>()
+const reviewVisible = ref(false),
+  reviewTarget = ref<api.BusinessRow>()
 const aftersaleType = (type: string) =>
   ({
     REWORK: '补做',
@@ -478,6 +494,10 @@ const aftersaleType = (type: string) =>
 function openAftersale(row: api.BusinessRow) {
   aftersaleTarget.value = row
   aftersaleVisible.value = true
+}
+function openReview(row: api.BusinessRow) {
+  reviewTarget.value = row
+  reviewVisible.value = true
 }
 defineOptions({ name: 'HomemakingOperations' })
 function openSettings(row: api.BusinessRow) {
@@ -602,11 +622,6 @@ const detailVisible = ref(false),
   rescheduling = ref(false),
   newStart = ref(''),
   rescheduleReason = ref('')
-async function reviewVisibility(row: any, visible: boolean) {
-  await api.setReviewVisible(row.id, visible)
-  row.visible = visible
-  ElMessage.success(visible ? '评价已允许官网展示' : '评价已隐藏')
-}
 async function reject(row: any) {
   const { value } = await ElMessageBox.prompt('填写驳回原因，客户可在售后进度中查看', '驳回申请', {
     inputValidator: (v) => !!v?.trim() || '请填写原因'

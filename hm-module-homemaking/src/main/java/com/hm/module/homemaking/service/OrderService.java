@@ -85,7 +85,7 @@ public class OrderService {
         var history=changes.history(id);order.put("changes",history);order.put("pending_change",history.stream().filter(c->Objects.equals(c.get("id"),order.get("pending_change_id"))).findFirst().orElse(null));
         order.put("logs",repo.jdbc().queryForList("SELECT id,action,detail,created_at FROM hm_order_log WHERE tenant_id=? AND order_id=? ORDER BY id",repo.tenant(),id));
         order.put("aftersales",aftersales.byOrder(id,admin));
-        order.put("review",repo.jdbc().queryForList("SELECT id,rating,content FROM hm_review WHERE tenant_id=? AND order_id=?",repo.tenant(),id));return order;}
+        order.put("review",repo.jdbc().queryForList("SELECT id,rating,service_rating,worker_rating,tags_json,content,reply_content,replied_at FROM hm_review WHERE tenant_id=? AND order_id=? AND status='PUBLISHED'",repo.tenant(),id));return order;}
     public Map<String,Object> list(int page,int size,boolean admin){
         size=Math.min(100,Math.max(1,size));page=Math.max(1,page);
         String where=" WHERE hm_order.tenant_id=?"+(admin?repo.scope("hm_order"):" AND hm_order.customer_id=?");var args=new ArrayList<Object>();args.add(repo.tenant());if(!admin)args.add(customers.current());
@@ -146,8 +146,6 @@ public class OrderService {
     }
     @Transactional
     public void complete(long id){changes.requireSettled(repo.require("hm_order",id,false));completionConfirmation.submit(id);}
-    @Transactional
-    public long review(Review r){var order=customers.own("hm_order",r.orderId(),true);check("COMPLETED".equals(order.get("status")),"完工后才能评价");return repo.insert("INSERT INTO hm_review(tenant_id,customer_id,order_id,rating,content) VALUES(?,?,?,?,?)",repo.tenant(),customers.current(),r.orderId(),r.rating(),r.content());}
     @Transactional
     public long aftersale(Aftersale a){var order=customers.own("hm_order",a.orderId(),false);int remaining=cents(order,"paid_cents")-cents(order,"refunded_cents");String type=a.amountCents()==remaining?"FULL_REFUND":"PARTIAL_REFUND";return aftersales.apply(new AftersaleService.Request(a.orderId(),type,a.amountCents(),a.reason(),"legacy-"+UUID.randomUUID()));}
     void transition(Map<String,Object> order,String to){check(OrderState.allows((String)order.get("status"),to),"订单状态不允许此操作");int changed=repo.jdbc().update("UPDATE hm_order SET status=?,version=version+1 WHERE tenant_id=? AND id=? AND version=?",to,repo.tenant(),order.get("id"),order.get("version"));check(changed==1,"订单已更新，请重试");}
