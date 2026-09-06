@@ -1,6 +1,6 @@
 # 当前 SaaS 版本部署说明
 
-更新日期：2026-09-04。适用于 `saas-platform`，默认启用 system、infra、pay、mp、homemaking。包括独立官网、排班履约、服务人员自助工作台、私有照片、套餐与结算、后台角色权限与线下优先支付，以及独立的平台身份授权。
+更新日期：2026-09-06。适用于 `saas-platform`，默认启用 system、infra、pay、mp、homemaking。包括独立官网、排班履约、服务人员自助工作台、私有照片、套餐与结算、加盟商合同中心、后台角色权限与线下优先支付，以及独立的平台身份授权。
 
 本说明按“单台 Linux 主机运行 Java + Nginx，连接 MySQL/Redis”的方式提供模板；Windows 可负责打包和本地初始化。服务器地址、实际域名和账号尚未提供，下面的目录是部署约定示例，**不是已经替你部署好的地址**。当前副本、原仓库目录、未来 Git 克隆目录都可以作为打包目录，不需要把 `.codex` 隐藏目录上传到服务器。
 
@@ -51,7 +51,7 @@ pnpm --version
 后端打包并运行选定的业务、安全回归：
 
 ```powershell
-mvn -s .mvn/settings.xml "-Dtest=BusinessIsolationTest,EvidenceStorageTest,IdentityMappingTest,NotificationPolicyTest,PayOwnershipTest,DesensitizeTest" "-Dsurefire.failIfNoSpecifiedTests=false" package
+mvn -s .mvn/settings.xml "-Dtest=BusinessIsolationTest,FranchiseCenterTest,EvidenceStorageTest,IdentityMappingTest,NotificationPolicyTest,PayOwnershipTest,DesensitizeTest" "-Dsurefire.failIfNoSpecifiedTests=false" package
 ```
 
 这一步不连接生产数据库。结果应为 `BUILD SUCCESS`，产物为 `hm-server/target/hm-server.jar`。仅需重打包且该版本已完成测试时，可用 `mvn -s .mvn/settings.xml -DskipTests package`；不要把跳过测试的结果当成新的验收。
@@ -138,7 +138,7 @@ mysql --host=CHANGE_ME_DB_HOST --port=3306 --user=CHANGE_ME_INSTALL_USER --passw
 
 初始 admin 登录所属租户仍为「HM 总部」，其平台资格来自独立授权表，不来自租户编号。总部直营是普通业务租户。首次登录后，在「家政运营 → 平台身份」维护后续平台管理员；在「人员权限」分配直营员工角色。只有平台管理员可维护平台配置和跨租户访问。没有新增环境变量。
 
-确认 `/etc/hm/backend.env` 的全部必填项已替换。Java 默认不会读取这个文件，下面二选一方式才能把它加载进进程。
+确认 `/etc/hm/backend.env` 的全部必填项已替换。`HM_DATA_ENCRYPTION_KEY` 从 V012 起也用于加盟负责人手机号和结算账号，必须和数据库一起备份，发布、重启和恢复时保持原值。Java 默认不会读取这个文件，下面二选一方式才能把它加载进进程。
 
 **Linux 的首次管理员初始化（交互终端）**：已完成前述 hm-init.sql 初始化，且 `/opt/hm/current` 指向上传好的发布目录后，用运维账号运行：
 

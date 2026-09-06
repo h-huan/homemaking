@@ -35,7 +35,7 @@ class AdminPermissionTest {
     @Import({BusinessIsolationTest.Config.class, HomemakingAdminAccess.class, AdminScopeAspect.class,
         PlatformAccessService.class, com.hm.module.system.controller.admin.permission.PlatformAccessController.class,
         com.hm.module.system.controller.admin.tenant.TenantController.class,
-        StaffAccessService.class, HomemakingAdminController.class, HomemakingStaffController.class, HomemakingWorkerController.class,HomemakingPaymentController.class,HomemakingOrderChangeController.class,HomemakingTimeOffController.class})
+        StaffAccessService.class, HomemakingAdminController.class, HomemakingStaffController.class, HomemakingWorkerController.class,HomemakingPaymentController.class,HomemakingOrderChangeController.class,HomemakingTimeOffController.class,HomemakingFranchiseController.class})
     static class Config {
         @Bean(name="ss") com.hm.framework.security.core.service.SecurityFrameworkService security(PermissionApi api){return new com.hm.framework.security.core.service.SecurityFrameworkServiceImpl(api);}
         @Bean com.hm.module.system.service.tenant.TenantService tenantService(){return mock(com.hm.module.system.service.tenant.TenantService.class);}
@@ -60,6 +60,7 @@ class AdminPermissionTest {
     @Autowired HomemakingPaymentController payment;
     @Autowired HomemakingTimeOffController timeOff;
     @Autowired HomemakingOrderChangeController orderChanges;
+    @Autowired HomemakingFranchiseController franchiseController;
     @Autowired HmRepository repo; @Autowired OrderService orders;
     @Autowired PermissionService permissions; @Autowired RoleService roles;
     @Autowired PlatformAccessService platform;
@@ -91,7 +92,7 @@ class AdminPermissionTest {
         login(1,1,1); orderId=orders.book(new OrderService.Book(1L,1L,start,1L,"permission-order"));
         jdbc.update("INSERT INTO system_users(id,tenant_id,username,nickname) VALUES(10,1,'staff','Staff'),(11,1,'target','Target'),(20,2,'foreign','Foreign')");
         jdbc.update("INSERT INTO hm_worker_account(tenant_id,worker_id,user_id) VALUES(1,1,10)");
-        jdbc.execute("CREATE TABLE system_tenant(id BIGINT PRIMARY KEY,name VARCHAR(100),status INT DEFAULT 0,deleted BOOLEAN DEFAULT FALSE,expire_time TIMESTAMP DEFAULT '2099-01-01 00:00:00',package_id BIGINT DEFAULT 0)");
+        jdbc.execute("CREATE TABLE system_tenant(id BIGINT PRIMARY KEY,name VARCHAR(100),contact_name VARCHAR(50) DEFAULT '',status INT DEFAULT 0,deleted BOOLEAN DEFAULT FALSE,expire_time TIMESTAMP DEFAULT '2099-01-01 00:00:00',package_id BIGINT DEFAULT 0)");
         jdbc.update("INSERT INTO system_tenant(id,name) VALUES(1,'直营租户'),(2,'加盟租户'),(3,'已停用')");
         jdbc.update("UPDATE system_tenant SET status=1 WHERE id=3");
         jdbc.execute("CREATE TABLE system_tenant_package(id BIGINT PRIMARY KEY AUTO_INCREMENT,name VARCHAR(100),status INT,remark VARCHAR(256),menu_ids VARCHAR(4096),creator VARCHAR(40),updater VARCHAR(40),deleted BOOLEAN)");
@@ -109,6 +110,7 @@ class AdminPermissionTest {
         if(expected.contains("homemaking:orders:read"))assertDoesNotThrow(()->admin.order(orderId));else assertThrows(AccessDeniedException.class,()->admin.order(orderId));
         if(!expected.contains("homemaking:orders:dispatch"))assertThrows(AccessDeniedException.class,()->admin.assign(orderId,new HomemakingAdminController.Assign(1L)));
         if(!code.equals("PLATFORM"))assertThrows(AccessDeniedException.class,()->admin.plans());
+        if(code.equals("PLATFORM"))assertDoesNotThrow(()->franchiseController.list());else assertThrows(AccessDeniedException.class,()->franchiseController.list());
     }
     @Test void listAndCountUseTheSameStoreScope(){role("MANAGER");var page=(Map<?,?>)admin.catalog("stores",1,20).getData();assertEquals(1L,page.get("total"));assertEquals(1,((List<?>)page.get("list")).size());assertThrows(Exception.class,()->admin.serviceSettings(2));assertThrows(Exception.class,()->admin.calendar(2,LocalDate.now(),LocalDate.now()));}
     @Test void supportCanAmendAddressButCannotForgeAManualPrice(){

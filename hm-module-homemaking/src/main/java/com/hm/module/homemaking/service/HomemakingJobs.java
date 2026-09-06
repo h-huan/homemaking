@@ -10,8 +10,8 @@ import static com.hm.module.homemaking.dal.HmRepository.number;
 
 @Component
 public class HomemakingJobs {
-    private final HmRepository repo;private final NotificationService notifications;private final PaymentService payments;private final org.springframework.context.ApplicationContext context;
-    public HomemakingJobs(HmRepository repo,NotificationService notifications,PaymentService payments,org.springframework.context.ApplicationContext context){this.repo=repo;this.notifications=notifications;this.payments=payments;this.context=context;}
+    private final HmRepository repo;private final NotificationService notifications;private final PaymentService payments;private final FranchiseService franchises;private final org.springframework.context.ApplicationContext context;
+    public HomemakingJobs(HmRepository repo,NotificationService notifications,PaymentService payments,FranchiseService franchises,org.springframework.context.ApplicationContext context){this.repo=repo;this.notifications=notifications;this.payments=payments;this.franchises=franchises;this.context=context;}
     @Scheduled(initialDelay=60000,fixedDelay=60000)
     public void reminders(){
         var rows=repo.jdbc().queryForList("SELECT o.id,o.tenant_id,o.customer_id,b.starts_at FROM hm_order o JOIN hm_booking b ON b.id=o.booking_id AND b.tenant_id=o.tenant_id JOIN system_tenant t ON t.id=o.tenant_id WHERE o.status IN ('PAID','ASSIGNED') AND b.starts_at>? AND b.starts_at<=? AND t.status=0 AND t.deleted=FALSE AND t.expire_time>CURRENT_TIMESTAMP ORDER BY b.starts_at LIMIT 200",LocalDateTime.now(),LocalDateTime.now().plusHours(2));
@@ -27,4 +27,6 @@ public class HomemakingJobs {
         var rows=repo.jdbc().queryForList("SELECT tenant_id,id FROM hm_order WHERE status='UNPAID' AND payment_method='ONLINE' AND payment_expires_at<? ORDER BY id LIMIT 200",LocalDateTime.now());
         for(var row:rows){try{TenantUtils.execute(number(row,"tenant_id"),()->context.getBean(OrderService.class).expire(number(row,"id")));}catch(Exception ignored){/* A payment callback may win; the next reconciliation pass rechecks state. */}}
     }
+    @Scheduled(initialDelay=150000,fixedDelay=3600000)
+    public void expireFranchiseContracts(){franchises.expireDueContracts();}
 }

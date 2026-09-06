@@ -18,10 +18,12 @@ public final class RoleTemplates {
             "orders:read,dispatch,reschedule,cancel,fulfill,change,price", "customers:read", "aftersales:read,process,reject,refund",
             "reviews:read,reply,moderate", "schedule:read,write,templates,review", "finance:read,statement,approve,payout,reconcile",
             "brand:read,write", "notification:read,write", "portal:read,write,publish", "staff:read,write",
-            "quota:read", "platform:manage", "worker:read,fulfill,leave,income", "payment:read,receive,reverse,configure");
+            "quota:read", "platform:manage", "franchise:read,write,contract,settlement",
+            "worker:read,fulfill,leave,income", "payment:read,receive,reverse,configure");
     private static Set<String> owner() {
         var p = new LinkedHashSet<>(ALL);
         p.remove("homemaking:platform:manage"); p.removeIf(permission -> permission.startsWith("homemaking:worker:"));
+        p.removeIf(permission -> permission.startsWith("homemaking:franchise:"));
         return Collections.unmodifiableSet(p);
     }
     public static final List<Template> ALL_TEMPLATES = List.of(

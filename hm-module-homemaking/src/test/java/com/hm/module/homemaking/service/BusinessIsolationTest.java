@@ -54,6 +54,7 @@ class BusinessIsolationTest {
         @Bean PaymentService payments(HmRepository r,CustomerAccess c,OrderService o,com.hm.module.pay.api.refund.PayRefundApi f,NotificationService n,SettlementService s,com.hm.module.pay.api.order.PayOrderApi a,com.hm.module.pay.service.order.PayOrderService p){return new PaymentService(r,c,o,a,f,p,n,s);}
         @Bean EvidenceStorage storage(){return mock(EvidenceStorage.class);}
         @Bean ReviewService reviews(HmRepository r,CustomerAccess c,EvidenceStorage s,com.fasterxml.jackson.databind.ObjectMapper j){return new ReviewService(r,c,s,j);}
+        @Bean FranchiseService franchises(HmRepository r,com.fasterxml.jackson.databind.ObjectMapper j){return new FranchiseService(r,j,"test-franchise-encryption-key-32");}
         @Bean WorkerService workers(HmRepository r,OrderService o,EvidenceStorage f,CustomerAccess c){return new WorkerService(r,o,f,c);}
         @Bean PortalService portal(HmRepository r,com.fasterxml.jackson.databind.ObjectMapper j,QuotaService q){return new PortalService(r,j,q);}
     }

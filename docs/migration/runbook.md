@@ -8,11 +8,11 @@
 
 新建空数据库后，**只导入一次 `sql/mysql/hm-init.sql`**。文件已包含基础平台、支付公众号、普通直营租户与锁定平台管理员、家政领域、菜单，以及当前全部业务结构；无需额外执行分段 SQL 或这些版本脚本。
 
-已有 SaaS 数据库先备份并验证可恢复性，只执行尚未应用的增量版本，详见[增量升级说明](../../sql/mysql/upgrades/README.md)。不要向旧库覆盖导入 hm-init.sql。默认总部租户编号 1、经营方式 DIRECT、支付方式 OFFLINE。FRANCHISE 为加盟模式；新增租户需在套餐里配置家政菜单权限，并分别建立其门店、服务、人员能力/排班和品牌配置。
+已有 SaaS 数据库先备份并验证可恢复性，只执行尚未应用的增量版本，详见[增量升级说明](../../sql/mysql/upgrades/README.md)。不要向旧库覆盖导入 hm-init.sql。默认总部租户编号 1、经营方式 DIRECT、支付方式 OFFLINE。加盟商先建立普通 SaaS 租户，再由平台管理员在「加盟与合同」关联独立档案、区域、合同和结算资料；不能直接把 `system_tenant` 当加盟档案。加盟租户仍需分别建立其门店、服务、人员能力/排班和品牌配置。
 
 ## 私有配置与首次登录
 
-在部署环境配置 `HM_DB_URL`、`HM_DB_USER`、`HM_DB_PASSWORD`、`HM_REDIS_HOST`、`HM_REDIS_PORT`、`HM_REDIS_PASSWORD`、`HM_DATA_ENCRYPTION_KEY`。加密密钥使用随机值（至少 16 字符）并持久备份，不要随重启变更。生产设置 `HM_PROFILE=prod`、`HM_PUBLIC_API_URL=https://实际服务域名`。通过私有环境文件或密钥管理设施注入，不提交到 Git。
+在部署环境配置 `HM_DB_URL`、`HM_DB_USER`、`HM_DB_PASSWORD`、`HM_REDIS_HOST`、`HM_REDIS_PORT`、`HM_REDIS_PASSWORD`、`HM_DATA_ENCRYPTION_KEY`。加密密钥使用随机值（至少 16 字符）并与数据库一起持久备份，不要随重启或发布变更；V012 起该密钥也用于加盟负责人手机号和结算账号，密钥丢失会导致既有密文无法恢复。生产设置 `HM_PROFILE=prod`、`HM_PUBLIC_API_URL=https://实际服务域名`。通过私有环境文件或密钥管理设施注入，不提交到 Git。
 
 首次管理员 admin 在数据库中是不可登录的锁定占位。构建后，在交互终端、正确设置数据库环境变量的情况下执行：
 

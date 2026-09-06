@@ -131,3 +131,27 @@ export const reviewWorkerLeave = (worker: number, id: number, data: BusinessRow)
   request.post({ url: `/homemaking/workers/${worker}/time-off/${id}/review`, data })
 export const cancelWorkerLeave = (worker: number, id: number, data: BusinessRow) =>
   request.post({ url: `/homemaking/workers/${worker}/time-off/${id}/cancel`, data })
+
+export const listFranchiseTenants = () => request.get({ url: '/homemaking/franchises/tenants' })
+export const listFranchises = () => request.get({ url: '/homemaking/franchises' })
+export const getFranchise = (id: number) => request.get({ url: `/homemaking/franchises/${id}` })
+export const createFranchise = (data: BusinessRow) =>
+  request.post({ url: '/homemaking/franchises', data })
+export const updateFranchise = (id: number, data: BusinessRow) =>
+  request.put({ url: `/homemaking/franchises/${id}`, data })
+export const revealFranchiseSensitive = (id: number, reason: string) =>
+  request.post({ url: `/homemaking/franchises/${id}/sensitive`, data: { reason } })
+export const createFranchiseContract = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/franchises/${id}/contracts`, data })
+export const updateFranchiseContract = (id: number, contractId: number, data: BusinessRow) =>
+  request.put({ url: `/homemaking/franchises/${id}/contracts/${contractId}`, data })
+export const activateFranchiseContract = (id: number, contractId: number, version: number) =>
+  request.post({ url: `/homemaking/franchises/${id}/contracts/${contractId}/activate`, data: { version } })
+export const renewFranchiseContract = (id: number, contractId: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/franchises/${id}/contracts/${contractId}/renew`, data })
+export const terminateFranchiseContract = (id: number, contractId: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/franchises/${id}/contracts/${contractId}/terminate`, data })
+export const recordFranchiseDeposit = (id: number, contractId: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/franchises/${id}/contracts/${contractId}/deposits`, data })
+export const terminateFranchise = (id: number, data: BusinessRow) =>
+  request.post({ url: `/homemaking/franchises/${id}/terminate`, data })
